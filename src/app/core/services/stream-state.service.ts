@@ -2,6 +2,13 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { StorageService } from './storage.service';
 import { StreamQuality, StreamStatistic } from '../models/app-settings.model';
 
+interface PersistedStreamState {
+  streams: string[];
+  quality: StreamQuality;
+  showChat: boolean;
+  statistics: StreamStatistic[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class StreamStateService {
   private readonly streamsKey = 'streams_v2';
@@ -24,15 +31,19 @@ export class StreamStateService {
   readonly streamCount = computed(() => this._streams().length);
 
   private readonly storage = inject(StorageService);
+  private pendingPersistState?: PersistedStreamState;
+  private persistScheduled = false;
 
   constructor() {
     this.init();
 
     effect(() => {
-      this.storage.setJson(this.streamsKey, this._streams());
-      this.storage.setString(this.qualityKey, this._quality());
-      this.storage.setBoolean(this.showChatKey, this._showChat());
-      this.storage.setJson(this.statsKey, this._statistics());
+      this.schedulePersist({
+        streams: this._streams(),
+        quality: this._quality(),
+        showChat: this._showChat(),
+        statistics: this._statistics(),
+      });
     });
   }
 
@@ -183,5 +194,38 @@ export class StreamStateService {
 
   private isValidChannelName(value: string): boolean {
     return /^[a-z0-9_]{1,25}$/.test(value);
+  }
+
+  private schedulePersist(state: PersistedStreamState): void {
+    this.pendingPersistState = {
+      streams: [...state.streams],
+      quality: state.quality,
+      showChat: state.showChat,
+      statistics: [...state.statistics],
+    };
+
+    if (this.persistScheduled) {
+      return;
+    }
+
+    this.persistScheduled = true;
+
+    queueMicrotask(() => {
+      this.persistScheduled = false;
+
+      if (!this.pendingPersistState) {
+        return;
+      }
+
+      this.persistState(this.pendingPersistState);
+      this.pendingPersistState = undefined;
+    });
+  }
+
+  private persistState(state: PersistedStreamState): void {
+    this.storage.setJson(this.streamsKey, state.streams);
+    this.storage.setString(this.qualityKey, state.quality);
+    this.storage.setBoolean(this.showChatKey, state.showChat);
+    this.storage.setJson(this.statsKey, state.statistics);
   }
 }

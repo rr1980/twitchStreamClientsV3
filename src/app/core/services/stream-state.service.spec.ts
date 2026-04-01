@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { StreamStateService } from './stream-state.service';
+import { StorageService } from './storage.service';
 
 describe('StreamStateService', () => {
   let service: StreamStateService;
@@ -37,17 +39,45 @@ describe('StreamStateService', () => {
     expect(service.showChat()).toBe(true);
   });
 
-  it('persists stream order and options automatically', () => {
+  it('persists stream order and options automatically', async () => {
     service.addStream('first_channel');
     service.addStream('second_channel');
     service.moveStream(1, -1);
     service.setQuality('720p60');
     service.setShowChat(true);
     TestBed.flushEffects();
+    await flushPersistence();
 
     expect(JSON.parse(localStorage.getItem('streams_v2') ?? '[]')).toEqual(['second_channel', 'first_channel']);
     expect(localStorage.getItem('quality_v2')).toBe('720p60');
     expect(localStorage.getItem('showChat_v2')).toBe('true');
+  });
+
+  it('coalesces multiple state changes into one storage write burst', async () => {
+    const storage = TestBed.inject(StorageService);
+    const setJsonSpy = vi.spyOn(storage, 'setJson');
+    const setStringSpy = vi.spyOn(storage, 'setString');
+    const setBooleanSpy = vi.spyOn(storage, 'setBoolean');
+
+    setJsonSpy.mockClear();
+    setStringSpy.mockClear();
+    setBooleanSpy.mockClear();
+
+    service.addStream('first_channel');
+    service.addStream('second_channel');
+    service.setQuality('720p60');
+    service.setShowChat(true);
+    TestBed.flushEffects();
+
+    expect(setJsonSpy).not.toHaveBeenCalled();
+    expect(setStringSpy).not.toHaveBeenCalled();
+    expect(setBooleanSpy).not.toHaveBeenCalled();
+
+    await flushPersistence();
+
+    expect(setJsonSpy).toHaveBeenCalledTimes(2);
+    expect(setStringSpy).toHaveBeenCalledTimes(1);
+    expect(setBooleanSpy).toHaveBeenCalledTimes(1);
   });
 
   function createService(): StreamStateService {
@@ -58,5 +88,9 @@ describe('StreamStateService', () => {
     TestBed.flushEffects();
 
     return instance;
+  }
+
+  async function flushPersistence(): Promise<void> {
+    await Promise.resolve();
   }
 });
