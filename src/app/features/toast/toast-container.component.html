@@ -1,6 +1,11 @@
-<div class="toast-container">
+<div class="toast-container" aria-label="Benachrichtigungen">
   @for (message of toastService.messages(); track message.id) {
-    <div class="toast" [class.toast--error]="message.type === 'error'" [class.toast--info]="message.type === 'info'">
+    <div
+      class="toast"
+      [attr.aria-live]="message.type === 'error' ? 'assertive' : 'polite'"
+      [attr.role]="message.type === 'error' ? 'alert' : 'status'"
+      [class.toast--error]="message.type === 'error'"
+      [class.toast--info]="message.type === 'info'">
       {{ message.text }}
     </div>
   }

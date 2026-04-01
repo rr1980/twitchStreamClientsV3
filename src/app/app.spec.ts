@@ -16,8 +16,12 @@ describe('App', () => {
 
   it('should render title', async () => {
     const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
     await fixture.whenStable();
+
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, twitchStreamClientsV3');
+
+    expect(compiled.querySelector('h1')?.textContent).toContain('Dein Setup ist leer');
+    expect(compiled.querySelector('.menu-trigger')?.getAttribute('aria-haspopup')).toBe('dialog');
   });
 });

@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { StorageService } from './storage.service';
 import { StreamQuality, StreamStatistic } from '../models/app-settings.model';
 
@@ -8,6 +8,7 @@ export class StreamStateService {
   private readonly qualityKey = 'quality_v2';
   private readonly showChatKey = 'showChat_v2';
   private readonly statsKey = 'stats_v2';
+  private readonly availableQualities: readonly StreamQuality[] = ['auto', '480p', '720p60', 'chunked'];
 
   private readonly _streams = signal<string[]>([]);
   private readonly _quality = signal<StreamQuality>('auto');
@@ -26,6 +27,13 @@ export class StreamStateService {
 
   constructor() {
     this.init();
+
+    effect(() => {
+      this.storage.setJson(this.streamsKey, this._streams());
+      this.storage.setString(this.qualityKey, this._quality());
+      this.storage.setBoolean(this.showChatKey, this._showChat());
+      this.storage.setJson(this.statsKey, this._statistics());
+    });
   }
 
   openMenu(): void {
@@ -57,7 +65,6 @@ export class StreamStateService {
 
     this._streams.update(values => [...values, name]);
     this.bumpStatistic(name);
-    this.persist();
 
     return { ok: true, name };
   }
@@ -72,7 +79,6 @@ export class StreamStateService {
 
     current.splice(index, 1);
     this._streams.set(current);
-    this.persist();
     return removed;
   }
 
@@ -86,17 +92,14 @@ export class StreamStateService {
 
     [current[index], current[newIndex]] = [current[newIndex], current[index]];
     this._streams.set(current);
-    this.persist();
   }
 
   setQuality(value: StreamQuality): void {
     this._quality.set(value);
-    this.persist();
   }
 
   setShowChat(value: boolean): void {
     this._showChat.set(value);
-    this.persist();
   }
 
   getTopStatistics(limit = 10): StreamStatistic[] {
@@ -108,21 +111,8 @@ export class StreamStateService {
   private init(): void {
     this.migrateLegacyKeys();
 
-    const rawStreams = this.storage.getJson<unknown[]>(this.streamsKey, []);
-    const cleanStreams = rawStreams
-      .map(item => {
-        if (typeof item === 'object' && item !== null) {
-          const candidate = item as { name?: string; id?: string };
-          return candidate.name || candidate.id || '';
-        }
-
-        return String(item ?? '');
-      })
-      .map(value => value.trim())
-      .filter(value => value.length > 0 && value !== '[object Object]');
-
-    this._streams.set(cleanStreams);
-    this._quality.set(this.storage.getString(this.qualityKey, 'auto') as StreamQuality);
+    this._streams.set(this.normalizeStoredStreams(this.storage.getJson<unknown[]>(this.streamsKey, [])));
+    this._quality.set(this.readStoredQuality());
     this._showChat.set(this.storage.getBoolean(this.showChatKey, false));
     this._statistics.set(this.storage.getJson<StreamStatistic[]>(this.statsKey, []));
   }
@@ -145,11 +135,12 @@ export class StreamStateService {
     this.storage.setString(this.qualityKey, oldQuality);
   }
 
-  private persist(): void {
-    this.storage.setJson(this.streamsKey, this._streams());
-    this.storage.setString(this.qualityKey, this._quality());
-    this.storage.setBoolean(this.showChatKey, this._showChat());
-    this.storage.setJson(this.statsKey, this._statistics());
+  private readStoredQuality(): StreamQuality {
+    const storedQuality = this.storage.getString(this.qualityKey, 'auto');
+
+    return this.availableQualities.includes(storedQuality as StreamQuality)
+      ? storedQuality as StreamQuality
+      : 'auto';
   }
 
   private bumpStatistic(channelName: string): void {
@@ -173,6 +164,21 @@ export class StreamStateService {
       .trim()
       .toLowerCase()
       .replace(/,/g, '');
+  }
+
+  private normalizeStoredStreams(values: unknown[]): string[] {
+    return values
+      .map(item => {
+        if (typeof item === 'object' && item !== null) {
+          const candidate = item as { name?: string; id?: string };
+          return candidate.name || candidate.id || '';
+        }
+
+        return String(item ?? '');
+      })
+      .map(value => this.normalizeChannelName(value))
+      .filter((value, index, items) => value.length > 0 && value !== '[object Object]' && items.indexOf(value) === index)
+      .filter(value => this.isValidChannelName(value));
   }
 
   private isValidChannelName(value: string): boolean {
