@@ -11,7 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { StreamStateService } from '../../core/services/stream-state.service';
-import { TwitchEmbedService } from '../../core/services/twitch-embed.service';
+import { TwitchEmbedHandle, TwitchEmbedService } from '../../core/services/twitch-embed.service';
 import { calculateOptimalGrid } from '../../shared/utils/grid.util';
 import { StreamQuality } from '../../core/models/app-settings.model';
 
@@ -20,7 +20,10 @@ interface RenderedEmbedState {
   quality: StreamQuality;
   showChat: boolean;
   muted: boolean;
+  handle: TwitchEmbedHandle;
 }
+
+type RenderedEmbedSnapshot = Omit<RenderedEmbedState, 'handle'>;
 
 @Component({
   selector: 'app-stream-grid',
@@ -98,7 +101,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     for (const renderedEmbed of this.renderedEmbeds.values()) {
-      this.twitch.clearEmbed(renderedEmbed.elementId);
+      renderedEmbed.handle.destroy();
     }
 
     this.renderedEmbeds.clear();
@@ -136,7 +139,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
         return;
       }
 
-      const nextState: RenderedEmbedState = {
+      const nextState: RenderedEmbedSnapshot = {
         elementId: wrapper.id,
         quality,
         showChat,
@@ -147,8 +150,9 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
         return;
       }
 
-      this.twitch.clearEmbed(wrapper.id);
-      this.twitch.createEmbed({
+      this.renderedEmbeds.get(stream)?.handle.destroy();
+
+      const handle = this.twitch.createEmbed({
         elementId: wrapper.id,
         channel: stream,
         quality,
@@ -156,7 +160,10 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
         muted: nextState.muted,
       });
 
-      this.renderedEmbeds.set(stream, nextState);
+      this.renderedEmbeds.set(stream, {
+        ...nextState,
+        handle,
+      });
     });
   }
 
@@ -166,12 +173,12 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
         continue;
       }
 
-      this.twitch.clearEmbed(renderedEmbed.elementId);
+      renderedEmbed.handle.destroy();
       this.renderedEmbeds.delete(stream);
     }
   }
 
-  private isRenderedStateCurrent(stream: string, nextState: RenderedEmbedState): boolean {
+  private isRenderedStateCurrent(stream: string, nextState: RenderedEmbedSnapshot): boolean {
     const currentState = this.renderedEmbeds.get(stream);
 
     if (!currentState) {

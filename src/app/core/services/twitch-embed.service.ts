@@ -31,6 +31,10 @@ interface TwitchEmbedInstance {
   getPlayer(): TwitchPlayer;
 }
 
+export interface TwitchEmbedHandle {
+  destroy(): void;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TwitchEmbedService {
   private readonly maxQualitySyncFrames = 120;
@@ -56,10 +60,12 @@ export class TwitchEmbedService {
     quality: StreamQuality;
     showChat: boolean;
     muted: boolean;
-  }): void {
+  }): TwitchEmbedHandle {
     if (!window.Twitch?.Embed) {
-      return;
+      return this.createHandle(options.elementId);
     }
+
+    const handle = this.createHandle(options.elementId);
 
     const embed = new window.Twitch.Embed(options.elementId, {
       width: '100%',
@@ -72,9 +78,15 @@ export class TwitchEmbedService {
     });
 
     embed.addEventListener('ready', () => {
+      if (handle.isDestroyed()) {
+        return;
+      }
+
       const player = embed.getPlayer();
-      void this.syncRequestedQuality(player, options.channel, options.quality);
+      void this.syncRequestedQuality(player, options.channel, options.quality, () => handle.isDestroyed());
     });
+
+    return handle;
   }
 
   clearEmbed(elementId: string): void {
@@ -141,6 +153,7 @@ export class TwitchEmbedService {
     player: TwitchPlayer,
     channel: string,
     quality: StreamQuality,
+    isDestroyed: () => boolean,
   ): Promise<void> {
     const requestedQuality = this.mapRequestedQuality(quality);
 
@@ -150,6 +163,10 @@ export class TwitchEmbedService {
 
     try {
       for (let frame = 0; frame < this.maxQualitySyncFrames; frame++) {
+        if (isDestroyed()) {
+          return;
+        }
+
         const availableQualities = this.readAvailableQualities(player);
 
         if (availableQualities.includes(requestedQuality)) {
@@ -194,5 +211,21 @@ export class TwitchEmbedService {
       default:
         return null;
     }
+  }
+
+  private createHandle(elementId: string): TwitchEmbedHandle & { isDestroyed(): boolean } {
+    let destroyed = false;
+
+    return {
+      destroy: () => {
+        if (destroyed) {
+          return;
+        }
+
+        destroyed = true;
+        this.clearEmbed(elementId);
+      },
+      isDestroyed: () => destroyed,
+    };
   }
 }

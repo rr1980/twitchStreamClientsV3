@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { StreamQuality } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
-import { TwitchEmbedService } from '../../core/services/twitch-embed.service';
+import { TwitchEmbedHandle, TwitchEmbedService } from '../../core/services/twitch-embed.service';
 import { StreamGridComponent } from './stream-grid.component';
 
 describe('StreamGridComponent', () => {
@@ -60,12 +60,12 @@ describe('StreamGridComponent', () => {
     await syncComponent();
 
     twitch.createEmbed.mockClear();
-    twitch.clearEmbed.mockClear();
+    twitch.handles.get('twitch-embed-shroud')?.destroy.mockClear();
 
     state.streams.set(['shroud', 'rocketbeanstv']);
     await syncComponent();
 
-    expect(twitch.clearEmbed).toHaveBeenCalledWith('twitch-embed-rocketbeanstv');
+    expect(twitch.handles.get('twitch-embed-shroud')?.destroy).not.toHaveBeenCalled();
     expect(twitch.createEmbed).toHaveBeenCalledTimes(1);
     expect(twitch.createEmbed).toHaveBeenCalledWith({
       elementId: 'twitch-embed-rocketbeanstv',
@@ -81,13 +81,40 @@ describe('StreamGridComponent', () => {
     await syncComponent();
 
     twitch.createEmbed.mockClear();
-    twitch.clearEmbed.mockClear();
+    const removedHandle = twitch.handles.get('twitch-embed-rocketbeanstv');
+    removedHandle?.destroy.mockClear();
 
     state.streams.set(['shroud']);
     await syncComponent();
 
-    expect(twitch.clearEmbed).toHaveBeenCalledWith('twitch-embed-rocketbeanstv');
+    expect(removedHandle?.destroy).toHaveBeenCalledTimes(1);
     expect(twitch.createEmbed).not.toHaveBeenCalled();
+  });
+
+  it('recreates affected embeds on reorder and destroys all handles on component teardown', async () => {
+    state.streams.set(['shroud', 'rocketbeanstv']);
+    await syncComponent();
+
+    const firstHandle = twitch.handles.get('twitch-embed-shroud');
+    const secondHandle = twitch.handles.get('twitch-embed-rocketbeanstv');
+    firstHandle?.destroy.mockClear();
+    secondHandle?.destroy.mockClear();
+    twitch.createEmbed.mockClear();
+
+    state.streams.set(['rocketbeanstv', 'shroud']);
+    await syncComponent();
+
+    expect(firstHandle?.destroy).toHaveBeenCalledTimes(1);
+    expect(secondHandle?.destroy).toHaveBeenCalledTimes(1);
+    expect(twitch.createEmbed).toHaveBeenCalledTimes(2);
+
+    twitch.handles.get('twitch-embed-rocketbeanstv')?.destroy.mockClear();
+    twitch.handles.get('twitch-embed-shroud')?.destroy.mockClear();
+
+    fixture.destroy();
+
+    expect(twitch.handles.get('twitch-embed-rocketbeanstv')?.destroy).toHaveBeenCalledTimes(1);
+    expect(twitch.handles.get('twitch-embed-shroud')?.destroy).toHaveBeenCalledTimes(1);
   });
 
   async function syncComponent(): Promise<void> {
@@ -107,6 +134,14 @@ class MockStreamStateService {
 
 class MockTwitchEmbedService {
   readonly loadScript = vi.fn(async () => undefined);
-  readonly createEmbed = vi.fn();
-  readonly clearEmbed = vi.fn();
+  readonly handles = new Map<string, MockTwitchEmbedHandle>();
+  readonly createEmbed = vi.fn((options: { elementId: string }) => {
+    const handle = new MockTwitchEmbedHandle();
+    this.handles.set(options.elementId, handle);
+    return handle;
+  });
+}
+
+class MockTwitchEmbedHandle implements TwitchEmbedHandle {
+  readonly destroy = vi.fn();
 }

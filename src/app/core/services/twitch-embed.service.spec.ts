@@ -52,4 +52,41 @@ describe('TwitchEmbedService', () => {
     await expect(attempt).rejects.toThrow('Twitch embed script loaded without exposing Twitch.Embed.');
     expect(document.head.querySelector('script[data-twitch-embed="true"]')).toBeNull();
   });
+
+  it('returns a destroyable handle for created embeds', () => {
+    const addEventListener = vi.fn();
+    const getPlayer = vi.fn(() => ({
+      getQualities: vi.fn(() => []),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    }));
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return { addEventListener, getPlayer };
+    });
+
+    window.Twitch = {
+      Embed: EmbedMock as never,
+    };
+
+    const host = document.createElement('div');
+    host.id = 'twitch-embed-shroud';
+    host.appendChild(document.createElement('div'));
+    document.body.appendChild(host);
+
+    const handle = service.createEmbed({
+      elementId: 'twitch-embed-shroud',
+      channel: 'shroud',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+    });
+
+    expect(typeof handle.destroy).toBe('function');
+
+    handle.destroy();
+
+    expect(host.childElementCount).toBe(0);
+
+    host.remove();
+  });
 });
