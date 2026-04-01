@@ -21,8 +21,8 @@ declare global {
 }
 
 interface TwitchPlayer {
-  setQuality(value: string): void; 
-  getQualities(): any[];
+  setQuality(value: string): void;
+  getQualities(): Array<string | { name?: string }>;
   getQuality(): string;
 }
 
@@ -33,6 +33,7 @@ interface TwitchEmbedInstance {
 
 @Injectable({ providedIn: 'root' })
 export class TwitchEmbedService {
+  private readonly maxQualitySyncFrames = 120;
   private scriptPromise?: Promise<void>;
 
   loadScript(): Promise<void> {
@@ -88,41 +89,56 @@ export class TwitchEmbedService {
 
     embed.addEventListener('ready', () => {
       const player = embed.getPlayer();
-
-      setTimeout(() => {
-        try {
-          const availableQualities = (player.getQualities?.() ?? []).map(q => q.name);
-          const requestedQuality = this.mapRequestedQuality(options.quality);
-
-          console.log('[Twitch]', options.channel, {
-            requestedQuality: options.quality,
-            mappedQuality: requestedQuality,
-            availableQualities,
-            currentQuality: player.getQuality?.(),
-          });
-
-          if (!requestedQuality) {
-            return;
-          }
-
-          if (availableQualities.includes(requestedQuality)) {
-            player.setQuality(requestedQuality);
-            return;
-          }
-
-          console.warn(
-            `[Twitch] Quality '${requestedQuality}' für Channel '${options.channel}' nicht verfügbar.`,
-            availableQualities,
-          );
-        } catch (error) {
-          console.warn('[Twitch] Quality Set Error:', error);
-        }
-      }, 1500);
+      void this.syncRequestedQuality(player, options.channel, options.quality);
     });
   }
 
   clearEmbed(elementId: string): void {
     document.getElementById(elementId)?.replaceChildren();
+  }
+
+  private async syncRequestedQuality(
+    player: TwitchPlayer,
+    channel: string,
+    quality: StreamQuality,
+  ): Promise<void> {
+    const requestedQuality = this.mapRequestedQuality(quality);
+
+    if (!requestedQuality) {
+      return;
+    }
+
+    try {
+      for (let frame = 0; frame < this.maxQualitySyncFrames; frame++) {
+        const availableQualities = this.readAvailableQualities(player);
+
+        if (availableQualities.includes(requestedQuality)) {
+          player.setQuality(requestedQuality);
+          return;
+        }
+
+        await this.waitForNextFrame();
+      }
+
+      console.warn(
+        `[Twitch] Quality '${requestedQuality}' für Channel '${channel}' nicht verfügbar.`,
+        this.readAvailableQualities(player),
+      );
+    } catch (error) {
+      console.warn('[Twitch] Quality Set Error:', error);
+    }
+  }
+
+  private readAvailableQualities(player: TwitchPlayer): string[] {
+    return (player.getQualities?.() ?? [])
+      .map(quality => typeof quality === 'string' ? quality : quality.name ?? '')
+      .filter((quality): quality is string => quality.length > 0);
+  }
+
+  private waitForNextFrame(): Promise<void> {
+    return new Promise(resolve => {
+      requestAnimationFrame(() => resolve());
+    });
   }
 
   private mapRequestedQuality(value: StreamQuality): string | null {
