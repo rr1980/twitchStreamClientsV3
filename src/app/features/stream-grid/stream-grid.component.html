@@ -1,0 +1,18 @@
+<main
+  #gridHost
+  class="stream-container"
+  [class.stream-container--empty]="streams().length === 0"
+  [style.gridTemplateColumns]="gridTemplateColumns()"
+  [style.gridTemplateRows]="gridTemplateRows()">
+
+  @if (streams().length === 0) {
+    <div class="empty-state">
+      <h1>Dein Setup ist leer</h1>
+      <p>Pack ein paar Channels rein, sonst ist das hier nur schwarzes CSS mit Hoffnung.</p>
+    </div>
+  } @else {
+    @for (stream of streams(); track stream + '-' + $index; let i = $index) {
+      <div class="twitch-embed-wrapper" [id]="'twitch-embed-' + i"></div>
+    }
+  }
+</main>

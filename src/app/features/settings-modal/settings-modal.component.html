@@ -1,0 +1,95 @@
+@if (isOpen) {
+  <div class="modal-backdrop" (click)="close()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <h2>Twitch Multi-Viewer</h2>
+          <span>Ultimate Edition</span>
+        </div>
+
+        <button type="button" class="icon-btn" (click)="close()">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <section class="panel panel--main">
+          <div class="form-block">
+            <label for="stream-input">Kanal hinzufügen</label>
+            <div class="input-row">
+              <input
+                #streamInput
+                id="stream-input"
+                type="text"
+                [(ngModel)]="newChannelName"
+                [attr.list]="topStatistics.length ? 'history-datalist' : null"
+                placeholder="z. B. rocketbeanstv"
+                (keydown.enter)="addStream()" />
+              <button type="button" class="primary-btn" (click)="addStream()">+</button>
+            </div>
+
+            @if (topStatistics.length) {
+              <datalist id="history-datalist">
+                @for (item of topStatistics; track item) {
+                  <option [value]="item"></option>
+                }
+              </datalist>
+            }
+          </div>
+
+          <div class="list-block">
+            <div class="list-block__header">
+              <label>Aktuelles Lineup</label>
+              <span>{{ streams.length }} Stream{{ streams.length === 1 ? '' : 's' }}</span>
+            </div>
+
+            <div class="stream-list">
+              @if (streams.length === 0) {
+                <div class="empty-box">Noch keine Streams aktiv.</div>
+              } @else {
+                @for (stream of streams; track stream + '-' + $index; let i = $index) {
+                  <div class="stream-item">
+                    <div class="stream-item__move">
+                      <button type="button" [disabled]="i === 0" (click)="moveStream(i, -1)">↑</button>
+                      <button type="button" [disabled]="i === streams.length - 1" (click)="moveStream(i, 1)">↓</button>
+                    </div>
+
+                    <div class="stream-item__index">{{ i + 1 }}</div>
+                    <div class="stream-item__name">{{ stream }}</div>
+                    <button type="button" class="danger-btn" (click)="removeStream(i)">Entfernen</button>
+                  </div>
+                }
+              }
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel panel--side">
+          <div class="option-block">
+            <label>Video Qualität</label>
+            <div class="quality-grid">
+              @for (quality of qualityOptions; track quality) {
+                <button
+                  type="button"
+                  class="quality-btn"
+                  [class.quality-btn--active]="selectedQuality === quality"
+                  (click)="setQuality(quality)">
+                  {{ quality === 'chunked' ? 'Source' : quality }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="option-block">
+            <label class="toggle-row">
+              <span>Twitch Chat anzeigen</span>
+              <input type="checkbox" [checked]="showChat" (change)="setShowChat($any($event.target).checked)" />
+            </label>
+          </div>
+
+          <!-- <div class="footer-block">
+            <button type="button" class="apply-btn" (click)="close()">Anwenden & Schließen</button>
+          </div> -->
+        </aside>
+      </div>
+    </div>
+  </div>
+}

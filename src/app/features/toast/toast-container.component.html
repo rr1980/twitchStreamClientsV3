@@ -1,0 +1,7 @@
+<div class="toast-container">
+  @for (message of toastService.messages(); track message.id) {
+    <div class="toast" [class.toast--error]="message.type === 'error'" [class.toast--info]="message.type === 'info'">
+      {{ message.text }}
+    </div>
+  }
+</div>
