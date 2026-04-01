@@ -7,6 +7,9 @@
     "build": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
     "test": "ng test --watch=false",
+    "test:coverage": "ng test --watch=false --coverage",
+    "coverage:check": "node ./scripts/check-coverage.mjs",
+    "test:coverage:ci": "npm run test:coverage && npm run coverage:check",
     "lint": "ng lint",
     "http": "http-server --port 8086 -c-1 ./dist/twitchStreamClientsV3/browser"
   },
