@@ -22,7 +22,7 @@ declare global {
 
 interface TwitchPlayer {
   setQuality(value: string): void;
-  getQualities(): Array<string | { name?: string }>;
+  getQualities(): (string | { name?: string })[];
   getQuality(): string;
 }
 
