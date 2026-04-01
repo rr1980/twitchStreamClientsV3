@@ -121,6 +121,10 @@ export class TwitchEmbedService {
     });
   }
 
+  clearEmbed(elementId: string): void {
+    document.getElementById(elementId)?.replaceChildren();
+  }
+
   private mapRequestedQuality(value: StreamQuality): string | null {
     switch (value) {
       case 'auto':

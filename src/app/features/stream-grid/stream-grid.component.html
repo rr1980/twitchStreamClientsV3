@@ -11,8 +11,8 @@
       <p>Pack ein paar Channels rein, sonst ist das hier nur schwarzes CSS mit Hoffnung.</p>
     </div>
   } @else {
-    @for (stream of streams(); track stream + '-' + $index; let i = $index) {
-      <div class="twitch-embed-wrapper" [id]="'twitch-embed-' + i"></div>
+    @for (stream of streams(); track stream) {
+      <div class="twitch-embed-wrapper" [attr.data-channel]="stream" [id]="'twitch-embed-' + stream"></div>
     }
   }
 </main>
