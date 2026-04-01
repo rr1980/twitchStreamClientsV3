@@ -1,13 +1,12 @@
-import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, viewChild } from '@angular/core';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { StreamQuality } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { ToastService } from '../toast/toast.service';
 
 @Component({
   selector: 'app-settings-modal',
-  standalone: true,
-  imports: [FormsModule],
+  imports: [ReactiveFormsModule],
   templateUrl: './settings-modal.component.html',
   styleUrl: './settings-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -15,39 +14,99 @@ import { ToastService } from '../toast/toast.service';
 export class SettingsModalComponent {
   private readonly state = inject(StreamStateService);
   private readonly toast = inject(ToastService);
+  private previouslyFocusedElement: HTMLElement | null = null;
+  private wasOpen = false;
 
-  @ViewChild('streamInput')
-  streamInput?: ElementRef<HTMLInputElement>;
+  readonly streamInputRef = viewChild<ElementRef<HTMLInputElement>>('streamInput');
+  readonly modalPanelRef = viewChild<ElementRef<HTMLElement>>('modalPanel');
 
   readonly qualityOptions: StreamQuality[] = ['auto', '480p', '720p60', 'chunked'];
-  newChannelName = '';
+  readonly channelNameControl = new FormControl('', { nonNullable: true });
+  readonly isOpen = this.state.menuOpen;
+  readonly streams = this.state.streams;
+  readonly selectedQuality = this.state.quality;
+  readonly showChat = this.state.showChat;
+  readonly topStatistics = computed(() => this.state.getTopStatistics(10).map(item => item.name));
 
-  get isOpen(): boolean {
-    return this.state.menuOpen();
-  }
+  constructor() {
+    effect(() => {
+      const open = this.isOpen();
 
-  get streams(): string[] {
-    return this.state.streams();
-  }
+      if (open && !this.wasOpen) {
+        this.previouslyFocusedElement = document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
 
-  get selectedQuality(): StreamQuality {
-    return this.state.quality();
-  }
+        queueMicrotask(() => {
+          this.streamInputRef()?.nativeElement.focus();
+        });
+      }
 
-  get showChat(): boolean {
-    return this.state.showChat();
-  }
+      if (!open && this.wasOpen) {
+        const elementToFocus = this.previouslyFocusedElement;
+        this.previouslyFocusedElement = null;
 
-  get topStatistics(): string[] {
-    return this.state.getTopStatistics(10).map(item => item.name);
+        queueMicrotask(() => {
+          elementToFocus?.focus();
+        });
+      }
+
+      this.wasOpen = open;
+    });
   }
 
   close(): void {
     this.state.closeMenu();
   }
 
+  onBackdropClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      this.close();
+    }
+  }
+
+  onDialogKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.close();
+      return;
+    }
+
+    if (event.key !== 'Tab') {
+      return;
+    }
+
+    const modalPanel = this.modalPanelRef()?.nativeElement;
+    if (!modalPanel) {
+      return;
+    }
+
+    const focusableElements = this.getFocusableElements(modalPanel);
+
+    if (focusableElements.length === 0) {
+      event.preventDefault();
+      modalPanel.focus();
+      return;
+    }
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    const activeElement = document.activeElement as HTMLElement | null;
+
+    if (event.shiftKey && (activeElement === firstElement || activeElement === modalPanel)) {
+      event.preventDefault();
+      lastElement.focus();
+      return;
+    }
+
+    if (!event.shiftKey && activeElement === lastElement) {
+      event.preventDefault();
+      firstElement.focus();
+    }
+  }
+
   addStream(): void {
-    const result = this.state.addStream(this.newChannelName);
+    const result = this.state.addStream(this.channelNameControl.getRawValue());
 
     if (!result.ok) {
       if (result.reason === 'invalid') {
@@ -64,8 +123,8 @@ export class SettingsModalComponent {
     }
 
     this.toast.show(`${result.name} hinzugefügt.`);
-    this.newChannelName = '';
-    this.streamInput?.nativeElement.focus();
+    this.channelNameControl.reset('');
+    this.streamInputRef()?.nativeElement.focus();
   }
 
   removeStream(index: number): void {
@@ -85,5 +144,21 @@ export class SettingsModalComponent {
 
   setShowChat(value: boolean): void {
     this.state.setShowChat(value);
+  }
+
+  onShowChatChange(event: Event): void {
+    const target = event.target;
+
+    if (target instanceof HTMLInputElement) {
+      this.setShowChat(target.checked);
+    }
+  }
+
+  private getFocusableElements(container: HTMLElement): HTMLElement[] {
+    return Array.from(
+      container.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter(element => !element.hasAttribute('hidden') && element.getAttribute('aria-hidden') !== 'true');
   }
 }

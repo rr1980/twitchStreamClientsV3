@@ -1,4 +1,11 @@
-<button class="menu-trigger" type="button" title="Menü (Hotkey: M)" (click)="openMenu()">
+<button
+  class="menu-trigger"
+  type="button"
+  title="Menü (Hotkey: M)"
+  aria-haspopup="dialog"
+  aria-controls="settings-modal"
+  [attr.aria-expanded]="state.menuOpen()"
+  (click)="openMenu()">
   ⚙
 </button>
 

@@ -37,6 +37,14 @@
   font-size: 1.25rem;
 }
 
+.modal__description {
+  margin: 8px 0 0;
+  max-width: 56ch;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 .modal__header span {
   font-size: 0.75rem;
   color: var(--color-twitch);
@@ -75,8 +83,8 @@
 }
 
 .form-block label,
-.list-block label,
-.option-block label {
+.section-label,
+.option-block > label:first-child {
   display: block;
   margin-bottom: 10px;
   color: var(--color-muted);
@@ -84,6 +92,16 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
+}
+
+.section-label {
+  margin: 0;
+}
+
+.field-hint {
+  margin: 0 0 10px;
+  color: var(--color-muted);
+  font-size: 0.85rem;
 }
 
 .input-row {
@@ -104,6 +122,17 @@
 
 .input-row input:focus {
   border-color: var(--color-twitch);
+}
+
+.input-row input:focus-visible,
+.primary-btn:focus-visible,
+.icon-btn:focus-visible,
+.quality-btn:focus-visible,
+.danger-btn:focus-visible,
+.stream-item__move button:focus-visible,
+.toggle-row input:focus-visible {
+  outline: 2px solid var(--color-twitch);
+  outline-offset: 2px;
 }
 
 .primary-btn,
@@ -239,16 +268,40 @@
   gap: 8px;
 }
 
+.quality-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.quality-option {
+  display: block;
+}
+
+.quality-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .quality-btn {
+  display: block;
+  cursor: pointer;
   padding: 12px;
   background: var(--color-bg);
   color: var(--color-text);
   border: 1px solid var(--color-border);
+  border-radius: 12px;
 }
 
-.quality-btn--active {
+.quality-option--active .quality-btn {
   border-color: var(--color-twitch);
   color: var(--color-twitch);
+}
+
+.quality-option input:focus-visible + .quality-btn {
+  outline: 2px solid var(--color-twitch);
+  outline-offset: 2px;
 }
 
 .toggle-row {
@@ -264,19 +317,6 @@
   letter-spacing: normal !important;
   font-size: 0.95rem !important;
   color: var(--color-text) !important;
-}
-
-.footer-block {
-  margin-top: auto;
-  padding-top: 24px;
-}
-
-.apply-btn {
-  width: 100%;
-  padding: 14px;
-  background: #fff;
-  color: #000;
-  font-weight: 700;
 }
 
 @media (max-width: 900px) {
