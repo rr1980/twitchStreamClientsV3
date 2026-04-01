@@ -116,6 +116,32 @@ describe('SettingsModalComponent', () => {
     expect(document.activeElement).toBe(lastElement);
   });
 
+  it('ignores non-tab dialog keydowns and returns safely without a modal panel', () => {
+    const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+
+    component.onDialogKeydown(enterEvent);
+    expect(enterEvent.defaultPrevented).toBe(false);
+
+    const tabEvent = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
+    component.onDialogKeydown(tabEvent);
+    expect(tabEvent.defaultPrevented).toBe(false);
+  });
+
+  it('focuses the modal panel when no focusable elements remain', async () => {
+    state.menuOpen.set(true);
+    await syncComponent();
+
+    const dialog = fixture.nativeElement.querySelector('[role="dialog"]') as HTMLElement;
+    dialog.innerHTML = '';
+    dialog.focus();
+
+    const event = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
+    component.onDialogKeydown(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(dialog);
+  });
+
   it('closes only when the backdrop itself is clicked', async () => {
     state.menuOpen.set(true);
     await syncComponent();
@@ -146,6 +172,17 @@ describe('SettingsModalComponent', () => {
     expect(toast.show).toHaveBeenNthCalledWith(2, 'shroud ist bereits aktiv.', 'error');
   });
 
+  it('ignores empty add results without showing a toast', async () => {
+    state.menuOpen.set(true);
+    state.addStream.mockReturnValue({ ok: false, reason: 'empty' });
+    await syncComponent();
+
+    component.channelNameControl.setValue('   ');
+    component.addStream();
+
+    expect(toast.show).not.toHaveBeenCalled();
+  });
+
   it('removes streams, updates quality and chat state, and ignores invalid show-chat events', async () => {
     state.menuOpen.set(true);
     state.removeStream.mockReturnValue('shroud');
@@ -164,6 +201,12 @@ describe('SettingsModalComponent', () => {
     expect(state.setQuality).toHaveBeenCalledWith('720p60');
     expect(state.setShowChat).toHaveBeenCalledTimes(1);
     expect(state.setShowChat).toHaveBeenCalledWith(true);
+  });
+
+  it('delegates stream movement to the state service', () => {
+    component.moveStream(2, -1);
+
+    expect(state.moveStream).toHaveBeenCalledWith(2, -1);
   });
 
   async function syncComponent(): Promise<void> {

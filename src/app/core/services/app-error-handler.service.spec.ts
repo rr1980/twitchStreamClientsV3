@@ -29,6 +29,27 @@ describe('AppErrorHandler', () => {
 
     consoleSpy.mockRestore();
   });
+
+  it('keeps Error instances intact when logging', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const error = new Error('already normalized');
+
+    handler.handleError(error);
+
+    expect(consoleSpy).toHaveBeenCalledWith('[AppError]', error);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('normalizes unknown error payloads into Error instances', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    handler.handleError({ reason: 'kaputt' });
+
+    expect(consoleSpy).toHaveBeenCalledWith('[AppError]', expect.any(Error));
+
+    consoleSpy.mockRestore();
+  });
 });
 
 class MockToastService {
