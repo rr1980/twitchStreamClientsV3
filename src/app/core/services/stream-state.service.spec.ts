@@ -80,6 +80,52 @@ describe('StreamStateService', () => {
     expect(setBooleanSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('handles empty, invalid and duplicate add requests', () => {
+    expect(service.addStream('   ')).toEqual({ ok: false, reason: 'empty' });
+    expect(service.addStream('invalid-name')).toEqual({ ok: false, reason: 'invalid' });
+
+    service.addStream('shroud');
+
+    expect(service.addStream('shroud')).toEqual({ ok: false, reason: 'duplicate', name: 'shroud' });
+  });
+
+  it('returns null for invalid removals and ignores out-of-bounds moves', () => {
+    service.addStream('shroud');
+
+    expect(service.removeStream(2)).toBeNull();
+
+    service.moveStream(0, -1);
+
+    expect(service.streams()).toEqual(['shroud']);
+  });
+
+  it('sorts statistics descending and respects the limit', () => {
+    localStorage.setItem('stats_v2', JSON.stringify([
+      { name: 'rocketbeanstv', value: 2 },
+      { name: 'shroud', value: 5 },
+      { name: 'gronkh', value: 3 },
+    ]));
+
+    service = createService();
+
+    expect(service.getTopStatistics(2)).toEqual([
+      { name: 'shroud', value: 5 },
+      { name: 'gronkh', value: 3 },
+    ]);
+  });
+
+  it('migrates legacy storage keys once during initialization', async () => {
+    localStorage.clear();
+    localStorage.setItem('streams', JSON.stringify(['legacy_channel']));
+    localStorage.setItem('streams_qualies', '480p');
+
+    service = createService();
+    await flushPersistence();
+
+    expect(service.streams()).toEqual(['legacy_channel']);
+    expect(service.quality()).toBe('480p');
+  });
+
   function createService(): StreamStateService {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({});
@@ -92,6 +138,7 @@ describe('StreamStateService', () => {
   }
 
   async function flushPersistence(): Promise<void> {
+    await Promise.resolve();
     await Promise.resolve();
   }
 });

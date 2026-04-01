@@ -98,6 +98,74 @@ describe('SettingsModalComponent', () => {
     expect(document.activeElement).toBe(firstElement);
   });
 
+  it('traps focus backwards with shift+tab from the first element', async () => {
+    state.menuOpen.set(true);
+    state.streams.set(['shroud']);
+    await syncComponent();
+
+    const dialog = fixture.nativeElement.querySelector('[role="dialog"]') as HTMLElement;
+    const focusable = dialog.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])');
+    const firstElement = focusable[0];
+    const lastElement = focusable[focusable.length - 1];
+    firstElement.focus();
+
+    const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
+    dialog.dispatchEvent(event);
+    await syncComponent();
+
+    expect(document.activeElement).toBe(lastElement);
+  });
+
+  it('closes only when the backdrop itself is clicked', async () => {
+    state.menuOpen.set(true);
+    await syncComponent();
+
+    const backdrop = fixture.nativeElement.querySelector('.modal-backdrop') as HTMLElement;
+    const modal = fixture.nativeElement.querySelector('.modal') as HTMLElement;
+
+    modal.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(state.closeMenu).not.toHaveBeenCalled();
+
+    backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(state.closeMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows an error toast for invalid and duplicate channel names', async () => {
+    state.menuOpen.set(true);
+    await syncComponent();
+
+    state.addStream.mockReturnValueOnce({ ok: false, reason: 'invalid' });
+    component.channelNameControl.setValue('invalid-name');
+    component.addStream();
+
+    state.addStream.mockReturnValueOnce({ ok: false, reason: 'duplicate', name: 'shroud' });
+    component.channelNameControl.setValue('shroud');
+    component.addStream();
+
+    expect(toast.show).toHaveBeenNthCalledWith(1, 'Ungültiger Kanalname. Erlaubt: a-z, 0-9, _ (max. 25 Zeichen).', 'error');
+    expect(toast.show).toHaveBeenNthCalledWith(2, 'shroud ist bereits aktiv.', 'error');
+  });
+
+  it('removes streams, updates quality and chat state, and ignores invalid show-chat events', async () => {
+    state.menuOpen.set(true);
+    state.removeStream.mockReturnValue('shroud');
+    await syncComponent();
+
+    component.removeStream(0);
+    component.setQuality('720p60');
+    component.onShowChatChange(new Event('change'));
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = true;
+    component.onShowChatChange({ target: checkbox } as unknown as Event);
+
+    expect(toast.show).toHaveBeenCalledWith('shroud entfernt.', 'info');
+    expect(state.setQuality).toHaveBeenCalledWith('720p60');
+    expect(state.setShowChat).toHaveBeenCalledTimes(1);
+    expect(state.setShowChat).toHaveBeenCalledWith(true);
+  });
+
   async function syncComponent(): Promise<void> {
     fixture.detectChanges();
     TestBed.flushEffects();
@@ -119,7 +187,7 @@ class MockStreamStateService {
     this.menuOpen.set(false);
   });
   readonly moveStream = vi.fn();
-  readonly removeStream = vi.fn(() => null);
+  readonly removeStream = vi.fn<(index: number) => string | null>(() => null);
   readonly setQuality = vi.fn((value: StreamQuality) => {
     this.quality.set(value);
   });

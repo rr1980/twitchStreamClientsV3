@@ -28,6 +28,7 @@
     "@angular/cli": "^21.2.6",
     "@angular/compiler-cli": "^21.2.6",
     "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^4.1.2",
     "angular-eslint": "21.3.1",
     "eslint": "^10.1.0",
     "http-server": "^14.1.1",
