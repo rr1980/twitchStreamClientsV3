@@ -20,8 +20,8 @@ describe('ToastService', () => {
     service.show('Zweiter Toast', 'info');
 
     expect(service.messages()).toEqual([
-      { id: 1, text: 'Erster Toast', type: 'success' },
-      { id: 2, text: 'Zweiter Toast', type: 'info' },
+      { id: 1, text: 'Erster Toast', type: 'success', count: 1 },
+      { id: 2, text: 'Zweiter Toast', type: 'info', count: 1 },
     ]);
   });
 
@@ -33,5 +33,37 @@ describe('ToastService', () => {
     vi.advanceTimersByTime(3000);
 
     expect(service.messages()).toHaveLength(0);
+  });
+
+  it('coalesces duplicate messages and refreshes their lifetime', () => {
+    service.show('Doppelte Meldung', 'error');
+    vi.advanceTimersByTime(2000);
+
+    service.show('Doppelte Meldung', 'error');
+
+    expect(service.messages()).toEqual([
+      { id: 1, text: 'Doppelte Meldung', type: 'error', count: 2 },
+    ]);
+
+    vi.advanceTimersByTime(1500);
+    expect(service.messages()).toHaveLength(1);
+
+    vi.advanceTimersByTime(1500);
+    expect(service.messages()).toHaveLength(0);
+  });
+
+  it('limits the number of visible toasts to the newest four', () => {
+    service.show('Toast 1');
+    service.show('Toast 2');
+    service.show('Toast 3');
+    service.show('Toast 4');
+    service.show('Toast 5');
+
+    expect(service.messages().map(message => message.text)).toEqual([
+      'Toast 2',
+      'Toast 3',
+      'Toast 4',
+      'Toast 5',
+    ]);
   });
 });

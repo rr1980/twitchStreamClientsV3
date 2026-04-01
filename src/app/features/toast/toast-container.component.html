@@ -6,7 +6,11 @@
       [attr.role]="message.type === 'error' ? 'alert' : 'status'"
       [class.toast--error]="message.type === 'error'"
       [class.toast--info]="message.type === 'info'">
-      {{ message.text }}
+      <span>{{ message.text }}</span>
+
+      @if (message.count > 1) {
+        <span class="toast__count" [attr.aria-label]="message.count + ' ähnliche Meldungen'">×{{ message.count }}</span>
+      }
     </div>
   }
 </div>

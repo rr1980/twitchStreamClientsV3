@@ -9,6 +9,10 @@
 }
 
 .toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   min-width: 240px;
   max-width: 360px;
   padding: 12px 14px;
@@ -18,6 +22,17 @@
   box-shadow: var(--shadow-lg);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
+}
+
+.toast__count {
+  flex: 0 0 auto;
+  min-width: 2.25rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 .toast--error {
