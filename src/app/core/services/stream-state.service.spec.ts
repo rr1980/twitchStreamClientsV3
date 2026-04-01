@@ -53,6 +53,17 @@ describe('StreamStateService', () => {
     expect(localStorage.getItem('showChat_v2')).toBe('true');
   });
 
+  it('initializes only once even when called repeatedly', () => {
+    localStorage.setItem('streams_v2', JSON.stringify(['first_channel']));
+    service = createService();
+
+    localStorage.setItem('streams_v2', JSON.stringify(['second_channel']));
+    service.initialize();
+    TestBed.flushEffects();
+
+    expect(service.streams()).toEqual(['first_channel']);
+  });
+
   it('coalesces multiple state changes into one storage write burst', async () => {
     const storage = TestBed.inject(StorageService);
     const setJsonSpy = vi.spyOn(storage, 'setJson');
@@ -97,6 +108,30 @@ describe('StreamStateService', () => {
     service.moveStream(0, -1);
 
     expect(service.streams()).toEqual(['shroud']);
+  });
+
+  it('removes valid streams and can increment an existing statistic on re-add', () => {
+    service.addStream('shroud');
+
+    expect(service.removeStream(0)).toBe('shroud');
+    expect(service.streams()).toEqual([]);
+
+    service.addStream('shroud');
+
+    expect(service.getTopStatistics(1)).toEqual([{ name: 'shroud', value: 2 }]);
+  });
+
+  it('opens, closes and toggles the menu state', () => {
+    expect(service.menuOpen()).toBe(false);
+
+    service.openMenu();
+    expect(service.menuOpen()).toBe(true);
+
+    service.closeMenu();
+    expect(service.menuOpen()).toBe(false);
+
+    service.toggleMenu();
+    expect(service.menuOpen()).toBe(true);
   });
 
   it('sorts statistics descending and respects the limit', () => {

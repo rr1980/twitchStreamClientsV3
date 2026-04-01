@@ -47,6 +47,42 @@ describe('SettingsModalComponent', () => {
     opener.remove();
   });
 
+  it('renders history suggestions, correct stream count labels and quality options', async () => {
+    state.menuOpen.set(true);
+    state.streams.set(['shroud', 'rocketbeanstv']);
+    state.quality.set('chunked');
+    state.statistics = [
+      { name: 'gronkh', value: 3 },
+      { name: 'papaplatte', value: 2 },
+    ];
+    await syncComponent();
+
+    const datalist = fixture.nativeElement.querySelector('#history-datalist') as HTMLDataListElement | null;
+    const options = Array.from(datalist?.querySelectorAll('option') ?? []).map(option => option.value);
+    const countLabel = fixture.nativeElement.querySelector('.list-block__header span')?.textContent?.trim();
+    const checkedRadio = fixture.nativeElement.querySelector('input[name="stream-quality"]:checked') as HTMLInputElement | null;
+    const qualityButtons = fixture.nativeElement.querySelectorAll('.quality-btn') as NodeListOf<HTMLElement>;
+    const qualityLabels = Array.from(qualityButtons, element => element.textContent?.trim());
+
+    expect(options).toEqual(['gronkh', 'papaplatte']);
+    expect(countLabel).toBe('2 Streams');
+    expect(checkedRadio).not.toBeNull();
+    expect(qualityLabels).toContain('Source');
+  });
+
+  it('renders the singular stream count and disables move buttons at the boundaries', async () => {
+    state.menuOpen.set(true);
+    state.streams.set(['shroud']);
+    await syncComponent();
+
+    const countLabel = fixture.nativeElement.querySelector('.list-block__header span')?.textContent?.trim();
+    const moveButtons = fixture.nativeElement.querySelectorAll('.stream-item__move button');
+
+    expect(countLabel).toBe('1 Stream');
+    expect((moveButtons[0] as HTMLButtonElement).disabled).toBe(true);
+    expect((moveButtons[1] as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('closes on escape and restores focus to the opener', async () => {
     const opener = document.createElement('button');
     document.body.appendChild(opener);

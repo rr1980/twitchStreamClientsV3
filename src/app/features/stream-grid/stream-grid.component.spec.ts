@@ -33,6 +33,15 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).not.toHaveBeenCalled();
   });
 
+  it('returns safely when embeds are synced before wrapper elements exist', async () => {
+    await expect((fixture.componentInstance as unknown as {
+      syncEmbeds(streams: string[], quality: StreamQuality, showChat: boolean): Promise<void>;
+    }).syncEmbeds(['shroud'], 'auto', false)).resolves.toBeUndefined();
+
+    expect(twitch.loadScript).toHaveBeenCalledTimes(1);
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+  });
+
   it('creates embeds for the initial stream list', async () => {
     state.streams.set(['shroud', 'rocketbeanstv']);
     await syncComponent();
@@ -115,6 +124,42 @@ describe('StreamGridComponent', () => {
 
     expect(twitch.handles.get('twitch-embed-rocketbeanstv')?.destroy).toHaveBeenCalledTimes(1);
     expect(twitch.handles.get('twitch-embed-shroud')?.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips embed creation when a stream wrapper is missing in the DOM', async () => {
+    state.streams.set(['shroud']);
+    await syncComponent();
+
+    fixture.nativeElement.querySelector('#twitch-embed-shroud')?.remove();
+    twitch.createEmbed.mockClear();
+
+    state.quality.set('720p60');
+    await syncComponent();
+
+    expect(twitch.loadScript).toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+  });
+
+  it('recreates embeds when quality or chat layout changes', async () => {
+    state.streams.set(['shroud']);
+    await syncComponent();
+
+    const initialHandle = twitch.handles.get('twitch-embed-shroud');
+    initialHandle?.destroy.mockClear();
+    twitch.createEmbed.mockClear();
+
+    state.quality.set('720p60');
+    state.showChat.set(true);
+    await syncComponent();
+
+    expect(initialHandle?.destroy).toHaveBeenCalledTimes(1);
+    expect(twitch.createEmbed).toHaveBeenCalledWith({
+      elementId: 'twitch-embed-shroud',
+      channel: 'shroud',
+      quality: '720p60',
+      showChat: true,
+      muted: false,
+    });
   });
 
   async function syncComponent(): Promise<void> {

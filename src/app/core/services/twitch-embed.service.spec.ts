@@ -89,6 +89,27 @@ describe('TwitchEmbedService', () => {
     expect(document.head.querySelector('script[data-twitch-embed="true"]')).toBeNull();
   });
 
+  it('replaces an existing failed script tag before retrying', async () => {
+    const existingScript = document.createElement('script');
+    existingScript.dataset['twitchEmbed'] = 'true';
+    existingScript.dataset['loadState'] = 'error';
+    document.head.appendChild(existingScript);
+
+    const attempt = service.loadScript();
+    const replacementScript = document.head.querySelector('script[data-twitch-embed="true"]') as HTMLScriptElement;
+
+    expect(replacementScript).not.toBe(existingScript);
+    expect(document.head.contains(existingScript)).toBe(false);
+
+    window.Twitch = {
+      Embed: vi.fn() as never,
+    };
+
+    replacementScript.dispatchEvent(new Event('load'));
+
+    await expect(attempt).resolves.toBeUndefined();
+  });
+
   it('returns a destroyable handle for created embeds', () => {
     const addEventListener = vi.fn();
     const getPlayer = vi.fn(() => ({
@@ -305,6 +326,55 @@ describe('TwitchEmbedService', () => {
     await Promise.resolve();
 
     expect(player.setQuality).not.toHaveBeenCalled();
+  });
+
+  it('stops quality syncing when the embed is destroyed between animation frames', async () => {
+    const player = {
+      getQualities: vi.fn(() => []),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      rafCallbacks.push(callback);
+      return rafCallbacks.length;
+    });
+
+    window.Twitch = {
+      Embed: EmbedMock as never,
+    };
+
+    const handle = service.createEmbed({
+      elementId: 'twitch-embed-frame-destroyed',
+      channel: 'frame-destroyed',
+      quality: '720p60',
+      showChat: false,
+      muted: false,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+
+    expect(rafCallbacks).toHaveLength(1);
+
+    handle.destroy();
+    rafCallbacks.shift()?.(0);
+    await Promise.resolve();
+
+    expect(player.setQuality).not.toHaveBeenCalled();
+
+    rafSpy.mockRestore();
   });
 
   it('warns when the requested quality never becomes available', async () => {
