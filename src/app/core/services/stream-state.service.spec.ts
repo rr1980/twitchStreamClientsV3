@@ -85,6 +85,7 @@ describe('StreamStateService', () => {
     TestBed.configureTestingModule({});
 
     const instance = TestBed.inject(StreamStateService);
+    instance.initialize();
     TestBed.flushEffects();
 
     return instance;

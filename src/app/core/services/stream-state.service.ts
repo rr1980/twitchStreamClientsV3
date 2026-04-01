@@ -33,11 +33,14 @@ export class StreamStateService {
   private readonly storage = inject(StorageService);
   private pendingPersistState?: PersistedStreamState;
   private persistScheduled = false;
+  private initialized = false;
 
   constructor() {
-    this.init();
-
     effect(() => {
+      if (!this.initialized) {
+        return;
+      }
+
       this.schedulePersist({
         streams: this._streams(),
         quality: this._quality(),
@@ -45,6 +48,15 @@ export class StreamStateService {
         statistics: this._statistics(),
       });
     });
+  }
+
+  initialize(): void {
+    if (this.initialized) {
+      return;
+    }
+
+    this.init();
+    this.initialized = true;
   }
 
   openMenu(): void {
