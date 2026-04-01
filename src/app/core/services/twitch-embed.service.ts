@@ -45,23 +45,7 @@ export class TwitchEmbedService {
       return this.scriptPromise;
     }
 
-    this.scriptPromise = new Promise<void>((resolve, reject) => {
-      const existing = document.querySelector<HTMLScriptElement>('script[data-twitch-embed="true"]');
-
-      if (existing) {
-        existing.addEventListener('load', () => resolve(), { once: true });
-        existing.addEventListener('error', () => reject(new Error('Twitch embed script failed.')), { once: true });
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://embed.twitch.tv/embed/v1.js';
-      script.async = true;
-      script.dataset['twitchEmbed'] = 'true';
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Twitch embed script failed.'));
-      document.head.appendChild(script);
-    });
+    this.scriptPromise = this.createScriptPromise();
 
     return this.scriptPromise;
   }
@@ -95,6 +79,62 @@ export class TwitchEmbedService {
 
   clearEmbed(elementId: string): void {
     document.getElementById(elementId)?.replaceChildren();
+  }
+
+  private createScriptPromise(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const existingScript = document.querySelector<HTMLScriptElement>('script[data-twitch-embed="true"]');
+
+      if (existingScript) {
+        if (window.Twitch?.Embed) {
+          resolve();
+          return;
+        }
+
+        if (existingScript.dataset['loadState'] === 'error') {
+          existingScript.remove();
+        } else {
+          this.attachScriptListeners(existingScript, resolve, reject);
+          return;
+        }
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://embed.twitch.tv/embed/v1.js';
+      script.async = true;
+      script.dataset['twitchEmbed'] = 'true';
+      this.attachScriptListeners(script, resolve, reject);
+      document.head.appendChild(script);
+    });
+  }
+
+  private attachScriptListeners(
+    script: HTMLScriptElement,
+    resolve: () => void,
+    reject: (reason?: unknown) => void,
+  ): void {
+    script.addEventListener('load', () => {
+      script.dataset['loadState'] = 'loaded';
+
+      if (window.Twitch?.Embed) {
+        resolve();
+        return;
+      }
+
+      this.resetScriptState(script);
+      reject(new Error('Twitch embed script loaded without exposing Twitch.Embed.'));
+    }, { once: true });
+
+    script.addEventListener('error', () => {
+      this.resetScriptState(script);
+      reject(new Error('Twitch embed script failed.'));
+    }, { once: true });
+  }
+
+  private resetScriptState(script: HTMLScriptElement): void {
+    script.dataset['loadState'] = 'error';
+    script.remove();
+    this.scriptPromise = undefined;
   }
 
   private async syncRequestedQuality(

@@ -1,13 +1,25 @@
-import { Injectable } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class StorageService {
+  private readonly platformId = inject(PLATFORM_ID);
+
+  getItem(key: string): string | null {
+    return this.storage?.getItem(key) ?? null;
+  }
+
+  hasKey(key: string): boolean {
+    return this.getItem(key) !== null;
+  }
+
   getString(key: string, fallback: string): string {
-    return localStorage.getItem(key) ?? fallback;
+    return this.getItem(key) ?? fallback;
   }
 
   getBoolean(key: string, fallback = false): boolean {
-    const raw = localStorage.getItem(key);
+    const raw = this.getItem(key);
+
     if (raw === null) {
       return fallback;
     }
@@ -17,7 +29,7 @@ export class StorageService {
 
   getJson<T>(key: string, fallback: T): T {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = this.getItem(key);
       return raw ? (JSON.parse(raw) as T) : fallback;
     } catch {
       return fallback;
@@ -25,14 +37,30 @@ export class StorageService {
   }
 
   setString(key: string, value: string): void {
-    localStorage.setItem(key, value);
+    this.storage?.setItem(key, value);
   }
 
   setBoolean(key: string, value: boolean): void {
-    localStorage.setItem(key, String(value));
+    this.storage?.setItem(key, String(value));
   }
 
   setJson<T>(key: string, value: T): void {
-    localStorage.setItem(key, JSON.stringify(value));
+    this.storage?.setItem(key, JSON.stringify(value));
+  }
+
+  remove(key: string): void {
+    this.storage?.removeItem(key);
+  }
+
+  private get storage(): Storage | null {
+    if (!isPlatformBrowser(this.platformId)) {
+      return null;
+    }
+
+    try {
+      return window.localStorage;
+    } catch {
+      return null;
+    }
   }
 }

@@ -118,8 +118,8 @@ export class StreamStateService {
   }
 
   private migrateLegacyKeys(): void {
-    const hasOldStreams = localStorage.getItem('streams');
-    const hasNewStreams = localStorage.getItem(this.streamsKey);
+    const hasOldStreams = this.storage.hasKey('streams');
+    const hasNewStreams = this.storage.hasKey(this.streamsKey);
 
     if (!hasOldStreams || hasNewStreams) {
       return;
@@ -127,8 +127,8 @@ export class StreamStateService {
 
     const oldStreams = this.storage.getJson<string[]>('streams', []);
     const oldQuality =
-      localStorage.getItem('streams_qualities') ||
-      localStorage.getItem('streams_qualies') ||
+      this.storage.getItem('streams_qualities') ||
+      this.storage.getItem('streams_qualies') ||
       'auto';
 
     this.storage.setJson(this.streamsKey, oldStreams);
