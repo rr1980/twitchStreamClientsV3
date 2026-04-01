@@ -42,6 +42,52 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).not.toHaveBeenCalled();
   });
 
+  it('returns early when syncEmbeds has no host element', async () => {
+    const component = fixture.componentInstance as unknown as {
+      hostRef: () => undefined;
+      syncEmbeds(streams: string[], quality: StreamQuality, showChat: boolean): Promise<void>;
+    };
+
+    component.hostRef = () => undefined;
+
+    await expect(component.syncEmbeds(['shroud'], 'auto', false)).resolves.toBeUndefined();
+
+    expect(twitch.loadScript).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+  });
+
+  it('drops stale constructor sync runs before syncEmbeds executes', async () => {
+    const component = fixture.componentInstance as unknown as {
+      viewReady: boolean;
+      syncRunId: number;
+      syncEmbeds: (streams: string[], quality: StreamQuality, showChat: boolean) => Promise<void>;
+    };
+    const syncEmbedsSpy = vi.spyOn(component, 'syncEmbeds').mockResolvedValue(undefined);
+
+    component.viewReady = true;
+    state.streams.set(['shroud']);
+    TestBed.flushEffects();
+    component.syncRunId += 1;
+    await Promise.resolve();
+
+    expect(syncEmbedsSpy).not.toHaveBeenCalled();
+  });
+
+  it('drops stale after-view-init sync runs before syncEmbeds executes', async () => {
+    const component = fixture.componentInstance as unknown as {
+      syncRunId: number;
+      syncEmbeds: (streams: string[], quality: StreamQuality, showChat: boolean) => Promise<void>;
+      ngAfterViewInit(): void;
+    };
+    const syncEmbedsSpy = vi.spyOn(component, 'syncEmbeds').mockResolvedValue(undefined);
+
+    component.ngAfterViewInit();
+    component.syncRunId += 1;
+    await Promise.resolve();
+
+    expect(syncEmbedsSpy).not.toHaveBeenCalled();
+  });
+
   it('creates embeds for the initial stream list', async () => {
     state.streams.set(['shroud', 'rocketbeanstv']);
     await syncComponent();
@@ -160,6 +206,18 @@ describe('StreamGridComponent', () => {
       showChat: true,
       muted: false,
     });
+  });
+
+  it('updates the viewport signals on resize', () => {
+    const component = fixture.componentInstance;
+
+    window.innerWidth = 1440;
+    window.innerHeight = 900;
+
+    component.onResize();
+
+    expect(component.viewportWidth()).toBe(1440);
+    expect(component.viewportHeight()).toBe(900);
   });
 
   async function syncComponent(): Promise<void> {

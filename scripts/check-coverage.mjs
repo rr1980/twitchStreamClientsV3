@@ -4,9 +4,9 @@ import { resolve } from 'node:path';
 const coverageFilePath = resolve('coverage', 'twitchStreamClientsV3', 'coverage-final.json');
 
 const thresholds = {
-  statements: 94,
-  branches: 92,
-  functions: 89,
+  statements: 95,
+  branches: 93,
+  functions: 89.5,
 };
 
 const report = JSON.parse(readFileSync(coverageFilePath, 'utf8'));

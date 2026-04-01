@@ -110,6 +110,19 @@ describe('TwitchEmbedService', () => {
     await expect(attempt).resolves.toBeUndefined();
   });
 
+  it('resolves from createScriptPromise when a script tag exists and Twitch is already available', async () => {
+    const existingScript = document.createElement('script');
+    existingScript.dataset['twitchEmbed'] = 'true';
+    document.head.appendChild(existingScript);
+    window.Twitch = {
+      Embed: vi.fn() as never,
+    };
+
+    await expect((service as unknown as {
+      createScriptPromise(): Promise<void>;
+    }).createScriptPromise()).resolves.toBeUndefined();
+  });
+
   it('returns a destroyable handle for created embeds', () => {
     const addEventListener = vi.fn();
     const getPlayer = vi.fn(() => ({
