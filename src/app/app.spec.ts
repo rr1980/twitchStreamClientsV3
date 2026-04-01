@@ -50,4 +50,18 @@ describe('App', () => {
 
     expect(spy).toHaveBeenCalledTimes(1);
   });
+
+  it('opens the menu when the trigger button is clicked', async () => {
+    const fixture = TestBed.createComponent(App);
+    const state = TestBed.inject(StreamStateService);
+    const spy = vi.spyOn(state, 'openMenu');
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const trigger = fixture.nativeElement.querySelector('.menu-trigger') as HTMLButtonElement;
+    trigger.click();
+
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
 });

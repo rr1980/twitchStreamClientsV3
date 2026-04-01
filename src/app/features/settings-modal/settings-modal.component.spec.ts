@@ -116,6 +116,21 @@ describe('SettingsModalComponent', () => {
     expect(document.activeElement).toBe(fixture.nativeElement.querySelector('#stream-input'));
   });
 
+  it('adds a stream via enter on the input field', async () => {
+    state.menuOpen.set(true);
+    state.addStream.mockReturnValue({ ok: true, name: 'gronkh' });
+    await syncComponent();
+
+    const input = fixture.nativeElement.querySelector('#stream-input') as HTMLInputElement;
+    input.value = 'Gronkh';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await syncComponent();
+
+    expect(state.addStream).toHaveBeenCalledWith('Gronkh');
+    expect(toast.show).toHaveBeenCalledWith('gronkh hinzugefügt.');
+  });
+
   it('keeps focus trapped inside the dialog on tab from the last element', async () => {
     state.menuOpen.set(true);
     state.streams.set(['shroud']);
@@ -192,6 +207,16 @@ describe('SettingsModalComponent', () => {
     expect(state.closeMenu).toHaveBeenCalledTimes(1);
   });
 
+  it('closes when the close button is clicked', async () => {
+    state.menuOpen.set(true);
+    await syncComponent();
+
+    const closeButton = fixture.nativeElement.querySelector('.icon-btn') as HTMLButtonElement;
+    closeButton.click();
+
+    expect(state.closeMenu).toHaveBeenCalledTimes(1);
+  });
+
   it('shows an error toast for invalid and duplicate channel names', async () => {
     state.menuOpen.set(true);
     await syncComponent();
@@ -237,6 +262,32 @@ describe('SettingsModalComponent', () => {
     expect(state.setQuality).toHaveBeenCalledWith('720p60');
     expect(state.setShowChat).toHaveBeenCalledTimes(1);
     expect(state.setShowChat).toHaveBeenCalledWith(true);
+  });
+
+  it('wires move, remove, quality and chat controls through DOM interactions', async () => {
+    state.menuOpen.set(true);
+    state.streams.set(['shroud', 'rocketbeanstv']);
+    state.removeStream.mockReturnValue('shroud');
+    await syncComponent();
+
+    const moveButtons = fixture.nativeElement.querySelectorAll('.stream-item__move button') as NodeListOf<HTMLButtonElement>;
+    const removeButton = fixture.nativeElement.querySelector('.danger-btn') as HTMLButtonElement;
+    const qualityRadios = fixture.nativeElement.querySelectorAll('input[name="stream-quality"]') as NodeListOf<HTMLInputElement>;
+    const chatCheckbox = fixture.nativeElement.querySelector('input[type="checkbox"]') as HTMLInputElement;
+
+    moveButtons[2].click();
+    removeButton.click();
+    qualityRadios[2].checked = true;
+    qualityRadios[2].dispatchEvent(new Event('change', { bubbles: true }));
+    chatCheckbox.checked = true;
+    chatCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+    await syncComponent();
+
+    expect(state.moveStream).toHaveBeenCalledWith(1, -1);
+    expect(state.removeStream).toHaveBeenCalledWith(0);
+    expect(state.setQuality).toHaveBeenCalledWith('720p60');
+    expect(state.setShowChat).toHaveBeenCalledWith(true);
+    expect(toast.show).toHaveBeenCalledWith('shroud entfernt.', 'info');
   });
 
   it('delegates stream movement to the state service', () => {
