@@ -95,7 +95,7 @@ describe('SettingsModalComponent', () => {
     ]);
     expect(countLabel).toBe('2 Listen');
     expect(checkedRadio).not.toBeNull();
-    expect(qualityLabels).toContain('Automatisch');
+    expect(qualityLabels).toContain('Auto');
     expect(qualityLabels).toContain('Source');
     expect(qualityLabels).toContain('1080p60');
     expect(qualityLabels).toContain('720p60');

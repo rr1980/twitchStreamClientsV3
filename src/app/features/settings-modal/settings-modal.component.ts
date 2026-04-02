@@ -257,7 +257,7 @@ export class SettingsModalComponent {
   protected _formatQualityLabel(value: StreamQuality): string {
     switch (value) {
       case 'auto':
-        return 'Automatisch';
+        return 'Auto';
       case 'chunked':
         return 'Source';
       case 'audio_only':
