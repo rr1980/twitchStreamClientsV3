@@ -44,18 +44,18 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   public readonly hostRef = viewChild<ElementRef<HTMLElement>>('gridHost');
   public readonly viewportWidth = signal(window.innerWidth);
   public readonly viewportHeight = signal(window.innerHeight);
-  public readonly activeList = this._state.activeList;
-  public readonly listCount = this._state.listCount;
-  public readonly streams = this._state.streams;
+  protected readonly _activeList = this._state.activeList;
+  protected readonly _listCount = this._state.listCount;
+  protected readonly _streams = this._state.streams;
 
   private _viewReady = false;
   private _syncRunId = 0;
   private _loadScriptErrorVisible = false;
 
-  public readonly grid = computed(() => calculateOptimalGrid(this.streams(), this.viewportWidth(), this.viewportHeight()));
+  public readonly grid = computed(() => calculateOptimalGrid(this._streams(), this.viewportWidth(), this.viewportHeight()));
 
-  public readonly gridTemplateColumns = computed(() => `repeat(${this.grid().cols}, 1fr)`);
-  public readonly gridTemplateRows = computed(() => `repeat(${this.grid().rows}, 1fr)`);
+  protected readonly _gridTemplateColumns = computed(() => `repeat(${this.grid().cols}, 1fr)`);
+  protected readonly _gridTemplateRows = computed(() => `repeat(${this.grid().rows}, 1fr)`);
 
   constructor() {
     effect(() => {

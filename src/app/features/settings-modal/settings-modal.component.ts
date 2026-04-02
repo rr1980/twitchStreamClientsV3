@@ -25,35 +25,35 @@ export class SettingsModalComponent {
   public readonly renameListInputRef = viewChild<ElementRef<HTMLInputElement>>('renameListInput');
   public readonly modalPanelRef = viewChild<ElementRef<HTMLElement>>('modalPanel');
 
-  public readonly qualityOptions: StreamQuality[] = ['auto', '480p', '720p60', 'chunked'];
-  public readonly newListNameControl = new FormControl('', { nonNullable: true });
-  public readonly activeListNameControl = new FormControl('', { nonNullable: true });
-  public readonly channelNameControl = new FormControl('', { nonNullable: true });
-  public readonly isOpen = this._state.menuOpen;
-  public readonly lists = this._state.lists;
-  public readonly activeListId = this._state.activeListId;
-  public readonly activeList = this._state.activeList;
-  public readonly streams = this._state.streams;
-  public readonly selectedQuality = this._state.quality;
-  public readonly topStatistics = computed(() => this._state.getTopStatistics(10));
-  public readonly hasActiveList = computed(() => this.activeList() !== null);
+  protected readonly _qualityOptions: StreamQuality[] = ['auto', '480p', '720p60', 'chunked'];
+  protected readonly _newListNameControl = new FormControl('', { nonNullable: true });
+  protected readonly _activeListNameControl = new FormControl('', { nonNullable: true });
+  protected readonly _channelNameControl = new FormControl('', { nonNullable: true });
+  protected readonly _isOpen = this._state.menuOpen;
+  protected readonly _lists = this._state.lists;
+  protected readonly _activeListId = this._state.activeListId;
+  protected readonly _activeList = this._state.activeList;
+  protected readonly _streams = this._state.streams;
+  protected readonly _selectedQuality = this._state.quality;
+  protected readonly _topStatistics = computed(() => this._state.getTopStatistics(10));
+  protected readonly _hasActiveList = computed(() => this._activeList() !== null);
 
   constructor() {
     effect(() => {
-      this.activeListNameControl.setValue(this.activeList()?.name ?? '', { emitEvent: false });
+      this._activeListNameControl.setValue(this._activeList()?.name ?? '', { emitEvent: false });
     });
 
     effect(() => {
-      if (this.hasActiveList()) {
-        this.channelNameControl.enable({ emitEvent: false });
+      if (this._hasActiveList()) {
+        this._channelNameControl.enable({ emitEvent: false });
         return;
       }
 
-      this.channelNameControl.disable({ emitEvent: false });
+      this._channelNameControl.disable({ emitEvent: false });
     });
 
     effect(() => {
-      const open = this.isOpen();
+      const open = this._isOpen();
 
       if (open && !this._wasOpen) {
         this._previouslyFocusedElement = document.activeElement instanceof HTMLElement
@@ -61,7 +61,7 @@ export class SettingsModalComponent {
           : null;
 
         queueMicrotask(() => {
-          const primaryInput = this.activeList()
+          const primaryInput = this._activeList()
             ? this.streamInputRef()?.nativeElement
             : this.listInputRef()?.nativeElement;
 
@@ -83,7 +83,7 @@ export class SettingsModalComponent {
   }
 
   public createList(): void {
-    const result = this._state.createList(this.newListNameControl.getRawValue());
+    const result = this._state.createList(this._newListNameControl.getRawValue());
 
     if (!result.ok) {
       if (result.reason === 'duplicate') {
@@ -95,20 +95,20 @@ export class SettingsModalComponent {
       return;
     }
 
-    this.newListNameControl.reset('');
+    this._newListNameControl.reset('');
     this._navigateToList(result.list?.id ?? null);
     this._toast.show(`${result.list?.name} angelegt.`);
   }
 
   public renameActiveList(): void {
-    const activeList = this.activeList();
+    const activeList = this._activeList();
 
     if (!activeList) {
       this._toast.show('Wähle zuerst eine Liste aus.', 'error');
       return;
     }
 
-    const result = this._state.renameList(activeList.id, this.activeListNameControl.getRawValue());
+    const result = this._state.renameList(activeList.id, this._activeListNameControl.getRawValue());
 
     if (!result.ok) {
       if (result.reason === 'duplicate') {
@@ -129,8 +129,8 @@ export class SettingsModalComponent {
   }
 
   public deleteList(list: StreamList): void {
-    const listsBeforeDeletion = this.lists();
-    const wasActiveList = this.activeListId() === list.id;
+    const listsBeforeDeletion = this._lists();
+    const wasActiveList = this._activeListId() === list.id;
     const removed = this._state.deleteList(list.id);
 
     if (!removed) {
@@ -197,7 +197,7 @@ export class SettingsModalComponent {
   }
 
   public addStream(): void {
-    const channelName = this._extractChannelName(this.channelNameControl.getRawValue());
+    const channelName = this._extractChannelName(this._channelNameControl.getRawValue());
     const result = this._state.addStream(channelName);
 
     if (!result.ok) {
@@ -220,7 +220,7 @@ export class SettingsModalComponent {
     }
 
     this._toast.show(`${result.name} hinzugefügt.`);
-    this.channelNameControl.reset('');
+    this._channelNameControl.reset('');
     this.streamInputRef()?.nativeElement.focus();
   }
 

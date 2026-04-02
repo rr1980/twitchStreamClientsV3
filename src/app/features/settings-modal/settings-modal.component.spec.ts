@@ -13,6 +13,10 @@ describe('SettingsModalComponent', () => {
   let state: MockStreamStateService;
   let toast: MockToastService;
 
+  function getComponentMember<T>(instance: object, propertyName: string): T {
+    return (instance as Record<string, unknown>)[propertyName] as T;
+  }
+
   beforeEach(async () => {
     window.location.hash = '#/List/null';
     state = new MockStreamStateService();
@@ -126,12 +130,12 @@ describe('SettingsModalComponent', () => {
     state.addStream.mockReturnValue({ ok: true, name: 'shroud' });
     await syncComponent();
 
-    component.channelNameControl.setValue('Shroud');
+    getComponentMember<{ setValue(value: string): void; value: string }>(component, '_channelNameControl').setValue('Shroud');
     fixture.nativeElement.querySelector('[aria-label="Kanal hinzufügen"]')?.click();
     await syncComponent();
 
     expect(state.addStream).toHaveBeenCalledWith('Shroud');
-    expect(component.channelNameControl.value).toBe('');
+    expect(getComponentMember<{ value: string }>(component, '_channelNameControl').value).toBe('');
     expect(toast.show).toHaveBeenCalledWith('shroud hinzugefügt.');
     expect(document.activeElement).toBe(fixture.nativeElement.querySelector('#stream-input'));
   });
@@ -248,11 +252,11 @@ describe('SettingsModalComponent', () => {
     await syncComponent();
 
     state.addStream.mockReturnValueOnce({ ok: false, reason: 'invalid' });
-    component.channelNameControl.setValue('invalid-name');
+    getComponentMember<{ setValue(value: string): void }>(component, '_channelNameControl').setValue('invalid-name');
     component.addStream();
 
     state.addStream.mockReturnValueOnce({ ok: false, reason: 'duplicate', name: 'shroud' });
-    component.channelNameControl.setValue('shroud');
+    getComponentMember<{ setValue(value: string): void }>(component, '_channelNameControl').setValue('shroud');
     component.addStream();
 
     expect(toast.show).toHaveBeenNthCalledWith(1, 'Ungültiger Kanalname. Erlaubt: a-z, äöü, 0-9, _ (max. 25 Zeichen).', 'error');
@@ -266,7 +270,7 @@ describe('SettingsModalComponent', () => {
     state.addStream.mockReturnValue({ ok: false, reason: 'empty' });
     await syncComponent();
 
-    component.channelNameControl.setValue('   ');
+    getComponentMember<{ setValue(value: string): void }>(component, '_channelNameControl').setValue('   ');
     component.addStream();
 
     expect(toast.show).not.toHaveBeenCalled();
@@ -332,7 +336,7 @@ describe('SettingsModalComponent', () => {
     state.createList.mockReturnValue({ ok: true, list: { id: 4, name: 'Esports', streams: [] } });
     await syncComponent();
 
-    component.newListNameControl.setValue('Esports');
+    getComponentMember<{ setValue(value: string): void }>(component, '_newListNameControl').setValue('Esports');
     component.createList();
 
     expect(state.createList).toHaveBeenCalledWith('Esports');
@@ -351,7 +355,7 @@ describe('SettingsModalComponent', () => {
     state.deleteList.mockReturnValue({ id: 1, name: 'Main', streams: [channel('shroud')] });
     await syncComponent();
 
-    component.activeListNameControl.setValue('Main');
+    getComponentMember<{ setValue(value: string): void }>(component, '_activeListNameControl').setValue('Main');
     component.renameActiveList();
     component.deleteList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
 
