@@ -68,4 +68,26 @@ describe('StorageService', () => {
     expect(() => service.setJson('streams', ['shroud'])).not.toThrow();
     expect(() => service.remove('name')).not.toThrow();
   });
+
+  it('falls back when stored json is invalid', () => {
+    TestBed.configureTestingModule({});
+    const service = TestBed.inject(StorageService);
+
+    localStorage.setItem('broken', '{not-json');
+
+    expect(service.getJson('broken', ['fallback'])).toEqual(['fallback']);
+  });
+
+  it('returns null when localStorage access throws during lookup', () => {
+    TestBed.configureTestingModule({});
+    const service = TestBed.inject(StorageService);
+    const localStorageGetter = vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new DOMException('Blocked', 'SecurityError');
+    });
+
+    expect(service.getItem('missing')).toBeNull();
+    expect(service.setString('name', 'value')).toBe(false);
+
+    localStorageGetter.mockRestore();
+  });
 });

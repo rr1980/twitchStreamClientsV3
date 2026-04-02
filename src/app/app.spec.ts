@@ -167,4 +167,14 @@ describe('App', () => {
 
     expect(document.title).toBe('Liste 9 nicht gefunden | Twitch Multi-Viewer');
   });
+
+  it('shows the default browser title when no active list is selected', async () => {
+    const fixture = TestBed.createComponent(App);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    TestBed.flushEffects();
+
+    expect(document.title).toBe('Twitch Multi-Viewer');
+  });
 });

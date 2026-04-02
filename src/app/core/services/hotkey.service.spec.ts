@@ -85,6 +85,45 @@ describe('HotkeyService', () => {
     expect(service.handleWindowKeydown(repeatEvent, button)).toBe(false);
     expect(state.openMenu).not.toHaveBeenCalled();
   });
+
+  it('ignores prevented, composing and keyless keyboard events', () => {
+    const button = document.createElement('button');
+    const preventedEvent = new KeyboardEvent('keydown', { key: 'm', cancelable: true });
+    const composingEvent = new KeyboardEvent('keydown', { key: 'm' });
+    const keylessEvent = new KeyboardEvent('keydown', { key: 'm' });
+
+    preventedEvent.preventDefault();
+    Object.defineProperty(composingEvent, 'isComposing', { value: true });
+    Object.defineProperty(keylessEvent, 'key', { value: '' });
+
+    expect(service.handleWindowKeydown(preventedEvent, button)).toBe(false);
+    expect(service.handleWindowKeydown(composingEvent, button)).toBe(false);
+    expect(service.handleWindowKeydown(keylessEvent, button)).toBe(false);
+    expect(state.openMenu).not.toHaveBeenCalled();
+    expect(state.closeMenu).not.toHaveBeenCalled();
+  });
+
+  it('treats textarea, select and contenteditable elements as typing contexts', () => {
+    const textarea = document.createElement('textarea');
+    const select = document.createElement('select');
+    const editable = document.createElement('div');
+    const event = new KeyboardEvent('keydown', { key: 'm' });
+
+    Object.defineProperty(editable, 'isContentEditable', { value: true });
+
+    expect(service.handleWindowKeydown(event, textarea)).toBe(false);
+    expect(service.handleWindowKeydown(event, select)).toBe(false);
+    expect(service.handleWindowKeydown(event, editable)).toBe(false);
+    expect(state.openMenu).not.toHaveBeenCalled();
+  });
+
+  it('treats non-html elements as non-typing contexts', () => {
+    const getTypingContext = ((service as unknown as Record<string, unknown>)['_isTypingContext'] as (value: Element | null) => boolean)
+      .bind(service);
+    const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+
+    expect(getTypingContext(svgElement)).toBe(false);
+  });
 });
 
 class MockStreamStateService {

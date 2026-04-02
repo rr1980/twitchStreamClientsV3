@@ -75,6 +75,16 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).not.toHaveBeenCalled();
   });
 
+  it('returns immediately when syncEmbeds is already stale before doing any work', async () => {
+    const component = fixture.componentInstance;
+
+    setPrivateNumber(component, '_syncRunId', 5);
+
+    await expect(getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(4)).resolves.toBeUndefined();
+
+    expect(twitch.loadScript).not.toHaveBeenCalled();
+  });
+
   it('returns early when syncEmbeds has no host element', async () => {
     const component = fixture.componentInstance;
 
@@ -109,6 +119,27 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).not.toHaveBeenCalled();
     expect(toast.show).toHaveBeenCalledTimes(1);
     expect(toast.show).toHaveBeenCalledWith('Twitch-Embed konnte nicht geladen werden. Bitte versuche es erneut.', 'error');
+  });
+
+  it('suppresses the toast when a failed load belongs to a stale sync run', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    const component = fixture.componentInstance;
+    const runId = getPrivateNumber(component, '_syncRunId') + 1;
+
+    twitch.loadScript.mockImplementationOnce(async () => {
+      setPrivateNumber(component, '_syncRunId', runId + 1);
+      throw new Error('network');
+    });
+
+    setPrivateNumber(component, '_syncRunId', runId);
+
+    await expect(getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(runId)).resolves.toBeUndefined();
+
+    expect(toast.show).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
   });
 
   it('ignores stale sync runs after the Twitch script resolves', async () => {
@@ -288,6 +319,29 @@ describe('StreamGridComponent', () => {
     });
   });
 
+  it('stops creating further embeds when the run becomes stale during iteration', async () => {
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
+    await syncComponent();
+
+    const component = fixture.componentInstance;
+    const originalCreateEmbed = twitch.createEmbed.getMockImplementation();
+    const nextRunId = getPrivateNumber(component, '_syncRunId') + 1;
+
+    twitch.createEmbed.mockClear();
+    twitch.createEmbed.mockImplementation(options => {
+      setPrivateNumber(component, '_syncRunId', nextRunId + 1);
+      return originalCreateEmbed ? originalCreateEmbed(options) : new MockTwitchEmbedHandle();
+    });
+    twitch.handles.get('twitch-embed-shroud')?.destroy.mockClear();
+    twitch.handles.get('twitch-embed-rocketbeanstv')?.destroy.mockClear();
+
+    state.quality.set('720p60');
+    setPrivateNumber(component, '_syncRunId', nextRunId);
+    await expect(getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(nextRunId)).resolves.toBeUndefined();
+
+    expect(twitch.createEmbed).toHaveBeenCalledTimes(1);
+  });
+
   it('updates the viewport signals on resize', () => {
     const component = fixture.componentInstance;
 
@@ -298,6 +352,15 @@ describe('StreamGridComponent', () => {
 
     expect(getPrivateMethod<() => number>(component, '_viewportWidth')()).toBe(1440);
     expect(getPrivateMethod<() => number>(component, '_viewportHeight')()).toBe(900);
+  });
+
+  it('returns zero viewport dimensions outside the browser platform', () => {
+    const component = fixture.componentInstance;
+
+    setPrivateMember(component, '_platformId', 'server');
+
+    expect(getPrivateMethod<(dimension: 'innerWidth' | 'innerHeight') => number>(component, '_readViewportDimension')('innerWidth')).toBe(0);
+    expect(getPrivateMethod<(dimension: 'innerWidth' | 'innerHeight') => number>(component, '_readViewportDimension')('innerHeight')).toBe(0);
   });
 
   function channel(name: string, showChat = false): StreamChannel {

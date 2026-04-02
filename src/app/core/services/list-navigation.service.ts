@@ -62,8 +62,4 @@ export class ListNavigationService {
   private _getPrimarySegments(urlTree: UrlTree): string[] {
     return urlTree.root.children[PRIMARY_OUTLET]?.segments.map(segment => segment.path) ?? [];
   }
-
-  private _buildListUrl(listId: number | null): string {
-    return `/List/${listId ?? 'null'}`;
-  }
 }
