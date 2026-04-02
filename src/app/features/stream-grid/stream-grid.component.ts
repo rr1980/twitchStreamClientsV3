@@ -43,6 +43,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   private readonly _twitch = inject(TwitchEmbedService);
   private readonly _toast = inject(ToastService);
   private readonly _renderedEmbeds = new Map<string, RenderedEmbedState>();
+  private readonly _availableQualitiesByStream = new Map<string, StreamQuality[]>();
 
   private readonly _hostRef = viewChild<ElementRef<HTMLElement>>('gridHost');
   private readonly _viewportWidth = signal(this._readViewportDimension('innerWidth'));
@@ -84,6 +85,8 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     }
 
     this._renderedEmbeds.clear();
+    this._availableQualitiesByStream.clear();
+    this._state.setAvailableQualities([]);
   }
 
   protected _onResize(): void {
@@ -176,6 +179,17 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
         quality,
         showChat: stream.showChat,
         muted: nextState.muted,
+        onAvailableQualities: qualities => {
+          if (runId !== this._syncRunId) {
+            return;
+          }
+
+          if (this._renderedEmbeds.get(stream.name)?.handle !== handle) {
+            return;
+          }
+
+          this._setAvailableQualitiesForStream(stream.name, qualities);
+        },
       });
 
       this._renderedEmbeds.set(stream.name, {
@@ -186,6 +200,8 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   }
 
   private _removeStaleEmbeds(activeChannels: Set<string>): void {
+    let removedEmbed = false;
+
     for (const [stream, renderedEmbed] of this._renderedEmbeds.entries()) {
       if (activeChannels.has(stream)) {
         continue;
@@ -193,7 +209,37 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
       renderedEmbed.handle.destroy();
       this._renderedEmbeds.delete(stream);
+      this._availableQualitiesByStream.delete(stream);
+      removedEmbed = true;
     }
+
+    if (removedEmbed || activeChannels.size === 0) {
+      this._syncAvailableQualities();
+    }
+  }
+
+  private _setAvailableQualitiesForStream(stream: string, qualities: StreamQuality[]): void {
+    const normalizedQualities = [...new Set(qualities.map(quality => quality.trim()).filter(quality => quality.length > 0))];
+    const currentQualities = this._availableQualitiesByStream.get(stream) ?? [];
+
+    if (
+      currentQualities.length === normalizedQualities.length
+      && currentQualities.every((quality, index) => quality === normalizedQualities[index])
+    ) {
+      return;
+    }
+
+    if (normalizedQualities.length === 0) {
+      this._availableQualitiesByStream.delete(stream);
+    } else {
+      this._availableQualitiesByStream.set(stream, normalizedQualities);
+    }
+
+    this._syncAvailableQualities();
+  }
+
+  private _syncAvailableQualities(): void {
+    this._state.setAvailableQualities([...this._availableQualitiesByStream.values()].flat());
   }
 
   private _isRenderedStateCurrent(stream: string, nextState: RenderedEmbedSnapshot): boolean {

@@ -27,7 +27,7 @@ export class SettingsModalComponent {
   private readonly _renameListInputRef = viewChild<ElementRef<HTMLInputElement>>('renameListInput');
   private readonly _modalPanelRef = viewChild<ElementRef<HTMLElement>>('modalPanel');
 
-  protected readonly _qualityOptions: StreamQuality[] = ['auto', '480p', '720p60', 'chunked'];
+  protected readonly _qualityOptions = this._state.availableQualities;
   protected readonly _newListNameControl = new FormControl('', { nonNullable: true });
   protected readonly _activeListNameControl = new FormControl('', { nonNullable: true });
   protected readonly _channelNameControl = new FormControl('', { nonNullable: true });
@@ -252,6 +252,19 @@ export class SettingsModalComponent {
 
   protected _setQuality(value: StreamQuality): void {
     this._state.setQuality(value);
+  }
+
+  protected _formatQualityLabel(value: StreamQuality): string {
+    switch (value) {
+      case 'auto':
+        return 'Automatisch';
+      case 'chunked':
+        return 'Source';
+      case 'audio_only':
+        return 'Nur Audio';
+      default:
+        return value.replace(/_/g, ' ');
+    }
   }
 
   protected _setStreamShowChat(index: number, value: boolean): void {

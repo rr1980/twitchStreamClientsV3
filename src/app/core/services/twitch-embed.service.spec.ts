@@ -216,6 +216,42 @@ describe('TwitchEmbedService', () => {
     host.remove();
   });
 
+  it('reports available qualities when the embed becomes ready', async () => {
+    const onAvailableQualities = vi.fn();
+    const player = {
+      getQualities: vi.fn(() => ['chunked', { name: '1080p60' }, { name: '' }, 'audio_only']),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbed(EmbedMock);
+
+    service.createEmbed({
+      elementId: 'twitch-embed-reported-qualities',
+      channel: 'reported-qualities',
+      quality: '720p60',
+      showChat: false,
+      muted: false,
+      onAvailableQualities,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+
+    expect(onAvailableQualities).toHaveBeenCalledWith(['chunked', '1080p60', 'audio_only']);
+  });
+
   it('sets the requested quality when it becomes available on ready', async () => {
     const player = {
       getQualities: vi.fn()
@@ -409,6 +445,53 @@ describe('TwitchEmbedService', () => {
     await Promise.resolve();
 
     expect(player.setQuality).not.toHaveBeenCalled();
+  });
+
+  it('keeps polling qualities in auto mode until Twitch reports them', async () => {
+    const onAvailableQualities = vi.fn();
+    const player = {
+      getQualities: vi.fn()
+        .mockReturnValueOnce([])
+        .mockReturnValueOnce(['1080p60', 'chunked'])
+        .mockReturnValue(['1080p60', 'chunked']),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      callback(0);
+      return 1;
+    });
+
+    setWindowTwitchEmbed(EmbedMock);
+
+    service.createEmbed({
+      elementId: 'auto-reported-qualities',
+      channel: 'auto-reported-qualities',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+      onAvailableQualities,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onAvailableQualities).toHaveBeenLastCalledWith(['1080p60', 'chunked']);
+    expect(player.setQuality).not.toHaveBeenCalled();
+
+    rafSpy.mockRestore();
   });
 
   it('stops quality syncing when the embed is destroyed before ready completes', async () => {

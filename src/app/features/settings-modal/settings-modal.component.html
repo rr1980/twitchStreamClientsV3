@@ -180,14 +180,14 @@
               <legend class="section-label" id="quality-label">Qualität</legend>
 
               <div class="quality-grid">
-              @for (quality of _qualityOptions; track quality) {
+              @for (quality of _qualityOptions(); track quality) {
                   <label class="quality-option" [class.quality-option--active]="_selectedQuality() === quality">
                     <input
                       type="radio"
                       name="stream-quality"
                       [checked]="_selectedQuality() === quality"
                       (change)="_setQuality(quality)" />
-                    <span class="quality-btn">{{ quality === 'chunked' ? 'Source' : quality }}</span>
+                    <span class="quality-btn">{{ _formatQualityLabel(quality) }}</span>
                   </label>
               }
               </div>

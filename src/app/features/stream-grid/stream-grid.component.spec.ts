@@ -205,20 +205,36 @@ describe('StreamGridComponent', () => {
 
     expect(twitch.loadScript).toHaveBeenCalledTimes(1);
     expect(twitch.createEmbed).toHaveBeenCalledTimes(2);
-    expect(twitch.createEmbed).toHaveBeenNthCalledWith(1, {
+    expect(twitch.createEmbed).toHaveBeenNthCalledWith(1, expect.objectContaining({
       elementId: 'twitch-embed-shroud',
       channel: 'shroud',
       quality: 'auto',
       showChat: false,
       muted: false,
-    });
-    expect(twitch.createEmbed).toHaveBeenNthCalledWith(2, {
+    }));
+    expect(twitch.createEmbed).toHaveBeenNthCalledWith(2, expect.objectContaining({
       elementId: 'twitch-embed-rocketbeanstv',
       channel: 'rocketbeanstv',
       quality: 'auto',
       showChat: false,
       muted: true,
-    });
+      onAvailableQualities: expect.any(Function),
+    }));
+  });
+
+  it('publishes Twitch quality options from active embeds and clears them when no streams remain', async () => {
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
+    await syncComponent();
+
+    twitch.reportQualities('twitch-embed-shroud', ['chunked', '1080p60', '720p60']);
+    twitch.reportQualities('twitch-embed-rocketbeanstv', ['720p60', 'audio_only']);
+
+    expect(state.setAvailableQualities).toHaveBeenLastCalledWith(['chunked', '1080p60', '720p60', '720p60', 'audio_only']);
+
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [] });
+    await syncComponent();
+
+    expect(state.setAvailableQualities).toHaveBeenLastCalledWith([]);
   });
 
   it('adds only the new embed when streams are appended', async () => {
@@ -233,13 +249,13 @@ describe('StreamGridComponent', () => {
 
     expect(twitch.handles.get('twitch-embed-shroud')?.destroy).not.toHaveBeenCalled();
     expect(twitch.createEmbed).toHaveBeenCalledTimes(1);
-    expect(twitch.createEmbed).toHaveBeenCalledWith({
+    expect(twitch.createEmbed).toHaveBeenCalledWith(expect.objectContaining({
       elementId: 'twitch-embed-rocketbeanstv',
       channel: 'rocketbeanstv',
       quality: 'auto',
       showChat: false,
       muted: true,
-    });
+    }));
   });
 
   it('clears removed embeds without recreating unchanged streams', async () => {
@@ -310,13 +326,13 @@ describe('StreamGridComponent', () => {
     await syncComponent();
 
     expect(initialHandle?.destroy).toHaveBeenCalledTimes(1);
-    expect(twitch.createEmbed).toHaveBeenCalledWith({
+    expect(twitch.createEmbed).toHaveBeenCalledWith(expect.objectContaining({
       elementId: 'twitch-embed-shroud',
       channel: 'shroud',
       quality: '720p60',
       showChat: true,
       muted: false,
-    });
+    }));
   });
 
   it('stops creating further embeds when the run becomes stale during iteration', async () => {
@@ -382,6 +398,10 @@ class MockStreamStateService {
   public readonly listCount = computed(() => this._activeList() ? 1 : 0);
   public readonly streams = computed(() => this._activeList()?.streams ?? []);
   public readonly quality = signal<StreamQuality>('auto');
+  public readonly availableQualities = signal<StreamQuality[]>(['auto']);
+  public readonly setAvailableQualities = vi.fn((values: StreamQuality[]) => {
+    this.availableQualities.set(['auto', ...values]);
+  });
   private readonly _activeList = signal<StreamList | null>(null);
 
   public setActiveList(list: StreamList | null): void {
@@ -393,11 +413,21 @@ class MockStreamStateService {
 class MockTwitchEmbedService {
   public readonly loadScript = vi.fn(async () => undefined);
   public readonly handles = new Map<string, MockTwitchEmbedHandle>();
-  public readonly createEmbed = vi.fn((options: { elementId: string }) => {
+  private readonly _qualityCallbacks = new Map<string, (qualities: StreamQuality[]) => void>();
+  public readonly createEmbed = vi.fn((options: { elementId: string; onAvailableQualities?: (qualities: StreamQuality[]) => void }) => {
     const handle = new MockTwitchEmbedHandle();
     this.handles.set(options.elementId, handle);
+
+    if (options.onAvailableQualities) {
+      this._qualityCallbacks.set(options.elementId, options.onAvailableQualities);
+    }
+
     return handle;
   });
+
+  public reportQualities(elementId: string, qualities: StreamQuality[]): void {
+    this._qualityCallbacks.get(elementId)?.(qualities);
+  }
 }
 
 class MockTwitchEmbedHandle implements TwitchEmbedHandle {

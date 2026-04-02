@@ -68,6 +68,7 @@ describe('SettingsModalComponent', () => {
       { id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] },
       { id: 2, name: 'Liste 2', streams: [] },
     ]);
+    state.availableQualities.set(['auto', 'chunked', '1080p60', '720p60', 'audio_only']);
     state.setActiveListId(1);
     state.quality.set('chunked');
     state.statistics = [
@@ -94,7 +95,11 @@ describe('SettingsModalComponent', () => {
     ]);
     expect(countLabel).toBe('2 Listen');
     expect(checkedRadio).not.toBeNull();
+    expect(qualityLabels).toContain('Automatisch');
     expect(qualityLabels).toContain('Source');
+    expect(qualityLabels).toContain('1080p60');
+    expect(qualityLabels).toContain('720p60');
+    expect(qualityLabels).toContain('Nur Audio');
     expect(listNames).toEqual(['Liste 1', 'Liste 2']);
   });
 
@@ -607,6 +612,7 @@ class MockStreamStateService {
   public readonly activeList = computed(() => this.lists().find(list => list.id === this.activeListId()) ?? null);
   public readonly streams = computed(() => this.activeList()?.streams ?? []);
   public readonly quality = signal<StreamQuality>('auto');
+  public readonly availableQualities = signal<StreamQuality[]>(['auto', 'chunked', '720p60']);
   public statistics: StreamStatistic[] = [];
 
   public readonly addStream = vi.fn<(rawName: string) => { ok: boolean; reason?: string; name?: string }>();

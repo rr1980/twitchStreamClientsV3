@@ -38,6 +38,15 @@ export interface TwitchEmbedHandle {
   destroy(): void;
 }
 
+interface CreateEmbedOptions {
+  elementId: string;
+  channel: string;
+  quality: StreamQuality;
+  showChat: boolean;
+  muted: boolean;
+  onAvailableQualities?: (qualities: StreamQuality[]) => void;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TwitchEmbedService {
   private readonly _maxQualitySyncFrames = 120;
@@ -65,13 +74,7 @@ export class TwitchEmbedService {
     return this._scriptPromise;
   }
 
-  public createEmbed(options: {
-    elementId: string;
-    channel: string;
-    quality: StreamQuality;
-    showChat: boolean;
-    muted: boolean;
-  }): TwitchEmbedHandle {
+  public createEmbed(options: CreateEmbedOptions): TwitchEmbedHandle {
     const browserWindow = this._window;
 
     if (!browserWindow?.Twitch?.Embed) {
@@ -96,7 +99,13 @@ export class TwitchEmbedService {
       }
 
       const player = embed.getPlayer();
-      void this._syncRequestedQuality(player, options.channel, options.quality, () => handle.isDestroyed());
+      void this._syncRequestedQuality(
+        player,
+        options.channel,
+        options.quality,
+        () => handle.isDestroyed(),
+        options.onAvailableQualities,
+      );
     });
 
     return handle;
@@ -182,12 +191,9 @@ export class TwitchEmbedService {
     channel: string,
     quality: StreamQuality,
     isDestroyed: () => boolean,
+    onAvailableQualities?: (qualities: StreamQuality[]) => void,
   ): Promise<void> {
     const requestedQuality = this._mapRequestedQuality(quality);
-
-    if (!requestedQuality) {
-      return;
-    }
 
     try {
       for (let frame = 0; frame < this._maxQualitySyncFrames; frame++) {
@@ -196,6 +202,20 @@ export class TwitchEmbedService {
         }
 
         const availableQualities = this._readAvailableQualities(player);
+
+        if (availableQualities.length > 0) {
+          onAvailableQualities?.(availableQualities);
+        }
+
+        if (!requestedQuality) {
+          if (availableQualities.length > 0) {
+            return;
+          }
+
+          await this._waitForNextFrame();
+          continue;
+        }
+
         const resolvedQuality = this._resolveRequestedQuality(requestedQuality, availableQualities);
 
         if (resolvedQuality) {
@@ -204,6 +224,10 @@ export class TwitchEmbedService {
         }
 
         await this._waitForNextFrame();
+      }
+
+      if (!requestedQuality) {
+        return;
       }
 
       console.warn(
@@ -243,18 +267,15 @@ export class TwitchEmbedService {
   }
 
   private _mapRequestedQuality(value: StreamQuality): string | null {
-    switch (value) {
-      case 'auto':
-        return null;
-      case 'chunked':
-        return 'chunked';
-      case '480p':
-        return '480p';
-      case '720p60':
-        return '720p60';
-      default:
-        return null;
+    const normalizedValue = typeof value === 'string' ? value.trim() : 'auto';
+
+    if (normalizedValue === 'auto') {
+      return null;
     }
+
+    return /^(chunked|audio_only|\d+p(?:\d+(?:-\d+)?)?)$/i.test(normalizedValue)
+      ? normalizedValue
+      : null;
   }
 
   private _resolveRequestedQuality(requestedQuality: string, availableQualities: string[]): string | null {

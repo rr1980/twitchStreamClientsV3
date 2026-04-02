@@ -24,11 +24,11 @@ interface ListMutationResult {
 @Injectable({ providedIn: 'root' })
 export class StreamStateService {
   private readonly _stateKey = 'app_state_v3';
-  private readonly _availableQualities: readonly StreamQuality[] = ['auto', '480p', '720p60', 'chunked'];
 
   private readonly _lists = signal<StreamList[]>([]);
   private readonly _activeListId = signal<number | null>(null);
   private readonly _quality = signal<StreamQuality>('auto');
+  private readonly _reportedAvailableQualities = signal<StreamQuality[]>([]);
   private readonly _statistics = signal<StreamStatistic[]>([]);
   private readonly _menuOpen = signal(false);
 
@@ -37,6 +37,10 @@ export class StreamStateService {
   public readonly activeList = computed(() => this._lists().find(list => list.id === this._activeListId()) ?? null);
   public readonly streams = computed(() => this.activeList()?.streams ?? []);
   public readonly quality = computed(() => this._quality());
+  public readonly availableQualities = computed(() => this._buildAvailableQualityOptions(
+    this._reportedAvailableQualities(),
+    this._quality(),
+  ));
   public readonly statistics = computed(() => this._statistics());
   public readonly menuOpen = computed(() => this._menuOpen());
   public readonly streamCount = computed(() => this.streams().length);
@@ -230,7 +234,11 @@ export class StreamStateService {
   }
 
   public setQuality(value: StreamQuality): void {
-    this._quality.set(value);
+    this._quality.set(this._normalizeStoredQuality(value));
+  }
+
+  public setAvailableQualities(values: StreamQuality[]): void {
+    this._reportedAvailableQualities.set(this._normalizeAvailableQualities(values));
   }
 
   public setStreamShowChat(index: number, value: boolean): void {
@@ -305,11 +313,91 @@ export class StreamStateService {
   }
 
   private _normalizeStoredQuality(value: unknown): StreamQuality {
-    const storedQuality = typeof value === 'string' ? value : 'auto';
+    const storedQuality = typeof value === 'string' ? value.trim() : 'auto';
 
-    return this._availableQualities.includes(storedQuality as StreamQuality)
-      ? storedQuality as StreamQuality
-      : 'auto';
+    return this._isSupportedQuality(storedQuality) ? storedQuality : 'auto';
+  }
+
+  private _normalizeAvailableQualities(values: StreamQuality[]): StreamQuality[] {
+    const uniqueQualities = new Map<string, StreamQuality>();
+
+    values.forEach(value => {
+      const normalizedValue = this._normalizeStoredQuality(value);
+
+      if (normalizedValue === 'auto') {
+        return;
+      }
+
+      uniqueQualities.set(normalizedValue.toLowerCase(), normalizedValue);
+    });
+
+    return [...uniqueQualities.values()].sort((left, right) => this._compareQualityOptions(left, right));
+  }
+
+  private _buildAvailableQualityOptions(reportedQualities: StreamQuality[], selectedQuality: StreamQuality): StreamQuality[] {
+    const qualityOptions = new Map<string, StreamQuality>();
+    const normalizedSelectedQuality = this._normalizeStoredQuality(selectedQuality);
+
+    qualityOptions.set('auto', 'auto');
+
+    if (normalizedSelectedQuality !== 'auto') {
+      qualityOptions.set(normalizedSelectedQuality.toLowerCase(), normalizedSelectedQuality);
+    }
+
+    this._normalizeAvailableQualities(reportedQualities).forEach(quality => {
+      qualityOptions.set(quality.toLowerCase(), quality);
+    });
+
+    return [
+      'auto',
+      ...[...qualityOptions.values()]
+        .filter(quality => quality !== 'auto')
+        .sort((left, right) => this._compareQualityOptions(left, right)),
+    ];
+  }
+
+  private _compareQualityOptions(left: StreamQuality, right: StreamQuality): number {
+    const leftToken = this._getQualitySortToken(left);
+    const rightToken = this._getQualitySortToken(right);
+
+    if (leftToken.group !== rightToken.group) {
+      return leftToken.group - rightToken.group;
+    }
+
+    if (leftToken.resolution !== rightToken.resolution) {
+      return rightToken.resolution - leftToken.resolution;
+    }
+
+    if (leftToken.frameRate !== rightToken.frameRate) {
+      return rightToken.frameRate - leftToken.frameRate;
+    }
+
+    return left.localeCompare(right);
+  }
+
+  private _getQualitySortToken(value: StreamQuality): { group: number; resolution: number; frameRate: number } {
+    if (value === 'chunked') {
+      return { group: 0, resolution: Number.MAX_SAFE_INTEGER, frameRate: Number.MAX_SAFE_INTEGER };
+    }
+
+    if (value === 'audio_only') {
+      return { group: 2, resolution: -1, frameRate: -1 };
+    }
+
+    const qualityMatch = value.match(/^(\d+)p(?:.*?(\d+))?$/i);
+
+    return {
+      group: 1,
+      resolution: qualityMatch ? Number(qualityMatch[1]) : -1,
+      frameRate: value.includes('60') ? 60 : qualityMatch?.[2] ? Number(qualityMatch[2]) : 0,
+    };
+  }
+
+  private _isSupportedQuality(value: string): boolean {
+    return value === 'auto'
+      || value === 'chunked'
+      || value === 'audio_only'
+      || /^\d+p(?:\d+(?:-\d+)?)?$/i.test(value);
   }
 
   private _normalizeStoredStatistics(value: unknown): StreamStatistic[] {

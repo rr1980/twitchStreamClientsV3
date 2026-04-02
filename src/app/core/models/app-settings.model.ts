@@ -1,4 +1,4 @@
-export type StreamQuality = 'auto' | '480p' | '720p60' | 'chunked';
+export type StreamQuality = string;
 
 export interface StreamStatistic {
   name: string;

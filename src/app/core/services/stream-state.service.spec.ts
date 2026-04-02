@@ -100,6 +100,22 @@ describe('StreamStateService', () => {
     expect(service.getTopStatistics(10)).toEqual([{ name: 'shroud', value: 2 }]);
   });
 
+  it('builds dynamic quality options from Twitch qualities and keeps the current selection visible', () => {
+    service.setAvailableQualities(['720p60', '1080p60', 'audio_only', 'chunked', '1080p60', 'not-a-quality']);
+
+    expect(service.availableQualities()).toEqual(['auto', 'chunked', '1080p60', '720p60', 'audio_only']);
+
+    service.setQuality('936p60');
+
+    expect(service.quality()).toBe('936p60');
+    expect(service.availableQualities()).toEqual(['auto', 'chunked', '1080p60', '936p60', '720p60', 'audio_only']);
+
+    service.setQuality('not-a-quality');
+
+    expect(service.quality()).toBe('auto');
+    expect(service.availableQualities()).toEqual(['auto', 'chunked', '1080p60', '720p60', 'audio_only']);
+  });
+
   it('normalizes duplicate ids, fallback names and legacy stream objects from persisted lists', () => {
     localStorage.setItem('app_state_v3', JSON.stringify({
       lists: [
