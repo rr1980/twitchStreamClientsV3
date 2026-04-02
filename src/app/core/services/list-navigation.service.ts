@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class ListNavigationService {
-  syncLocationToListHash(): number | null {
+  public syncLocationToListHash(): number | null {
     const listId = this.parseListId(window.location.hash);
     const normalizedHash = this.buildListHash(listId);
 
@@ -13,7 +13,7 @@ export class ListNavigationService {
     return listId;
   }
 
-  navigateToList(listId: number | null): void {
+  public navigateToList(listId: number | null): void {
     const normalizedHash = this.buildListHash(listId);
 
     if (window.location.hash !== normalizedHash) {

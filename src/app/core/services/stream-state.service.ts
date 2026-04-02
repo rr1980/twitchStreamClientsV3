@@ -1,6 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import type { AppSettings, StreamChannel, StreamList, StreamQuality, StreamStatistic } from '../models/app-settings.model';
 import { StorageService } from './storage.service';
-import { AppSettings, StreamChannel, StreamList, StreamQuality, StreamStatistic } from '../models/app-settings.model';
 import { ToastService } from '../../features/toast/toast.service';
 
 type PersistedStreamState = AppSettings;
@@ -32,15 +32,15 @@ export class StreamStateService {
   private readonly _statistics = signal<StreamStatistic[]>([]);
   private readonly _menuOpen = signal(false);
 
-  readonly lists = computed(() => this._lists());
-  readonly activeListId = computed(() => this._activeListId());
-  readonly activeList = computed(() => this._lists().find(list => list.id === this._activeListId()) ?? null);
-  readonly streams = computed(() => this.activeList()?.streams ?? []);
-  readonly quality = computed(() => this._quality());
-  readonly statistics = computed(() => this._statistics());
-  readonly menuOpen = computed(() => this._menuOpen());
-  readonly streamCount = computed(() => this.streams().length);
-  readonly listCount = computed(() => this._lists().length);
+  public readonly lists = computed(() => this._lists());
+  public readonly activeListId = computed(() => this._activeListId());
+  public readonly activeList = computed(() => this._lists().find(list => list.id === this._activeListId()) ?? null);
+  public readonly streams = computed(() => this.activeList()?.streams ?? []);
+  public readonly quality = computed(() => this._quality());
+  public readonly statistics = computed(() => this._statistics());
+  public readonly menuOpen = computed(() => this._menuOpen());
+  public readonly streamCount = computed(() => this.streams().length);
+  public readonly listCount = computed(() => this._lists().length);
 
   private readonly storage = inject(StorageService);
   private readonly toast = inject(ToastService);
@@ -63,7 +63,7 @@ export class StreamStateService {
     });
   }
 
-  initialize(): void {
+  public initialize(): void {
     if (this.initialized) {
       return;
     }
@@ -72,23 +72,23 @@ export class StreamStateService {
     this.initialized = true;
   }
 
-  openMenu(): void {
+  public openMenu(): void {
     this._menuOpen.set(true);
   }
 
-  closeMenu(): void {
+  public closeMenu(): void {
     this._menuOpen.set(false);
   }
 
-  toggleMenu(): void {
+  public toggleMenu(): void {
     this._menuOpen.update(value => !value);
   }
 
-  setActiveListId(listId: number | null): void {
+  public setActiveListId(listId: number | null): void {
     this._activeListId.set(listId);
   }
 
-  createList(rawName: string): ListMutationResult {
+  public createList(rawName: string): ListMutationResult {
     const name = this.normalizeListName(rawName);
 
     if (!name) {
@@ -110,7 +110,7 @@ export class StreamStateService {
     return { ok: true, list };
   }
 
-  renameList(listId: number, rawName: string): ListMutationResult {
+  public renameList(listId: number, rawName: string): ListMutationResult {
     const name = this.normalizeListName(rawName);
 
     if (!name) {
@@ -137,7 +137,7 @@ export class StreamStateService {
     return { ok: true, list };
   }
 
-  deleteList(listId: number): StreamList | null {
+  public deleteList(listId: number): StreamList | null {
     const current = this._lists();
     const removed = current.find(list => list.id === listId) ?? null;
 
@@ -154,7 +154,7 @@ export class StreamStateService {
     return removed;
   }
 
-  addStream(rawName: string): StreamMutationResult {
+  public addStream(rawName: string): StreamMutationResult {
     const name = this.normalizeChannelName(rawName);
 
     if (!name) {
@@ -184,7 +184,7 @@ export class StreamStateService {
     return { ok: true, name };
   }
 
-  removeStream(index: number): string | null {
+  public removeStream(index: number): string | null {
     const activeList = this.activeList();
 
     if (!activeList) {
@@ -207,7 +207,7 @@ export class StreamStateService {
     return removed.name;
   }
 
-  moveStream(index: number, direction: -1 | 1): void {
+  public moveStream(index: number, direction: -1 | 1): void {
     const activeList = this.activeList();
 
     if (!activeList) {
@@ -229,11 +229,11 @@ export class StreamStateService {
     }));
   }
 
-  setQuality(value: StreamQuality): void {
+  public setQuality(value: StreamQuality): void {
     this._quality.set(value);
   }
 
-  setStreamShowChat(index: number, value: boolean): void {
+  public setStreamShowChat(index: number, value: boolean): void {
     const activeList = this.activeList();
 
     if (!activeList) {
@@ -254,7 +254,7 @@ export class StreamStateService {
     }));
   }
 
-  getTopStatistics(limit = 10): StreamStatistic[] {
+  public getTopStatistics(limit = 10): StreamStatistic[] {
     return [...this._statistics()]
       .sort((a, b) => b.value - a.value)
       .slice(0, limit);

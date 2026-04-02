@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
-import { StreamChannel } from '../models/app-settings.model';
+import type { StreamChannel } from '../models/app-settings.model';
 import { ToastService } from '../../features/toast/toast.service';
 import { StreamStateService } from './stream-state.service';
 import { StorageService } from './storage.service';

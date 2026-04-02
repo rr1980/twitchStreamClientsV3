@@ -1,18 +1,17 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
   computed,
   effect,
   inject,
-  OnDestroy,
   signal,
   viewChild,
 } from '@angular/core';
-import { StreamQuality } from '../../core/models/app-settings.model';
+import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
+import type { StreamQuality } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
-import { TwitchEmbedHandle, TwitchEmbedService } from '../../core/services/twitch-embed.service';
+import { TwitchEmbedService } from '../../core/services/twitch-embed.service';
+import type { TwitchEmbedHandle } from '../../core/services/twitch-embed.service';
 import { calculateOptimalGrid } from '../../shared/utils/grid.util';
 import { ToastService } from '../toast/toast.service';
 
@@ -41,21 +40,21 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   private readonly toast = inject(ToastService);
   private readonly renderedEmbeds = new Map<string, RenderedEmbedState>();
 
-  readonly hostRef = viewChild<ElementRef<HTMLElement>>('gridHost');
-  readonly viewportWidth = signal(window.innerWidth);
-  readonly viewportHeight = signal(window.innerHeight);
-  readonly activeList = this.state.activeList;
-  readonly listCount = this.state.listCount;
-  readonly streams = this.state.streams;
+  public readonly hostRef = viewChild<ElementRef<HTMLElement>>('gridHost');
+  public readonly viewportWidth = signal(window.innerWidth);
+  public readonly viewportHeight = signal(window.innerHeight);
+  public readonly activeList = this.state.activeList;
+  public readonly listCount = this.state.listCount;
+  public readonly streams = this.state.streams;
 
   private viewReady = false;
   private syncRunId = 0;
   private loadScriptErrorVisible = false;
 
-  readonly grid = computed(() => calculateOptimalGrid(this.streams(), this.viewportWidth(), this.viewportHeight()));
+  public readonly grid = computed(() => calculateOptimalGrid(this.streams(), this.viewportWidth(), this.viewportHeight()));
 
-  readonly gridTemplateColumns = computed(() => `repeat(${this.grid().cols}, 1fr)`);
-  readonly gridTemplateRows = computed(() => `repeat(${this.grid().rows}, 1fr)`);
+  public readonly gridTemplateColumns = computed(() => `repeat(${this.grid().cols}, 1fr)`);
+  public readonly gridTemplateRows = computed(() => `repeat(${this.grid().rows}, 1fr)`);
 
   constructor() {
     effect(() => {
@@ -70,12 +69,12 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  ngAfterViewInit(): void {
+  public ngAfterViewInit(): void {
     this.viewReady = true;
     this.scheduleSync();
   }
 
-  ngOnDestroy(): void {
+  public ngOnDestroy(): void {
     for (const renderedEmbed of this.renderedEmbeds.values()) {
       renderedEmbed.handle.destroy();
     }
@@ -83,7 +82,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     this.renderedEmbeds.clear();
   }
 
-  onResize(): void {
+  public onResize(): void {
     this.viewportWidth.set(window.innerWidth);
     this.viewportHeight.set(window.innerHeight);
   }

@@ -1,4 +1,4 @@
-import { StreamChannel } from '../../core/models/app-settings.model';
+import type { StreamChannel } from '../../core/models/app-settings.model';
 
 export interface GridLayout {
   cols: number;

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { StreamQuality } from '../models/app-settings.model';
+import type { StreamQuality } from '../models/app-settings.model';
 
 declare global {
   interface Window {
@@ -40,7 +40,7 @@ export class TwitchEmbedService {
   private readonly maxQualitySyncFrames = 120;
   private scriptPromise?: Promise<void>;
 
-  loadScript(): Promise<void> {
+  public loadScript(): Promise<void> {
     if (window.Twitch?.Embed) {
       return Promise.resolve();
     }
@@ -54,7 +54,7 @@ export class TwitchEmbedService {
     return this.scriptPromise;
   }
 
-  createEmbed(options: {
+  public createEmbed(options: {
     elementId: string;
     channel: string;
     quality: StreamQuality;
@@ -89,7 +89,7 @@ export class TwitchEmbedService {
     return handle;
   }
 
-  clearEmbed(elementId: string): void {
+  public clearEmbed(elementId: string): void {
     document.getElementById(elementId)?.replaceChildren();
   }
 

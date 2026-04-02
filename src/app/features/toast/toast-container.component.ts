@@ -8,5 +8,5 @@ import { ToastService } from './toast.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ToastContainerComponent {
-  readonly toastService = inject(ToastService);
+  public readonly toastService = inject(ToastService);
 }

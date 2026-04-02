@@ -17,9 +17,9 @@ export class ToastService {
   private readonly _messages = signal<ToastMessage[]>([]);
   private readonly removalTimers = new Map<number, number>();
 
-  readonly messages = this._messages.asReadonly();
+  public readonly messages = this._messages.asReadonly();
 
-  show(text: string, type: ToastType = 'success'): void {
+  public show(text: string, type: ToastType = 'success'): void {
     const duplicate = this._messages().find(message => message.text === text && message.type === type);
 
     if (duplicate) {
@@ -55,7 +55,7 @@ export class ToastService {
     this.scheduleRemoval(message.id);
   }
 
-  remove(id: number): void {
+  public remove(id: number): void {
     this.clearRemovalTimer(id);
     this._messages.update(items => items.filter(item => item.id !== id));
   }

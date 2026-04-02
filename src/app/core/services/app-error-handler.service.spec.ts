@@ -53,5 +53,5 @@ describe('AppErrorHandler', () => {
 });
 
 class MockToastService {
-  readonly show = vi.fn();
+  public readonly show = vi.fn();
 }

@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, viewChild } from '@angular/core';
+import type { ElementRef } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { StreamChannel, StreamList, StreamQuality, StreamStatistic } from '../../core/models/app-settings.model';
+import type { StreamChannel, StreamList, StreamQuality, StreamStatistic } from '../../core/models/app-settings.model';
 import { ListNavigationService } from '../../core/services/list-navigation.service';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { ToastService } from '../toast/toast.service';
@@ -19,23 +20,23 @@ export class SettingsModalComponent {
   private previouslyFocusedElement: HTMLElement | null = null;
   private wasOpen = false;
 
-  readonly listInputRef = viewChild<ElementRef<HTMLInputElement>>('listInput');
-  readonly streamInputRef = viewChild<ElementRef<HTMLInputElement>>('streamInput');
-  readonly renameListInputRef = viewChild<ElementRef<HTMLInputElement>>('renameListInput');
-  readonly modalPanelRef = viewChild<ElementRef<HTMLElement>>('modalPanel');
+  public readonly listInputRef = viewChild<ElementRef<HTMLInputElement>>('listInput');
+  public readonly streamInputRef = viewChild<ElementRef<HTMLInputElement>>('streamInput');
+  public readonly renameListInputRef = viewChild<ElementRef<HTMLInputElement>>('renameListInput');
+  public readonly modalPanelRef = viewChild<ElementRef<HTMLElement>>('modalPanel');
 
-  readonly qualityOptions: StreamQuality[] = ['auto', '480p', '720p60', 'chunked'];
-  readonly newListNameControl = new FormControl('', { nonNullable: true });
-  readonly activeListNameControl = new FormControl('', { nonNullable: true });
-  readonly channelNameControl = new FormControl('', { nonNullable: true });
-  readonly isOpen = this.state.menuOpen;
-  readonly lists = this.state.lists;
-  readonly activeListId = this.state.activeListId;
-  readonly activeList = this.state.activeList;
-  readonly streams = this.state.streams;
-  readonly selectedQuality = this.state.quality;
-  readonly topStatistics = computed(() => this.state.getTopStatistics(10));
-  readonly hasActiveList = computed(() => this.activeList() !== null);
+  public readonly qualityOptions: StreamQuality[] = ['auto', '480p', '720p60', 'chunked'];
+  public readonly newListNameControl = new FormControl('', { nonNullable: true });
+  public readonly activeListNameControl = new FormControl('', { nonNullable: true });
+  public readonly channelNameControl = new FormControl('', { nonNullable: true });
+  public readonly isOpen = this.state.menuOpen;
+  public readonly lists = this.state.lists;
+  public readonly activeListId = this.state.activeListId;
+  public readonly activeList = this.state.activeList;
+  public readonly streams = this.state.streams;
+  public readonly selectedQuality = this.state.quality;
+  public readonly topStatistics = computed(() => this.state.getTopStatistics(10));
+  public readonly hasActiveList = computed(() => this.activeList() !== null);
 
   constructor() {
     effect(() => {
@@ -81,7 +82,7 @@ export class SettingsModalComponent {
     });
   }
 
-  createList(): void {
+  public createList(): void {
     const result = this.state.createList(this.newListNameControl.getRawValue());
 
     if (!result.ok) {
@@ -99,7 +100,7 @@ export class SettingsModalComponent {
     this.toast.show(`${result.list?.name} angelegt.`);
   }
 
-  renameActiveList(): void {
+  public renameActiveList(): void {
     const activeList = this.activeList();
 
     if (!activeList) {
@@ -123,11 +124,11 @@ export class SettingsModalComponent {
     this.renameListInputRef()?.nativeElement.focus();
   }
 
-  selectList(listId: number): void {
+  public selectList(listId: number): void {
     this.navigateToList(listId);
   }
 
-  deleteList(list: StreamList): void {
+  public deleteList(list: StreamList): void {
     const listsBeforeDeletion = this.lists();
     const wasActiveList = this.activeListId() === list.id;
     const removed = this.state.deleteList(list.id);
@@ -145,17 +146,17 @@ export class SettingsModalComponent {
     this.toast.show(`${removed.name} gelöscht.`, 'info');
   }
 
-  close(): void {
+  public close(): void {
     this.state.closeMenu();
   }
 
-  onBackdropClick(event: MouseEvent): void {
+  public onBackdropClick(event: MouseEvent): void {
     if (event.target === event.currentTarget) {
       this.close();
     }
   }
 
-  onDialogKeydown(event: KeyboardEvent): void {
+  public onDialogKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       event.preventDefault();
       this.close();
@@ -195,7 +196,7 @@ export class SettingsModalComponent {
     }
   }
 
-  addStream(): void {
+  public addStream(): void {
     const channelName = this.extractChannelName(this.channelNameControl.getRawValue());
     const result = this.state.addStream(channelName);
 
@@ -223,26 +224,26 @@ export class SettingsModalComponent {
     this.streamInputRef()?.nativeElement.focus();
   }
 
-  removeStream(index: number): void {
+  public removeStream(index: number): void {
     const removed = this.state.removeStream(index);
     if (removed) {
       this.toast.show(`${removed} entfernt.`, 'info');
     }
   }
 
-  moveStream(index: number, direction: -1 | 1): void {
+  public moveStream(index: number, direction: -1 | 1): void {
     this.state.moveStream(index, direction);
   }
 
-  setQuality(value: StreamQuality): void {
+  public setQuality(value: StreamQuality): void {
     this.state.setQuality(value);
   }
 
-  setStreamShowChat(index: number, value: boolean): void {
+  public setStreamShowChat(index: number, value: boolean): void {
     this.state.setStreamShowChat(index, value);
   }
 
-  onStreamChatChange(index: number, event: Event): void {
+  public onStreamChatChange(index: number, event: Event): void {
     const target = event.target;
 
     if (target instanceof HTMLInputElement) {
@@ -250,15 +251,15 @@ export class SettingsModalComponent {
     }
   }
 
-  formatStatisticLabel(item: StreamStatistic): string {
+  public formatStatisticLabel(item: StreamStatistic): string {
     return `${item.name} (${item.value})`;
   }
 
-  trackList(_: number, list: StreamList): number {
+  public trackList(_: number, list: StreamList): number {
     return list.id;
   }
 
-  trackStream(_: number, stream: StreamChannel): string {
+  public trackStream(_: number, stream: StreamChannel): string {
     return stream.name;
   }
 

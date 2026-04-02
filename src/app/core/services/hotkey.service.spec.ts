@@ -65,6 +65,6 @@ describe('HotkeyService', () => {
 });
 
 class MockStreamStateService {
-  readonly closeMenu = vi.fn();
-  readonly toggleMenu = vi.fn();
+  public readonly closeMenu = vi.fn();
+  public readonly toggleMenu = vi.fn();
 }

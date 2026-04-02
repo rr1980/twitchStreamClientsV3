@@ -229,7 +229,14 @@ describe('TwitchEmbedService', () => {
   });
 
   it('supports 480p and chunked quality mappings', async () => {
-    const createReadyHarness = () => {
+    const createReadyHarness = (): {
+      player: {
+        getQualities: ReturnType<typeof vi.fn>;
+        getQuality: ReturnType<typeof vi.fn>;
+        setQuality: ReturnType<typeof vi.fn>;
+      };
+      triggerReady: () => void;
+    } => {
       const player = {
         getQualities: vi.fn(() => ['480p', 'chunked']),
         getQuality: vi.fn(() => 'auto'),

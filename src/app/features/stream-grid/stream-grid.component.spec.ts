@@ -1,9 +1,11 @@
 import { computed, signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
+import type { ComponentFixture } from '@angular/core/testing';
 import { vi } from 'vitest';
-import { StreamChannel, StreamList, StreamQuality } from '../../core/models/app-settings.model';
+import type { StreamChannel, StreamList, StreamQuality } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
-import { TwitchEmbedHandle, TwitchEmbedService } from '../../core/services/twitch-embed.service';
+import { TwitchEmbedService } from '../../core/services/twitch-embed.service';
+import type { TwitchEmbedHandle } from '../../core/services/twitch-embed.service';
 import { StreamGridComponent } from './stream-grid.component';
 import { ToastService } from '../toast/toast.service';
 
@@ -299,23 +301,23 @@ describe('StreamGridComponent', () => {
 });
 
 class MockStreamStateService {
-  readonly activeListId = signal<number | null>(null);
-  readonly activeList = computed<StreamList | null>(() => this._activeList());
-  readonly listCount = computed(() => this._activeList() ? 1 : 0);
-  readonly streams = computed(() => this._activeList()?.streams ?? []);
-  readonly quality = signal<StreamQuality>('auto');
+  public readonly activeListId = signal<number | null>(null);
+  public readonly activeList = computed<StreamList | null>(() => this._activeList());
+  public readonly listCount = computed(() => this._activeList() ? 1 : 0);
+  public readonly streams = computed(() => this._activeList()?.streams ?? []);
+  public readonly quality = signal<StreamQuality>('auto');
   private readonly _activeList = signal<StreamList | null>(null);
 
-  setActiveList(list: StreamList | null): void {
+  public setActiveList(list: StreamList | null): void {
     this._activeList.set(list);
     this.activeListId.set(list?.id ?? null);
   }
 }
 
 class MockTwitchEmbedService {
-  readonly loadScript = vi.fn(async () => undefined);
-  readonly handles = new Map<string, MockTwitchEmbedHandle>();
-  readonly createEmbed = vi.fn((options: { elementId: string }) => {
+  public readonly loadScript = vi.fn(async () => undefined);
+  public readonly handles = new Map<string, MockTwitchEmbedHandle>();
+  public readonly createEmbed = vi.fn((options: { elementId: string }) => {
     const handle = new MockTwitchEmbedHandle();
     this.handles.set(options.elementId, handle);
     return handle;
@@ -323,9 +325,9 @@ class MockTwitchEmbedService {
 }
 
 class MockTwitchEmbedHandle implements TwitchEmbedHandle {
-  readonly destroy = vi.fn();
+  public readonly destroy = vi.fn();
 }
 
 class MockToastService {
-  readonly show = vi.fn();
+  public readonly show = vi.fn();
 }

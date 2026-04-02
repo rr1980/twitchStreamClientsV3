@@ -5,12 +5,12 @@ import { StreamStateService } from './stream-state.service';
 export class HotkeyService {
   private readonly state = inject(StreamStateService);
 
-  handleWindowKeydown(event: KeyboardEvent, activeElement: Element | null): boolean {
+  public handleWindowKeydown(event: KeyboardEvent, activeElement: Element | null): boolean {
     if (event.defaultPrevented || event.isComposing) {
       return false;
     }
 
-    if(!event.key){
+    if (!event.key) {
       return false;
     }
 

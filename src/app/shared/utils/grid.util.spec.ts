@@ -1,3 +1,4 @@
+import type { StreamChannel } from '../../core/models/app-settings.model';
 import { calculateOptimalGrid } from './grid.util';
 
 describe('calculateOptimalGrid', () => {
@@ -43,7 +44,7 @@ describe('calculateOptimalGrid', () => {
     expect(layout.rows).toBeGreaterThanOrEqual(1);
   });
 
-  function channel(name: string, showChat = false) {
+  function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }
 });

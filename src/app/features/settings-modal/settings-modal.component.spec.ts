@@ -1,7 +1,8 @@
 import { computed, signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
+import type { ComponentFixture } from '@angular/core/testing';
 import { vi } from 'vitest';
-import { StreamChannel, StreamList, StreamQuality, StreamStatistic } from '../../core/models/app-settings.model';
+import type { StreamChannel, StreamList, StreamQuality, StreamStatistic } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { SettingsModalComponent } from './settings-modal.component';
 import { ToastService } from '../toast/toast.service';
@@ -373,41 +374,41 @@ describe('SettingsModalComponent', () => {
 });
 
 class MockStreamStateService {
-  readonly menuOpen = signal(false);
-  readonly lists = signal<StreamList[]>([]);
-  readonly activeListId = signal<number | null>(null);
-  readonly activeList = computed(() => this.lists().find(list => list.id === this.activeListId()) ?? null);
-  readonly streams = computed(() => this.activeList()?.streams ?? []);
-  readonly quality = signal<StreamQuality>('auto');
-  statistics: StreamStatistic[] = [];
+  public readonly menuOpen = signal(false);
+  public readonly lists = signal<StreamList[]>([]);
+  public readonly activeListId = signal<number | null>(null);
+  public readonly activeList = computed(() => this.lists().find(list => list.id === this.activeListId()) ?? null);
+  public readonly streams = computed(() => this.activeList()?.streams ?? []);
+  public readonly quality = signal<StreamQuality>('auto');
+  public statistics: StreamStatistic[] = [];
 
-  readonly addStream = vi.fn<(rawName: string) => { ok: boolean; reason?: string; name?: string }>();
-  readonly createList = vi.fn<(rawName: string) => { ok: boolean; reason?: string; list?: StreamList }>();
-  readonly closeMenu = vi.fn(() => {
+  public readonly addStream = vi.fn<(rawName: string) => { ok: boolean; reason?: string; name?: string }>();
+  public readonly createList = vi.fn<(rawName: string) => { ok: boolean; reason?: string; list?: StreamList }>();
+  public readonly closeMenu = vi.fn(() => {
     this.menuOpen.set(false);
   });
-  readonly deleteList = vi.fn<(listId: number) => StreamList | null>(() => null);
-  readonly moveStream = vi.fn();
-  readonly removeStream = vi.fn<(index: number) => string | null>(() => null);
-  readonly renameList = vi.fn<(listId: number, rawName: string) => { ok: boolean; reason?: string; list?: StreamList }>();
-  readonly setQuality = vi.fn((value: StreamQuality) => {
+  public readonly deleteList = vi.fn<(listId: number) => StreamList | null>(() => null);
+  public readonly moveStream = vi.fn();
+  public readonly removeStream = vi.fn<(index: number) => string | null>(() => null);
+  public readonly renameList = vi.fn<(listId: number, rawName: string) => { ok: boolean; reason?: string; list?: StreamList }>();
+  public readonly setQuality = vi.fn((value: StreamQuality) => {
     this.quality.set(value);
   });
-  readonly setStreamShowChat = vi.fn();
+  public readonly setStreamShowChat = vi.fn();
 
-  setLists(lists: StreamList[]): void {
+  public setLists(lists: StreamList[]): void {
     this.lists.set(lists);
   }
 
-  setActiveListId(listId: number | null): void {
+  public setActiveListId(listId: number | null): void {
     this.activeListId.set(listId);
   }
 
-  getTopStatistics(): StreamStatistic[] {
+  public getTopStatistics(): StreamStatistic[] {
     return this.statistics;
   }
 }
 
 class MockToastService {
-  readonly show = vi.fn();
+  public readonly show = vi.fn();
 }

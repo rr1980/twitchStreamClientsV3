@@ -19,7 +19,7 @@ import { StreamStateService } from './core/services/stream-state.service';
   },
 })
 export class App {
-  readonly state = inject(StreamStateService);
+  public readonly state = inject(StreamStateService);
   private readonly hotkeys = inject(HotkeyService);
   private readonly listNavigation = inject(ListNavigationService);
   private readonly title = inject(Title);
@@ -32,17 +32,17 @@ export class App {
     this.syncListFromHash();
   }
 
-  onWindowKeydown(event: KeyboardEvent): void {
+  public onWindowKeydown(event: KeyboardEvent): void {
     if (this.hotkeys.handleWindowKeydown(event, document.activeElement)) {
       event.preventDefault();
     }
   }
 
-  onHashChange(): void {
+  public onHashChange(): void {
     this.syncListFromHash();
   }
 
-  openMenu(): void {
+  public openMenu(): void {
     this.state.openMenu();
   }
 

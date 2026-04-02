@@ -1,4 +1,5 @@
-import { ApplicationConfig, ErrorHandler, inject, isDevMode, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ErrorHandler, inject, isDevMode, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
+import type { ApplicationConfig } from '@angular/core';
 import { provideServiceWorker } from '@angular/service-worker';
 
 import { AppErrorHandler } from './core/services/app-error-handler.service';

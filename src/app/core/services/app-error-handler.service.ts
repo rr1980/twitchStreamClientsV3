@@ -1,11 +1,12 @@
-import { ErrorHandler, Injectable, isDevMode, inject } from '@angular/core';
+import { Injectable, isDevMode, inject } from '@angular/core';
+import type { ErrorHandler } from '@angular/core';
 import { ToastService } from '../../features/toast/toast.service';
 
 @Injectable()
 export class AppErrorHandler implements ErrorHandler {
   private readonly toast = inject(ToastService);
 
-  handleError(error: unknown): void {
+  public handleError(error: unknown): void {
     const normalizedError = this.normalizeError(error);
 
     console.error('[AppError]', normalizedError);
