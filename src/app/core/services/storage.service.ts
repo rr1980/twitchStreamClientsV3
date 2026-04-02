@@ -6,7 +6,7 @@ export class StorageService {
   private readonly platformId = inject(PLATFORM_ID);
 
   getItem(key: string): string | null {
-    return this.storage?.getItem(key) ?? null;
+    return this.read(storage => storage.getItem(key), null);
   }
 
   hasKey(key: string): boolean {
@@ -36,20 +36,50 @@ export class StorageService {
     }
   }
 
-  setString(key: string, value: string): void {
-    this.storage?.setItem(key, value);
+  setString(key: string, value: string): boolean {
+    return this.write(storage => storage.setItem(key, value));
   }
 
-  setBoolean(key: string, value: boolean): void {
-    this.storage?.setItem(key, String(value));
+  setBoolean(key: string, value: boolean): boolean {
+    return this.write(storage => storage.setItem(key, String(value)));
   }
 
-  setJson<T>(key: string, value: T): void {
-    this.storage?.setItem(key, JSON.stringify(value));
+  setJson<T>(key: string, value: T): boolean {
+    return this.write(storage => storage.setItem(key, JSON.stringify(value)));
   }
 
-  remove(key: string): void {
-    this.storage?.removeItem(key);
+  remove(key: string): boolean {
+    return this.write(storage => storage.removeItem(key));
+  }
+
+  private read<T>(reader: (storage: Storage) => T, fallback: T): T {
+    const storage = this.storage;
+
+    if (!storage) {
+      return fallback;
+    }
+
+    try {
+      return reader(storage);
+    } catch {
+      return fallback;
+    }
+  }
+
+  private write(writer: (storage: Storage) => void): boolean {
+    const storage = this.storage;
+
+    if (!storage) {
+      return false;
+    }
+
+    try {
+      writer(storage);
+      return true;
+    } catch {
+      // Ignore storage write failures and keep the app usable.
+      return false;
+    }
   }
 
   private get storage(): Storage | null {

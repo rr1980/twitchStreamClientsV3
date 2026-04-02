@@ -10,10 +10,11 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { StreamQuality } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { TwitchEmbedHandle, TwitchEmbedService } from '../../core/services/twitch-embed.service';
 import { calculateOptimalGrid } from '../../shared/utils/grid.util';
-import { StreamQuality } from '../../core/models/app-settings.model';
+import { ToastService } from '../toast/toast.service';
 
 interface RenderedEmbedState {
   elementId: string;
@@ -37,66 +38,41 @@ type RenderedEmbedSnapshot = Omit<RenderedEmbedState, 'handle'>;
 export class StreamGridComponent implements AfterViewInit, OnDestroy {
   private readonly state = inject(StreamStateService);
   private readonly twitch = inject(TwitchEmbedService);
+  private readonly toast = inject(ToastService);
   private readonly renderedEmbeds = new Map<string, RenderedEmbedState>();
 
   readonly hostRef = viewChild<ElementRef<HTMLElement>>('gridHost');
   readonly viewportWidth = signal(window.innerWidth);
   readonly viewportHeight = signal(window.innerHeight);
+  readonly activeList = this.state.activeList;
+  readonly listCount = this.state.listCount;
   readonly streams = this.state.streams;
 
   private viewReady = false;
   private syncRunId = 0;
+  private loadScriptErrorVisible = false;
 
-  readonly grid = computed(() =>
-    calculateOptimalGrid(
-      this.streams().length,
-      this.viewportWidth(),
-      this.viewportHeight(),
-      this.state.showChat(),
-    ),
-  );
+  readonly grid = computed(() => calculateOptimalGrid(this.streams(), this.viewportWidth(), this.viewportHeight()));
 
   readonly gridTemplateColumns = computed(() => `repeat(${this.grid().cols}, 1fr)`);
   readonly gridTemplateRows = computed(() => `repeat(${this.grid().rows}, 1fr)`);
 
   constructor() {
     effect(() => {
-      const streams = this.state.streams();
-      const quality = this.state.quality();
-      const showChat = this.state.showChat();
+      this.state.streams();
+      this.state.quality();
 
       if (!this.viewReady) {
         return;
       }
 
-      const runId = ++this.syncRunId;
-
-      queueMicrotask(() => {
-        if (runId !== this.syncRunId) {
-          return;
-        }
-
-        void this.syncEmbeds(streams, quality, showChat);
-      });
+      this.scheduleSync();
     });
   }
 
   ngAfterViewInit(): void {
     this.viewReady = true;
-
-    const runId = ++this.syncRunId;
-
-    queueMicrotask(() => {
-      if (runId !== this.syncRunId) {
-        return;
-      }
-
-      void this.syncEmbeds(
-        this.state.streams(),
-        this.state.quality(),
-        this.state.showChat(),
-      );
-    });
+    this.scheduleSync();
   }
 
   ngOnDestroy(): void {
@@ -112,28 +88,67 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     this.viewportHeight.set(window.innerHeight);
   }
 
-  private async syncEmbeds(
-    streams: string[],
-    quality: StreamQuality,
-    showChat: boolean,
-  ): Promise<void> {
+  private scheduleSync(): void {
+    const runId = ++this.syncRunId;
+
+    queueMicrotask(() => {
+      if (runId !== this.syncRunId) {
+        return;
+      }
+
+      void this.syncEmbeds(runId);
+    });
+  }
+
+  private async syncEmbeds(runId: number): Promise<void> {
+    if (runId !== this.syncRunId) {
+      return;
+    }
+
     const host = this.hostRef()?.nativeElement;
 
     if (!host) {
       return;
     }
 
-    const activeChannels = new Set(streams);
-    this.removeStaleEmbeds(activeChannels);
+    const streams = this.state.streams();
+    const quality = this.state.quality();
+
+    const activeChannels = new Set(streams.map(stream => stream.name));
 
     if (streams.length === 0) {
+      this.removeStaleEmbeds(activeChannels);
       return;
     }
 
-    await this.twitch.loadScript();
+    try {
+      await this.twitch.loadScript();
+    } catch {
+      if (runId !== this.syncRunId) {
+        return;
+      }
+
+      if (!this.loadScriptErrorVisible) {
+        this.loadScriptErrorVisible = true;
+        this.toast.show('Twitch-Embed konnte nicht geladen werden. Bitte versuche es erneut.', 'error');
+      }
+
+      return;
+    }
+
+    if (runId !== this.syncRunId) {
+      return;
+    }
+
+    this.loadScriptErrorVisible = false;
+    this.removeStaleEmbeds(activeChannels);
 
     streams.forEach((stream, index) => {
-      const wrapper = host.querySelector<HTMLElement>(`.twitch-embed-wrapper[data-channel="${stream}"]`);
+      if (runId !== this.syncRunId) {
+        return;
+      }
+
+      const wrapper = host.querySelector<HTMLElement>(`.twitch-embed-wrapper[data-channel="${stream.name}"]`);
 
       if (!wrapper) {
         return;
@@ -142,25 +157,25 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
       const nextState: RenderedEmbedSnapshot = {
         elementId: wrapper.id,
         quality,
-        showChat,
+        showChat: stream.showChat,
         muted: index !== 0,
       };
 
-      if (this.isRenderedStateCurrent(stream, nextState)) {
+      if (this.isRenderedStateCurrent(stream.name, nextState)) {
         return;
       }
 
-      this.renderedEmbeds.get(stream)?.handle.destroy();
+      this.renderedEmbeds.get(stream.name)?.handle.destroy();
 
       const handle = this.twitch.createEmbed({
         elementId: wrapper.id,
-        channel: stream,
+        channel: stream.name,
         quality,
-        showChat,
+        showChat: stream.showChat,
         muted: nextState.muted,
       });
 
-      this.renderedEmbeds.set(stream, {
+      this.renderedEmbeds.set(stream.name, {
         ...nextState,
         handle,
       });

@@ -1,59 +1,179 @@
-# TwitchStreamClientsV3
+# Twitch Stream Clients V3
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.6.
+[![Angular](https://img.shields.io/badge/Angular-21-dd0031?logo=angular&logoColor=white)](https://angular.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vitest](https://img.shields.io/badge/Tested%20with-Vitest-6e9f18?logo=vitest&logoColor=white)](https://vitest.dev/)
+[![PWA](https://img.shields.io/badge/PWA-Service%20Worker-0f766e)](https://angular.dev/ecosystem/service-workers)
 
-## Development server
+Twitch Stream Clients V3 is a compact multi-viewer for Twitch streams built with Angular 21.
+It lets you organize streams into reusable lists, switch quality globally, toggle chat per stream, and keep your setup persisted across sessions.
 
-To start a local development server, run:
+The project focuses on a fast browser-only experience with a small codebase, predictable state handling, and solid test coverage.
+
+## Highlights
+
+- Multi-stream Twitch viewer with adaptive grid layout
+- Named stream lists with direct linking via hash-based URLs
+- Per-stream chat toggle and list-local stream ordering
+- Global quality switching with Twitch quality fallback handling
+- Local persistence for lists, quality, statistics, and UI state migration
+- Keyboard shortcuts for quick interaction
+- Toast-based feedback for user actions and storage failures
+- Service worker support for production builds
+- Unit and component tests with Vitest
+
+## How It Works
+
+The application is built around a single state service that owns the persisted app model.
+Users manage lists of Twitch channels, choose the active list through the URL hash, and render each stream through the Twitch embed API.
+
+Examples:
+
+- `#/List/null` opens the app without an active list
+- `#/List/1` opens list `1`
+- invalid hashes are normalized to the canonical format automatically
+
+## Feature Overview
+
+### Stream Management
+
+- Create, rename, select, and delete named stream lists
+- Add channels with normalization and duplicate protection
+- Reorder streams within a list
+- Remove channels individually
+- Use recent stream statistics as datalist suggestions
+
+### Viewing Experience
+
+- Automatically calculates an efficient stream grid based on viewport size
+- Supports `auto`, `480p`, `720p60`, and `chunked` quality modes
+- Falls back to the closest available Twitch quality when needed
+- Allows chat to be enabled per stream
+- Mutes all but the primary stream on initial render
+
+### State, Navigation, and Resilience
+
+- Persists app state in `localStorage`
+- Migrates legacy storage keys into the current list-based state model
+- Keeps navigation centralized through a dedicated hash navigation service
+- Normalizes invalid URLs into a stable `#/List/<id|null>` format
+- Surfaces persistence failures to the user instead of silently losing changes
+
+### UX Details
+
+- `M` toggles the settings menu when focus is not inside a typing field
+- `Escape` closes the settings menu
+- Modal focus is restored when the dialog closes
+- Toast messages are deduplicated and counted when repeated
+
+## Tech Stack
+
+- Angular 21
+- TypeScript 6
+- Angular Signals for local app state
+- Angular Service Worker for production PWA support
+- Vitest for tests
+- ESLint for linting
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 22+ recommended
+- npm 11+
+
+### Installation
 
 ```bash
-ng serve
+npm install
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+### Start the Development Server
 
 ```bash
-ng generate component component-name
+npm start
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+The app starts with Angular's dev server.
+If port `4200` is already in use, Angular may offer a different port automatically.
+
+## Available Scripts
+
+| Command | Description |
+| --- | --- |
+| `npm start` | Starts the Angular dev server |
+| `npm run build` | Creates a production build |
+| `npm run watch` | Builds in watch mode for development |
+| `npm test` | Runs the Vitest-based Angular test suite once |
+| `npm run test:coverage` | Runs tests with coverage output |
+| `npm run coverage:check` | Verifies coverage thresholds |
+| `npm run test:coverage:ci` | Full CI coverage run plus threshold check |
+| `npm run lint` | Runs ESLint |
+| `npm run http` | Serves the production build from `dist/twitchStreamClientsV3/browser` |
+
+## Build and Preview Production Output
 
 ```bash
-ng generate --help
+npm run build
+npm run http
 ```
 
-## Building
+Then open:
 
-To build the project run:
+```text
+http://localhost:8086
+```
+
+## Testing
+
+The project uses Angular's test integration with Vitest and includes unit and component tests for core state, embeds, modal interactions, error handling, hotkeys, and grid calculation.
+
+Useful commands:
 
 ```bash
-ng build
+npm test
+npm run test:coverage
+npm run test:coverage:ci
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Coverage artifacts are written to `coverage/twitchStreamClientsV3/`.
 
-## Running unit tests
+## Project Structure
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
+```text
+src/
+	app/
+		core/
+			models/       App state types
+			services/     State, storage, navigation, hotkeys, embeds, error handling
+			utils/        Bootstrap helpers
+		features/
+			settings-modal/  List and stream management UI
+			stream-grid/     Twitch embed grid
+			toast/           Notification system
+		shared/
+			utils/        Shared layout helpers
 ```
 
-## Running end-to-end tests
+## Architecture Notes
 
-For end-to-end (e2e) testing, run:
+- `StreamStateService` is the central state owner and persistence boundary.
+- `ListNavigationService` keeps URL hash parsing and normalization in one place.
+- `TwitchEmbedService` wraps script loading, embed creation, cleanup, and quality synchronization.
+- UI feedback is routed through `ToastService`.
 
-```bash
-ng e2e
-```
+This keeps the application small while avoiding navigation and persistence logic leaking across multiple components.
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## PWA Support
 
-## Additional Resources
+Production builds include an Angular service worker configuration and a web app manifest.
+That means the app is structured to behave like a lightweight installable web application when served in production.
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+## Notes
+
+- This project uses the Twitch embed API and therefore depends on Twitch availability and embed restrictions.
+- The application is not affiliated with Twitch.
+
+## License
+
+No license file is included in this repository at the moment.

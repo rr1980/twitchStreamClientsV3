@@ -5,9 +5,19 @@ export interface StreamStatistic {
   value: number;
 }
 
-export interface AppSettings {
-  streams: string[];
-  quality: StreamQuality;
+export interface StreamChannel {
+  name: string;
   showChat: boolean;
+}
+
+export interface StreamList {
+  id: number;
+  name: string;
+  streams: StreamChannel[];
+}
+
+export interface AppSettings {
+  lists: StreamList[];
+  quality: StreamQuality;
   statistics: StreamStatistic[];
 }

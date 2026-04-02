@@ -7,16 +7,11 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="settings-modal-title"
-      aria-describedby="settings-modal-description"
       tabindex="-1"
       (keydown)="onDialogKeydown($event)">
       <div class="modal__header">
         <div>
           <h2 id="settings-modal-title">Twitch Multi-Viewer</h2>
-          <span>Ultimate Edition</span>
-          <p id="settings-modal-description" class="modal__description">
-            Verwalte dein Stream-Lineup, die Videoqualität und den Chat. Mit Tab bleibst du im Dialog.
-          </p>
         </div>
 
         <button type="button" class="icon-btn" aria-label="Einstellungen schließen" (click)="close()">✕</button>
@@ -24,66 +19,165 @@
 
       <div class="modal__body">
         <section class="panel panel--main">
-          <div class="form-block">
-            <label for="stream-input">Kanal hinzufügen</label>
-            <p id="stream-input-hint" class="field-hint">Erlaubt sind a-z, 0-9 und Unterstriche, maximal 25 Zeichen.</p>
-            <div class="input-row">
-              <input
-                #streamInput
-                id="stream-input"
-                type="text"
-                [formControl]="channelNameControl"
-                [attr.list]="topStatistics().length ? 'history-datalist' : null"
-                aria-describedby="stream-input-hint"
-                autocomplete="off"
-                autocorrect="off"
-                spellcheck="false"
-                maxlength="25"
-                placeholder="z. B. rocketbeanstv"
-                (keydown.enter)="addStream()" />
-              <button type="button" class="primary-btn" aria-label="Kanal hinzufügen" (click)="addStream()">+</button>
-            </div>
+          <div class="settings-shell">
+            <section class="settings-summary" aria-label="Übersicht">
+              <div class="summary-pill summary-pill--accent">
+                <span class="summary-pill__label">Aktive Liste</span>
+                <strong class="summary-pill__value">{{ activeList()?.name ?? 'Keine Auswahl' }}</strong>
+              </div>
+              <div class="summary-pill">
+                <span class="summary-pill__label">Listen</span>
+                <strong class="summary-pill__value">{{ lists().length }}</strong>
+              </div>
+              <div class="summary-pill">
+                <span class="summary-pill__label">Streams</span>
+                <strong class="summary-pill__value">{{ streams().length }}</strong>
+              </div>
+            </section>
 
-            @if (topStatistics().length) {
-              <datalist id="history-datalist">
-                @for (item of topStatistics(); track item) {
-                  <option [value]="item"></option>
-                }
-              </datalist>
-            }
-          </div>
+            <section class="settings-toolbar">
+              <div class="form-block panel-card panel-card--compact">
+                <label for="list-input">Neue Liste</label>
+                <div class="input-row input-row--compact">
+                  <input
+                    #listInput
+                    id="list-input"
+                    type="text"
+                    [formControl]="newListNameControl"
+                    autocomplete="off"
+                    maxlength="60"
+                    placeholder="z. B. Esports"
+                    (keydown.enter)="createList()" />
+                  <button type="button" class="primary-btn" aria-label="Liste anlegen" (click)="createList()">+</button>
+                </div>
+              </div>
 
-          <div class="list-block">
-            <div class="list-block__header">
-              <p class="section-label">Aktuelles Lineup</p>
-              <span>{{ streams().length }} Stream{{ streams().length === 1 ? '' : 's' }}</span>
-            </div>
-
-            <div class="stream-list" role="list" aria-label="Aktive Streams">
-              @if (streams().length === 0) {
-                <div class="empty-box">Noch keine Streams aktiv.</div>
-              } @else {
-                @for (stream of streams(); track stream; let i = $index) {
-                  <div class="stream-item" role="listitem">
-                    <div class="stream-item__move">
-                      <button type="button" [disabled]="i === 0" [attr.aria-label]="stream + ' nach oben verschieben'" (click)="moveStream(i, -1)">↑</button>
-                      <button type="button" [disabled]="i === streams().length - 1" [attr.aria-label]="stream + ' nach unten verschieben'" (click)="moveStream(i, 1)">↓</button>
-                    </div>
-
-                    <div class="stream-item__index">{{ i + 1 }}</div>
-                    <div class="stream-item__name">{{ stream }}</div>
-                    <button type="button" class="danger-btn" [attr.aria-label]="stream + ' entfernen'" (click)="removeStream(i)">Entfernen</button>
+              @if (activeList()) {
+                <div class="form-block panel-card panel-card--compact">
+                  <label for="rename-list-input">Liste umbenennen</label>
+                  <div class="input-row input-row--compact">
+                    <input
+                      #renameListInput
+                      id="rename-list-input"
+                      type="text"
+                      [formControl]="activeListNameControl"
+                      autocomplete="off"
+                      maxlength="60"
+                      placeholder="Listenname"
+                      (keydown.enter)="renameActiveList()" />
+                    <button type="button" class="apply-btn" aria-label="Listenname speichern" (click)="renameActiveList()">Speichern</button>
                   </div>
-                }
+                </div>
               }
+            </section>
+
+            <div class="content-grid">
+              <div class="content-grid__primary">
+                <div class="list-block panel-card">
+                  <div class="list-block__header">
+                    <p class="section-label">Listen</p>
+                    <span>{{ lists().length }} Liste{{ lists().length === 1 ? '' : 'n' }}</span>
+                  </div>
+
+                  <div class="list-selector" role="list" aria-label="Verfügbare Listen">
+                    @if (lists().length === 0) {
+                      <div class="empty-box">Noch keine Listen vorhanden.</div>
+                    } @else {
+                      @for (list of lists(); track trackList($index, list)) {
+                        <div class="list-item" [class.list-item--active]="activeListId() === list.id" role="listitem">
+                          <button type="button" class="list-item__select" [attr.aria-pressed]="activeListId() === list.id" (click)="selectList(list.id)">
+                            <span class="list-item__name">{{ list.name }}</span>
+                            <span class="list-item__meta">#{{ list.id }} · {{ list.streams.length }} Stream{{ list.streams.length === 1 ? '' : 's' }}</span>
+                          </button>
+                          <button type="button" class="danger-btn danger-btn--compact" [attr.aria-label]="list.name + ' löschen'" (click)="deleteList(list)">Löschen</button>
+                        </div>
+                      }
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <div class="content-grid__secondary">
+                <div class="form-block panel-card panel-card--compact" [class.panel-card--muted]="!hasActiveList()">
+                  <label for="stream-input">Kanal</label>
+                  <p id="stream-input-hint" class="field-hint field-hint--compact">
+                    @if (activeList()) {
+                      a-z, äöü, 0-9 und Unterstriche, maximal 25 Zeichen.
+                    } @else {
+                      Erstelle zuerst eine Liste.
+                    }
+                  </p>
+                  <div class="input-row input-row--compact">
+                    <input
+                      #streamInput
+                      id="stream-input"
+                      type="text"
+                      [formControl]="channelNameControl"
+                      [attr.list]="topStatistics().length ? 'history-datalist' : null"
+                      aria-describedby="stream-input-hint"
+                      autocomplete="off"
+                      autocorrect="off"
+                      spellcheck="false"
+                      maxlength="25"
+                      placeholder="z. B. rocketbeanstv"
+                      (keydown.enter)="addStream()" />
+                    <button type="button" class="primary-btn" [disabled]="!hasActiveList()" aria-label="Kanal hinzufügen" (click)="addStream()">+</button>
+                  </div>
+
+                  @if (topStatistics().length) {
+                    <datalist id="history-datalist">
+                      @for (item of topStatistics(); track item.name) {
+                        <option [value]="formatStatisticLabel(item)"></option>
+                      }
+                    </datalist>
+                  }
+                </div>
+
+                <div class="list-block panel-card" [class.panel-card--muted]="!hasActiveList()">
+                  <div class="list-block__header">
+                    <p class="section-label">Streams</p>
+                    <span>{{ streams().length }} Stream{{ streams().length === 1 ? '' : 's' }}</span>
+                  </div>
+
+                  <div class="stream-list" role="list" aria-label="Aktive Streams">
+                    @if (streams().length === 0) {
+                      <div class="empty-box">
+                        @if (activeList()) {
+                          Noch keine Streams aktiv.
+                        } @else {
+                          Keine aktive Liste ausgewählt.
+                        }
+                      </div>
+                    } @else {
+                      @for (stream of streams(); track trackStream($index, stream); let i = $index) {
+                        <div class="stream-item" role="listitem">
+                          <div class="stream-item__move">
+                            <button type="button" [disabled]="i === 0" [attr.aria-label]="stream.name + ' nach oben verschieben'" (click)="moveStream(i, -1)">↑</button>
+                            <button type="button" [disabled]="i === streams().length - 1" [attr.aria-label]="stream.name + ' nach unten verschieben'" (click)="moveStream(i, 1)">↓</button>
+                          </div>
+
+                          <div class="stream-item__index">{{ i + 1 }}</div>
+                          <div class="stream-item__name" [title]="stream.name">{{ stream.name }}</div>
+                          <label class="toggle-row stream-item__chat">
+                            <input class="toggle-row__input" type="checkbox" [checked]="stream.showChat" [attr.aria-label]="stream.name + ' Chat anzeigen'" (change)="onStreamChatChange(i, $event)" />
+                            <span class="stream-item__chat-label">Chat</span>
+                            <span class="toggle-row__indicator" aria-hidden="true"></span>
+                          </label>
+                          <button type="button" class="stream-item__remove danger-btn danger-btn--compact" [attr.aria-label]="stream.name + ' entfernen'" (click)="removeStream(i)">Entfernen</button>
+                        </div>
+                      }
+                    }
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
         <aside class="panel panel--side">
-          <div class="option-block">
+          <div class="option-block panel-card panel-card--compact panel-card--subtle">
             <fieldset class="quality-fieldset">
-              <legend class="section-label" id="quality-label">Video Qualität</legend>
+              <legend class="section-label" id="quality-label">Qualität</legend>
 
               <div class="quality-grid">
               @for (quality of qualityOptions; track quality) {
@@ -98,13 +192,6 @@
               }
               </div>
             </fieldset>
-          </div>
-
-          <div class="option-block">
-            <label class="toggle-row">
-              <span>Twitch Chat anzeigen</span>
-              <input type="checkbox" [checked]="showChat()" (change)="onShowChatChange($event)" />
-            </label>
           </div>
         </aside>
       </div>
