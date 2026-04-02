@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { HotkeyService } from './hotkey.service';
@@ -20,6 +21,7 @@ describe('HotkeyService', () => {
   });
 
   it('closes the menu on escape even when an input is focused', () => {
+    state.menuOpen.set(true);
     const input = document.createElement('input');
     const event = new KeyboardEvent('keydown', { key: 'Escape' });
 
@@ -27,6 +29,16 @@ describe('HotkeyService', () => {
 
     expect(handled).toBe(true);
     expect(state.closeMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores escape when the menu is already closed', () => {
+    const button = document.createElement('button');
+    const event = new KeyboardEvent('keydown', { key: 'Escape' });
+
+    const handled = service.handleWindowKeydown(event, button);
+
+    expect(handled).toBe(false);
+    expect(state.closeMenu).not.toHaveBeenCalled();
   });
 
   it('toggles the menu on m outside typing contexts', () => {
@@ -65,6 +77,11 @@ describe('HotkeyService', () => {
 });
 
 class MockStreamStateService {
-  public readonly closeMenu = vi.fn();
-  public readonly toggleMenu = vi.fn();
+  public readonly menuOpen = signal(false);
+  public readonly closeMenu = vi.fn(() => {
+    this.menuOpen.set(false);
+  });
+  public readonly toggleMenu = vi.fn(() => {
+    this.menuOpen.update(value => !value);
+  });
 }

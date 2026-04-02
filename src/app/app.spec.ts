@@ -133,6 +133,17 @@ describe('App', () => {
     expect(state.activeListId()).toBeNull();
   });
 
+  it('preserves query parameters and fragments while canonicalizing list routes', async () => {
+    const fixture = TestBed.createComponent(App);
+
+    fixture.detectChanges();
+    await router.navigateByUrl('/list/001?layout=compact#stats');
+    await fixture.whenStable();
+    TestBed.flushEffects();
+
+    expect(router.url).toBe('/List/1?layout=compact#stats');
+  });
+
   it('shows the active list name in the browser tab title', async () => {
     const fixture = TestBed.createComponent(App);
     const state = TestBed.inject(StreamStateService);
