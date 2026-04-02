@@ -273,6 +273,74 @@ describe('TwitchEmbedService', () => {
     rafSpy.mockRestore();
   });
 
+  it('falls back from 720p60 to another 720p variant when needed', async () => {
+    const player = {
+      getQualities: vi.fn(() => ['720p', '480p']),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    window.Twitch = { Embed: EmbedMock as never };
+
+    service.createEmbed({
+      elementId: 'fallback-720',
+      channel: 'fallback-720',
+      quality: '720p60',
+      showChat: false,
+      muted: false,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+
+    expect(player.setQuality).toHaveBeenCalledWith('720p');
+  });
+
+  it('falls back to another variant in the same quality family', async () => {
+    const player = {
+      getQualities: vi.fn(() => ['480p30', '360p']),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    window.Twitch = { Embed: EmbedMock as never };
+
+    service.createEmbed({
+      elementId: 'fallback-480',
+      channel: 'fallback-480',
+      quality: '480p',
+      showChat: false,
+      muted: false,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+
+    expect(player.setQuality).toHaveBeenCalledWith('480p30');
+  });
+
   it('skips quality changes for auto mode and unsupported quality values', async () => {
     const player = {
       getQualities: vi.fn(() => ['chunked']),
