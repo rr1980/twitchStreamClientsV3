@@ -42,6 +42,8 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   readonly hostRef = viewChild<ElementRef<HTMLElement>>('gridHost');
   readonly viewportWidth = signal(window.innerWidth);
   readonly viewportHeight = signal(window.innerHeight);
+  readonly activeList = this.state.activeList;
+  readonly listCount = this.state.listCount;
   readonly streams = this.state.streams;
 
   private viewReady = false;

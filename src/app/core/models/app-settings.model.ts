@@ -5,8 +5,14 @@ export interface StreamStatistic {
   value: number;
 }
 
-export interface AppSettings {
+export interface StreamList {
+  id: number;
+  name: string;
   streams: string[];
+}
+
+export interface AppSettings {
+  lists: StreamList[];
   quality: StreamQuality;
   showChat: boolean;
   statistics: StreamStatistic[];

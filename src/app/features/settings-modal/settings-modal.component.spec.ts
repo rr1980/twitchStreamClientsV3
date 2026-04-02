@@ -1,7 +1,7 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
-import { StreamQuality, StreamStatistic } from '../../core/models/app-settings.model';
+import { StreamList, StreamQuality, StreamStatistic } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { SettingsModalComponent } from './settings-modal.component';
 import { ToastService } from '../toast/toast.service';
@@ -13,6 +13,7 @@ describe('SettingsModalComponent', () => {
   let toast: MockToastService;
 
   beforeEach(async () => {
+    window.location.hash = '#/List/null';
     state = new MockStreamStateService();
     toast = new MockToastService();
 
@@ -33,6 +34,8 @@ describe('SettingsModalComponent', () => {
     document.body.appendChild(opener);
     opener.focus();
 
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
+    state.setActiveListId(1);
     state.menuOpen.set(true);
     await syncComponent();
 
@@ -47,9 +50,13 @@ describe('SettingsModalComponent', () => {
     opener.remove();
   });
 
-  it('renders history suggestions, correct stream count labels and quality options', async () => {
+  it('renders history suggestions, lists, correct stream count labels and quality options', async () => {
     state.menuOpen.set(true);
-    state.streams.set(['shroud', 'rocketbeanstv']);
+    state.setLists([
+      { id: 1, name: 'Liste 1', streams: ['shroud', 'rocketbeanstv'] },
+      { id: 2, name: 'Liste 2', streams: [] },
+    ]);
+    state.setActiveListId(1);
     state.quality.set('chunked');
     state.statistics = [
       { name: 'gronkh', value: 3 },
@@ -67,25 +74,28 @@ describe('SettingsModalComponent', () => {
     const checkedRadio = fixture.nativeElement.querySelector('input[name="stream-quality"]:checked') as HTMLInputElement | null;
     const qualityButtons = fixture.nativeElement.querySelectorAll('.quality-btn') as NodeListOf<HTMLElement>;
     const qualityLabels = Array.from(qualityButtons, element => element.textContent?.trim());
+    const listNames = Array.from(fixture.nativeElement.querySelectorAll('.list-item__name'), (element: Element) => element.textContent?.trim());
 
     expect(options).toEqual([
       { value: 'gronkh (3)', label: null, text: '' },
       { value: 'papaplatte (2)', label: null, text: '' },
     ]);
-    expect(countLabel).toBe('2 Streams');
+    expect(countLabel).toBe('2 Listen');
     expect(checkedRadio).not.toBeNull();
     expect(qualityLabels).toContain('Source');
+    expect(listNames).toEqual(['Liste 1', 'Liste 2']);
   });
 
   it('renders the singular stream count and disables move buttons at the boundaries', async () => {
     state.menuOpen.set(true);
-    state.streams.set(['shroud']);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: ['shroud'] }]);
+    state.setActiveListId(1);
     await syncComponent();
 
-    const countLabel = fixture.nativeElement.querySelector('.list-block__header span')?.textContent?.trim();
+    const streamCountLabel = fixture.nativeElement.querySelectorAll('.list-block__header span')[1]?.textContent?.trim();
     const moveButtons = fixture.nativeElement.querySelectorAll('.stream-item__move button');
 
-    expect(countLabel).toBe('1 Stream');
+    expect(streamCountLabel).toBe('1 Stream');
     expect((moveButtons[0] as HTMLButtonElement).disabled).toBe(true);
     expect((moveButtons[1] as HTMLButtonElement).disabled).toBe(true);
   });
@@ -110,11 +120,13 @@ describe('SettingsModalComponent', () => {
 
   it('adds a stream, clears the form and shows a toast', async () => {
     state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
+    state.setActiveListId(1);
     state.addStream.mockReturnValue({ ok: true, name: 'shroud' });
     await syncComponent();
 
     component.channelNameControl.setValue('Shroud');
-    fixture.nativeElement.querySelector('.primary-btn')?.click();
+    fixture.nativeElement.querySelector('[aria-label="Kanal hinzufügen"]')?.click();
     await syncComponent();
 
     expect(state.addStream).toHaveBeenCalledWith('Shroud');
@@ -125,6 +137,8 @@ describe('SettingsModalComponent', () => {
 
   it('adds a stream via enter on the input field', async () => {
     state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
+    state.setActiveListId(1);
     state.addStream.mockReturnValue({ ok: true, name: 'gronkh' });
     await syncComponent();
 
@@ -140,7 +154,8 @@ describe('SettingsModalComponent', () => {
 
   it('keeps focus trapped inside the dialog on tab from the last element', async () => {
     state.menuOpen.set(true);
-    state.streams.set(['shroud']);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: ['shroud'] }]);
+    state.setActiveListId(1);
     await syncComponent();
 
     const dialog = fixture.nativeElement.querySelector('[role="dialog"]') as HTMLElement;
@@ -158,7 +173,8 @@ describe('SettingsModalComponent', () => {
 
   it('traps focus backwards with shift+tab from the first element', async () => {
     state.menuOpen.set(true);
-    state.streams.set(['shroud']);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: ['shroud'] }]);
+    state.setActiveListId(1);
     await syncComponent();
 
     const dialog = fixture.nativeElement.querySelector('[role="dialog"]') as HTMLElement;
@@ -226,6 +242,8 @@ describe('SettingsModalComponent', () => {
 
   it('shows an error toast for invalid and duplicate channel names', async () => {
     state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
+    state.setActiveListId(1);
     await syncComponent();
 
     state.addStream.mockReturnValueOnce({ ok: false, reason: 'invalid' });
@@ -242,6 +260,8 @@ describe('SettingsModalComponent', () => {
 
   it('ignores empty add results without showing a toast', async () => {
     state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
+    state.setActiveListId(1);
     state.addStream.mockReturnValue({ ok: false, reason: 'empty' });
     await syncComponent();
 
@@ -253,6 +273,8 @@ describe('SettingsModalComponent', () => {
 
   it('removes streams, updates quality and chat state, and ignores invalid show-chat events', async () => {
     state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: ['shroud'] }]);
+    state.setActiveListId(1);
     state.removeStream.mockReturnValue('shroud');
     await syncComponent();
 
@@ -273,12 +295,13 @@ describe('SettingsModalComponent', () => {
 
   it('wires move, remove, quality and chat controls through DOM interactions', async () => {
     state.menuOpen.set(true);
-    state.streams.set(['shroud', 'rocketbeanstv']);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: ['shroud', 'rocketbeanstv'] }]);
+    state.setActiveListId(1);
     state.removeStream.mockReturnValue('shroud');
     await syncComponent();
 
     const moveButtons = fixture.nativeElement.querySelectorAll('.stream-item__move button') as NodeListOf<HTMLButtonElement>;
-    const removeButton = fixture.nativeElement.querySelector('.danger-btn') as HTMLButtonElement;
+    const removeButton = fixture.nativeElement.querySelector('[aria-label="shroud entfernen"]') as HTMLButtonElement;
     const qualityRadios = fixture.nativeElement.querySelectorAll('input[name="stream-quality"]') as NodeListOf<HTMLInputElement>;
     const chatCheckbox = fixture.nativeElement.querySelector('input[type="checkbox"]') as HTMLInputElement;
 
@@ -303,6 +326,39 @@ describe('SettingsModalComponent', () => {
     expect(state.moveStream).toHaveBeenCalledWith(2, -1);
   });
 
+  it('creates a list, navigates via hash and shows a toast', async () => {
+    state.menuOpen.set(true);
+    state.createList.mockReturnValue({ ok: true, list: { id: 4, name: 'Esports', streams: [] } });
+    await syncComponent();
+
+    component.newListNameControl.setValue('Esports');
+    component.createList();
+
+    expect(state.createList).toHaveBeenCalledWith('Esports');
+    expect(window.location.hash).toBe('#/List/4');
+    expect(toast.show).toHaveBeenCalledWith('Esports angelegt.');
+  });
+
+  it('renames and deletes lists through the state service', async () => {
+    state.menuOpen.set(true);
+    state.setLists([
+      { id: 1, name: 'Liste 1', streams: ['shroud'] },
+      { id: 2, name: 'Liste 2', streams: [] },
+    ]);
+    state.setActiveListId(1);
+    state.renameList.mockReturnValue({ ok: true, list: { id: 1, name: 'Main', streams: ['shroud'] } });
+    state.deleteList.mockReturnValue({ id: 1, name: 'Main', streams: ['shroud'] });
+    await syncComponent();
+
+    component.activeListNameControl.setValue('Main');
+    component.renameActiveList();
+    component.deleteList({ id: 1, name: 'Liste 1', streams: ['shroud'] });
+
+    expect(state.renameList).toHaveBeenCalledWith(1, 'Main');
+    expect(state.deleteList).toHaveBeenCalledWith(1);
+    expect(window.location.hash).toBe('#/List/2');
+  });
+
   async function syncComponent(): Promise<void> {
     fixture.detectChanges();
     TestBed.flushEffects();
@@ -314,23 +370,37 @@ describe('SettingsModalComponent', () => {
 
 class MockStreamStateService {
   readonly menuOpen = signal(false);
-  readonly streams = signal<string[]>([]);
+  readonly lists = signal<StreamList[]>([]);
+  readonly activeListId = signal<number | null>(null);
+  readonly activeList = computed(() => this.lists().find(list => list.id === this.activeListId()) ?? null);
+  readonly streams = computed(() => this.activeList()?.streams ?? []);
   readonly quality = signal<StreamQuality>('auto');
   readonly showChat = signal(false);
   statistics: StreamStatistic[] = [];
 
   readonly addStream = vi.fn<(rawName: string) => { ok: boolean; reason?: string; name?: string }>();
+  readonly createList = vi.fn<(rawName: string) => { ok: boolean; reason?: string; list?: StreamList }>();
   readonly closeMenu = vi.fn(() => {
     this.menuOpen.set(false);
   });
+  readonly deleteList = vi.fn<(listId: number) => StreamList | null>(() => null);
   readonly moveStream = vi.fn();
   readonly removeStream = vi.fn<(index: number) => string | null>(() => null);
+  readonly renameList = vi.fn<(listId: number, rawName: string) => { ok: boolean; reason?: string; list?: StreamList }>();
   readonly setQuality = vi.fn((value: StreamQuality) => {
     this.quality.set(value);
   });
   readonly setShowChat = vi.fn((value: boolean) => {
     this.showChat.set(value);
   });
+
+  setLists(lists: StreamList[]): void {
+    this.lists.set(lists);
+  }
+
+  setActiveListId(listId: number | null): void {
+    this.activeListId.set(listId);
+  }
 
   getTopStatistics(): StreamStatistic[] {
     return this.statistics;

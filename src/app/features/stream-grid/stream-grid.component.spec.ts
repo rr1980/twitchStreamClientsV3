@@ -1,7 +1,7 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
-import { StreamQuality } from '../../core/models/app-settings.model';
+import { StreamList, StreamQuality } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { TwitchEmbedHandle, TwitchEmbedService } from '../../core/services/twitch-embed.service';
 import { StreamGridComponent } from './stream-grid.component';
@@ -65,7 +65,7 @@ describe('StreamGridComponent', () => {
     const syncEmbedsSpy = vi.spyOn(component, 'syncEmbeds').mockResolvedValue(undefined);
 
     component.viewReady = true;
-    state.streams.set(['shroud']);
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: ['shroud'] });
     TestBed.flushEffects();
     component.syncRunId += 1;
     await Promise.resolve();
@@ -89,7 +89,7 @@ describe('StreamGridComponent', () => {
   });
 
   it('creates embeds for the initial stream list', async () => {
-    state.streams.set(['shroud', 'rocketbeanstv']);
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: ['shroud', 'rocketbeanstv'] });
     await syncComponent();
 
     expect(twitch.loadScript).toHaveBeenCalledTimes(1);
@@ -111,13 +111,13 @@ describe('StreamGridComponent', () => {
   });
 
   it('adds only the new embed when streams are appended', async () => {
-    state.streams.set(['shroud']);
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: ['shroud'] });
     await syncComponent();
 
     twitch.createEmbed.mockClear();
     twitch.handles.get('twitch-embed-shroud')?.destroy.mockClear();
 
-    state.streams.set(['shroud', 'rocketbeanstv']);
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: ['shroud', 'rocketbeanstv'] });
     await syncComponent();
 
     expect(twitch.handles.get('twitch-embed-shroud')?.destroy).not.toHaveBeenCalled();
@@ -132,14 +132,14 @@ describe('StreamGridComponent', () => {
   });
 
   it('clears removed embeds without recreating unchanged streams', async () => {
-    state.streams.set(['shroud', 'rocketbeanstv']);
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: ['shroud', 'rocketbeanstv'] });
     await syncComponent();
 
     twitch.createEmbed.mockClear();
     const removedHandle = twitch.handles.get('twitch-embed-rocketbeanstv');
     removedHandle?.destroy.mockClear();
 
-    state.streams.set(['shroud']);
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: ['shroud'] });
     await syncComponent();
 
     expect(removedHandle?.destroy).toHaveBeenCalledTimes(1);
@@ -147,7 +147,7 @@ describe('StreamGridComponent', () => {
   });
 
   it('recreates affected embeds on reorder and destroys all handles on component teardown', async () => {
-    state.streams.set(['shroud', 'rocketbeanstv']);
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: ['shroud', 'rocketbeanstv'] });
     await syncComponent();
 
     const firstHandle = twitch.handles.get('twitch-embed-shroud');
@@ -156,7 +156,7 @@ describe('StreamGridComponent', () => {
     secondHandle?.destroy.mockClear();
     twitch.createEmbed.mockClear();
 
-    state.streams.set(['rocketbeanstv', 'shroud']);
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: ['rocketbeanstv', 'shroud'] });
     await syncComponent();
 
     expect(firstHandle?.destroy).toHaveBeenCalledTimes(1);
@@ -173,7 +173,7 @@ describe('StreamGridComponent', () => {
   });
 
   it('skips embed creation when a stream wrapper is missing in the DOM', async () => {
-    state.streams.set(['shroud']);
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: ['shroud'] });
     await syncComponent();
 
     fixture.nativeElement.querySelector('#twitch-embed-shroud')?.remove();
@@ -187,7 +187,7 @@ describe('StreamGridComponent', () => {
   });
 
   it('recreates embeds when quality or chat layout changes', async () => {
-    state.streams.set(['shroud']);
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: ['shroud'] });
     await syncComponent();
 
     const initialHandle = twitch.handles.get('twitch-embed-shroud');
@@ -230,9 +230,18 @@ describe('StreamGridComponent', () => {
 });
 
 class MockStreamStateService {
-  readonly streams = signal<string[]>([]);
+  readonly activeListId = signal<number | null>(null);
+  readonly activeList = computed<StreamList | null>(() => this._activeList());
+  readonly listCount = computed(() => this._activeList() ? 1 : 0);
+  readonly streams = computed(() => this._activeList()?.streams ?? []);
   readonly quality = signal<StreamQuality>('auto');
   readonly showChat = signal(false);
+  private readonly _activeList = signal<StreamList | null>(null);
+
+  setActiveList(list: StreamList | null): void {
+    this._activeList.set(list);
+    this.activeListId.set(list?.id ?? null);
+  }
 }
 
 class MockTwitchEmbedService {

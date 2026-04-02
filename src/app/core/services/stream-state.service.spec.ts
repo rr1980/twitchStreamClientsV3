@@ -11,7 +11,30 @@ describe('StreamStateService', () => {
     service = createService();
   });
 
+  it('creates, selects and renames lists', () => {
+    const created = service.createList('  Esports  ');
+
+    expect(created).toEqual({
+      ok: true,
+      list: { id: 1, name: 'Esports', streams: [] },
+    });
+
+    service.setActiveListId(1);
+
+    const renamed = service.renameList(1, '  Main Stage ');
+
+    expect(renamed).toEqual({
+      ok: true,
+      list: { id: 1, name: 'Main Stage', streams: [] },
+    });
+    expect(service.activeListId()).toBe(1);
+    expect(service.activeList()?.name).toBe('Main Stage');
+  });
+
   it('normalizes valid channel names before adding them', () => {
+    service.createList('Liste 1');
+    service.setActiveListId(1);
+
     const result = service.addStream('  RocketBeansTV,  ');
 
     expect(result).toEqual({ ok: true, name: 'rocketbeanstv' });
@@ -19,6 +42,8 @@ describe('StreamStateService', () => {
   });
 
   it('rejects duplicate channel names after normalization', () => {
+    service.createList('Liste 1');
+    service.setActiveListId(1);
     service.addStream('shroud');
 
     const result = service.addStream('  SHROUD  ');
@@ -28,18 +53,31 @@ describe('StreamStateService', () => {
   });
 
   it('filters invalid persisted data during initialization', () => {
-    localStorage.setItem('streams_v2', JSON.stringify([' valid_name ', 'INVALID-NAME', { name: 'second_one' }, null, 'valid_name']));
-    localStorage.setItem('quality_v2', 'not-a-quality');
-    localStorage.setItem('showChat_v2', 'true');
+    localStorage.setItem('app_state_v3', JSON.stringify({
+      lists: [
+        {
+          id: 9,
+          name: ' Favoriten ',
+          streams: [' valid_name ', 'INVALID-NAME', { name: 'second_one' }, null, 'valid_name'],
+        },
+      ],
+      quality: 'not-a-quality',
+      showChat: true,
+      statistics: [{ name: 'Shroud', value: 2 }, { name: 'invalid-name', value: 1 }],
+    }));
 
     service = createService();
+    service.setActiveListId(9);
 
     expect(service.streams()).toEqual(['valid_name', 'second_one']);
     expect(service.quality()).toBe('auto');
     expect(service.showChat()).toBe(true);
+    expect(service.getTopStatistics(10)).toEqual([{ name: 'shroud', value: 2 }]);
   });
 
   it('persists stream order and options automatically', async () => {
+    service.createList('Liste 1');
+    service.setActiveListId(1);
     service.addStream('first_channel');
     service.addStream('second_channel');
     service.moveStream(1, -1);
@@ -48,16 +86,35 @@ describe('StreamStateService', () => {
     TestBed.flushEffects();
     await flushPersistence();
 
-    expect(JSON.parse(localStorage.getItem('streams_v2') ?? '[]')).toEqual(['second_channel', 'first_channel']);
-    expect(localStorage.getItem('quality_v2')).toBe('720p60');
-    expect(localStorage.getItem('showChat_v2')).toBe('true');
+    expect(JSON.parse(localStorage.getItem('app_state_v3') ?? '{}')).toEqual({
+      lists: [
+        { id: 1, name: 'Liste 1', streams: ['second_channel', 'first_channel'] },
+      ],
+      quality: '720p60',
+      showChat: true,
+      statistics: [
+        { name: 'first_channel', value: 1 },
+        { name: 'second_channel', value: 1 },
+      ],
+    });
   });
 
   it('initializes only once even when called repeatedly', () => {
-    localStorage.setItem('streams_v2', JSON.stringify(['first_channel']));
+    localStorage.setItem('app_state_v3', JSON.stringify({
+      lists: [{ id: 1, name: 'Liste 1', streams: ['first_channel'] }],
+      quality: 'auto',
+      showChat: false,
+      statistics: [],
+    }));
     service = createService();
+    service.setActiveListId(1);
 
-    localStorage.setItem('streams_v2', JSON.stringify(['second_channel']));
+    localStorage.setItem('app_state_v3', JSON.stringify({
+      lists: [{ id: 1, name: 'Liste 1', streams: ['second_channel'] }],
+      quality: 'auto',
+      showChat: false,
+      statistics: [],
+    }));
     service.initialize();
     TestBed.flushEffects();
 
@@ -67,13 +124,11 @@ describe('StreamStateService', () => {
   it('coalesces multiple state changes into one storage write burst', async () => {
     const storage = TestBed.inject(StorageService);
     const setJsonSpy = vi.spyOn(storage, 'setJson');
-    const setStringSpy = vi.spyOn(storage, 'setString');
-    const setBooleanSpy = vi.spyOn(storage, 'setBoolean');
 
     setJsonSpy.mockClear();
-    setStringSpy.mockClear();
-    setBooleanSpy.mockClear();
 
+    service.createList('Liste 1');
+    service.setActiveListId(1);
     service.addStream('first_channel');
     service.addStream('second_channel');
     service.setQuality('720p60');
@@ -81,26 +136,28 @@ describe('StreamStateService', () => {
     TestBed.flushEffects();
 
     expect(setJsonSpy).not.toHaveBeenCalled();
-    expect(setStringSpy).not.toHaveBeenCalled();
-    expect(setBooleanSpy).not.toHaveBeenCalled();
 
     await flushPersistence();
 
-    expect(setJsonSpy).toHaveBeenCalledTimes(2);
-    expect(setStringSpy).toHaveBeenCalledTimes(1);
-    expect(setBooleanSpy).toHaveBeenCalledTimes(1);
+    expect(setJsonSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('handles empty, invalid and duplicate add requests', () => {
+  it('handles empty, invalid, duplicate and missing-list add requests', () => {
+    expect(service.addStream('shroud')).toEqual({ ok: false, reason: 'no-list' });
     expect(service.addStream('   ')).toEqual({ ok: false, reason: 'empty' });
-    expect(service.addStream('invalid-name')).toEqual({ ok: false, reason: 'invalid' });
 
+    service.createList('Liste 1');
+    service.setActiveListId(1);
+
+    expect(service.addStream('invalid-name')).toEqual({ ok: false, reason: 'invalid' });
     service.addStream('shroud');
 
     expect(service.addStream('shroud')).toEqual({ ok: false, reason: 'duplicate', name: 'shroud' });
   });
 
   it('returns null for invalid removals and ignores out-of-bounds moves', () => {
+    service.createList('Liste 1');
+    service.setActiveListId(1);
     service.addStream('shroud');
 
     expect(service.removeStream(2)).toBeNull();
@@ -111,6 +168,8 @@ describe('StreamStateService', () => {
   });
 
   it('removes valid streams and can increment an existing statistic on re-add', () => {
+    service.createList('Liste 1');
+    service.setActiveListId(1);
     service.addStream('shroud');
 
     expect(service.removeStream(0)).toBe('shroud');
@@ -119,6 +178,16 @@ describe('StreamStateService', () => {
     service.addStream('shroud');
 
     expect(service.getTopStatistics(1)).toEqual([{ name: 'shroud', value: 2 }]);
+  });
+
+  it('deletes lists and resets the active list selection when needed', () => {
+    service.createList('Liste 1');
+    service.createList('Liste 2');
+    service.setActiveListId(2);
+
+    expect(service.deleteList(2)).toEqual({ id: 2, name: 'Liste 2', streams: [] });
+    expect(service.activeListId()).toBeNull();
+    expect(service.lists()).toEqual([{ id: 1, name: 'Liste 1', streams: [] }]);
   });
 
   it('opens, closes and toggles the menu state', () => {
@@ -135,11 +204,16 @@ describe('StreamStateService', () => {
   });
 
   it('sorts statistics descending and respects the limit', () => {
-    localStorage.setItem('stats_v2', JSON.stringify([
-      { name: 'rocketbeanstv', value: 2 },
-      { name: 'shroud', value: 5 },
-      { name: 'gronkh', value: 3 },
-    ]));
+    localStorage.setItem('app_state_v3', JSON.stringify({
+      lists: [],
+      quality: 'auto',
+      showChat: false,
+      statistics: [
+        { name: 'rocketbeanstv', value: 2 },
+        { name: 'shroud', value: 5 },
+        { name: 'gronkh', value: 3 },
+      ],
+    }));
 
     service = createService();
 
@@ -149,16 +223,18 @@ describe('StreamStateService', () => {
     ]);
   });
 
-  it('migrates legacy storage keys once during initialization', async () => {
+  it('migrates legacy storage keys into the new list-based state once during initialization', async () => {
     localStorage.clear();
     localStorage.setItem('streams', JSON.stringify(['legacy_channel']));
     localStorage.setItem('streams_qualies', '480p');
 
     service = createService();
+    service.setActiveListId(1);
     await flushPersistence();
 
     expect(service.streams()).toEqual(['legacy_channel']);
     expect(service.quality()).toBe('480p');
+    expect(service.lists()).toEqual([{ id: 1, name: 'Liste 1', streams: ['legacy_channel'] }]);
   });
 
   function createService(): StreamStateService {
