@@ -7,16 +7,11 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="settings-modal-title"
-      aria-describedby="settings-modal-description"
       tabindex="-1"
       (keydown)="onDialogKeydown($event)">
       <div class="modal__header">
         <div>
           <h2 id="settings-modal-title">Twitch Multi-Viewer</h2>
-          <span>Ultimate Edition</span>
-          <p id="settings-modal-description" class="modal__description">
-            Verwalte dein Stream-Lineup, die Videoqualität und den Chat. Mit Tab bleibst du im Dialog.
-          </p>
         </div>
 
         <button type="button" class="icon-btn" aria-label="Einstellungen schließen" (click)="close()">✕</button>
@@ -42,7 +37,7 @@
 
             <section class="settings-toolbar">
               <div class="form-block panel-card panel-card--compact">
-                <label for="list-input">Neue Liste anlegen</label>
+                <label for="list-input">Neue Liste</label>
                 <div class="input-row input-row--compact">
                   <input
                     #listInput
@@ -59,7 +54,7 @@
 
               @if (activeList()) {
                 <div class="form-block panel-card panel-card--compact">
-                  <label for="rename-list-input">Aktive Liste bearbeiten</label>
+                  <label for="rename-list-input">Liste umbenennen</label>
                   <div class="input-row input-row--compact">
                     <input
                       #renameListInput
@@ -103,8 +98,8 @@
               </div>
 
               <div class="content-grid__secondary">
-                <div class="form-block panel-card panel-card--compact">
-                  <label for="stream-input">Kanal hinzufügen</label>
+                <div class="form-block panel-card panel-card--compact" [class.panel-card--muted]="!hasActiveList()">
+                  <label for="stream-input">Kanal</label>
                   <p id="stream-input-hint" class="field-hint field-hint--compact">
                     @if (activeList()) {
                       a-z, äöü, 0-9 und Unterstriche, maximal 25 Zeichen.
@@ -138,9 +133,9 @@
                   }
                 </div>
 
-                <div class="list-block panel-card">
+                <div class="list-block panel-card" [class.panel-card--muted]="!hasActiveList()">
                   <div class="list-block__header">
-                    <p class="section-label">Aktuelles Lineup</p>
+                    <p class="section-label">Streams</p>
                     <span>{{ streams().length }} Stream{{ streams().length === 1 ? '' : 's' }}</span>
                   </div>
 
@@ -177,7 +172,7 @@
         <aside class="panel panel--side">
           <div class="option-block panel-card panel-card--compact panel-card--subtle">
             <fieldset class="quality-fieldset">
-              <legend class="section-label" id="quality-label">Video Qualität</legend>
+              <legend class="section-label" id="quality-label">Qualität</legend>
 
               <div class="quality-grid">
               @for (quality of qualityOptions; track quality) {
