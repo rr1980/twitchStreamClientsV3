@@ -219,7 +219,12 @@ describe('TwitchEmbedService', () => {
   it('reports available qualities when the embed becomes ready', async () => {
     const onAvailableQualities = vi.fn();
     const player = {
-      getQualities: vi.fn(() => ['chunked', { name: '1080p60' }, { name: '' }, 'audio_only']),
+      getQualities: vi.fn(() => [
+        { name: 'chunked', label: '1080p60 (Quelle)' },
+        { name: '1080p60' },
+        { name: '' },
+        'audio_only',
+      ]),
       getQuality: vi.fn(() => 'auto'),
       setQuality: vi.fn(),
     };
@@ -249,7 +254,47 @@ describe('TwitchEmbedService', () => {
     readyCallback?.();
     await Promise.resolve();
 
-    expect(onAvailableQualities).toHaveBeenCalledWith(['chunked', '1080p60', 'audio_only']);
+    expect(onAvailableQualities).toHaveBeenCalledWith([
+      { value: 'chunked', label: '1080p60 (Quelle)' },
+      { value: '1080p60', label: '1080p60' },
+      { value: 'audio_only', label: 'Nur Audio' },
+    ]);
+  });
+
+  it('normalizes Twitch quality descriptors from labels and prefers the richest source label', () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const readAvailableQualities = getServiceMethod<(player: { getQualities(): unknown[] }) => { value: string; label: string }[]>('_readAvailableQualities');
+
+    try {
+      expect(readAvailableQualities({
+        getQualities: () => [
+          'chunked',
+          { name: 'chunked', label: '1080p60 (Source)' },
+          { label: '720p60' },
+          { quality: 'audio_only', label: 'Audio Only' },
+          { title: 'unsupported' },
+        ],
+      })).toEqual([
+        { value: 'chunked', label: '1080p60 (Quelle)' },
+        { value: '720p60', label: '720p60' },
+        { value: 'audio_only', label: 'Nur Audio' },
+      ]);
+
+      expect(infoSpy).toHaveBeenCalledWith('[Twitch] Raw quality descriptors:', expect.any(Array));
+    } finally {
+      infoSpy.mockRestore();
+    }
+  });
+
+  it('maps source-style labels and localized quality labels correctly', () => {
+    const mapRequestedQuality = getServiceMethod<(value: string) => string | null>('_mapRequestedQuality');
+    const normalizeQualityDescriptor = getServiceMethod<(descriptor: unknown) => { value: string; label: string } | null>('_normalizeQualityDescriptor');
+
+    expect(mapRequestedQuality('1080p60 (Quelle)')).toBe('chunked');
+    expect(normalizeQualityDescriptor({ name: 'chunked', label: 'Source' })).toEqual({ value: 'chunked', label: 'Quelle' });
+    expect(normalizeQualityDescriptor({ name: 'chunked', label: '1080p60' })).toEqual({ value: 'chunked', label: '1080p60 (Quelle)' });
+    expect(normalizeQualityDescriptor({ value: 'audio_only', label: 'Audio Only' })).toEqual({ value: 'audio_only', label: 'Nur Audio' });
+    expect(normalizeQualityDescriptor({ title: 'unsupported' })).toBeNull();
   });
 
   it('sets the requested quality when it becomes available on ready', async () => {
@@ -488,7 +533,10 @@ describe('TwitchEmbedService', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(onAvailableQualities).toHaveBeenLastCalledWith(['1080p60', 'chunked']);
+    expect(onAvailableQualities).toHaveBeenLastCalledWith([
+      { value: '1080p60', label: '1080p60' },
+      { value: 'chunked', label: 'Quelle' },
+    ]);
     expect(player.setQuality).not.toHaveBeenCalled();
 
     rafSpy.mockRestore();

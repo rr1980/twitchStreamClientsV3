@@ -180,14 +180,14 @@
               <legend class="section-label" id="quality-label">Qualität</legend>
 
               <div class="quality-grid">
-              @for (quality of _qualityOptions(); track quality) {
-                  <label class="quality-option" [class.quality-option--active]="_selectedQuality() === quality">
+              @for (quality of _qualityOptions(); track _trackQuality($index, quality)) {
+                  <label class="quality-option" [class.quality-option--active]="_selectedQuality() === quality.value">
                     <input
                       type="radio"
                       name="stream-quality"
-                      [checked]="_selectedQuality() === quality"
-                      (change)="_setQuality(quality)" />
-                    <span class="quality-btn">{{ _formatQualityLabel(quality) }}</span>
+                      [checked]="_selectedQuality() === quality.value"
+                      (change)="_setQuality(quality.value)" />
+                    <span class="quality-btn">{{ quality.label }}</span>
                   </label>
               }
               </div>

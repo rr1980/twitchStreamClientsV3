@@ -2,7 +2,7 @@ import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
 import { vi } from 'vitest';
-import type { StreamChannel, StreamList, StreamQuality } from '../../core/models/app-settings.model';
+import type { StreamChannel, StreamList, StreamQuality, StreamQualityOption } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { TwitchEmbedService } from '../../core/services/twitch-embed.service';
 import type { TwitchEmbedHandle } from '../../core/services/twitch-embed.service';
@@ -226,10 +226,23 @@ describe('StreamGridComponent', () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
     await syncComponent();
 
-    twitch.reportQualities('twitch-embed-shroud', ['chunked', '1080p60', '720p60']);
-    twitch.reportQualities('twitch-embed-rocketbeanstv', ['720p60', 'audio_only']);
+    twitch.reportQualities('twitch-embed-shroud', [
+      quality('chunked', '1080p60 (Quelle)'),
+      quality('1080p60'),
+      quality('720p60'),
+    ]);
+    twitch.reportQualities('twitch-embed-rocketbeanstv', [
+      quality('720p60'),
+      quality('audio_only', 'Nur Audio'),
+    ]);
 
-    expect(state.setAvailableQualities).toHaveBeenLastCalledWith(['chunked', '1080p60', '720p60', '720p60', 'audio_only']);
+    expect(state.setAvailableQualities).toHaveBeenLastCalledWith([
+      quality('chunked', '1080p60 (Quelle)'),
+      quality('1080p60'),
+      quality('720p60'),
+      quality('720p60'),
+      quality('audio_only', 'Nur Audio'),
+    ]);
 
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [] });
     await syncComponent();
@@ -383,6 +396,10 @@ describe('StreamGridComponent', () => {
     return { name, showChat };
   }
 
+  function quality(value: string, label = value): StreamQualityOption {
+    return { value, label };
+  }
+
   async function syncComponent(): Promise<void> {
     fixture.detectChanges();
     TestBed.tick();
@@ -398,9 +415,9 @@ class MockStreamStateService {
   public readonly listCount = computed(() => this._activeList() ? 1 : 0);
   public readonly streams = computed(() => this._activeList()?.streams ?? []);
   public readonly quality = signal<StreamQuality>('auto');
-  public readonly availableQualities = signal<StreamQuality[]>(['auto']);
-  public readonly setAvailableQualities = vi.fn((values: StreamQuality[]) => {
-    this.availableQualities.set(['auto', ...values]);
+  public readonly availableQualities = signal<StreamQualityOption[]>([{ value: 'auto', label: 'Auto' }]);
+  public readonly setAvailableQualities = vi.fn((values: StreamQualityOption[]) => {
+    this.availableQualities.set([{ value: 'auto', label: 'Auto' }, ...values]);
   });
   private readonly _activeList = signal<StreamList | null>(null);
 
@@ -413,8 +430,8 @@ class MockStreamStateService {
 class MockTwitchEmbedService {
   public readonly loadScript = vi.fn(async () => undefined);
   public readonly handles = new Map<string, MockTwitchEmbedHandle>();
-  private readonly _qualityCallbacks = new Map<string, (qualities: StreamQuality[]) => void>();
-  public readonly createEmbed = vi.fn((options: { elementId: string; onAvailableQualities?: (qualities: StreamQuality[]) => void }) => {
+  private readonly _qualityCallbacks = new Map<string, (qualities: StreamQualityOption[]) => void>();
+  public readonly createEmbed = vi.fn((options: { elementId: string; onAvailableQualities?: (qualities: StreamQualityOption[]) => void }) => {
     const handle = new MockTwitchEmbedHandle();
     this.handles.set(options.elementId, handle);
 
@@ -425,7 +442,7 @@ class MockTwitchEmbedService {
     return handle;
   });
 
-  public reportQualities(elementId: string, qualities: StreamQuality[]): void {
+  public reportQualities(elementId: string, qualities: StreamQualityOption[]): void {
     this._qualityCallbacks.get(elementId)?.(qualities);
   }
 }

@@ -2,7 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, viewChild } from '@angular/core';
 import type { ElementRef } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import type { StreamChannel, StreamList, StreamQuality, StreamStatistic } from '../../core/models/app-settings.model';
+import type { StreamChannel, StreamList, StreamQuality, StreamQualityOption, StreamStatistic } from '../../core/models/app-settings.model';
 import { ListNavigationService } from '../../core/services/list-navigation.service';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { ToastService } from '../toast/toast.service';
@@ -254,23 +254,8 @@ export class SettingsModalComponent {
     this._state.setQuality(value);
   }
 
-  protected _formatQualityLabel(value: StreamQuality): string {
-    switch (value) {
-      case 'auto':
-        return 'Auto';
-      case 'chunked':
-        return this._getSourceQualityLabel();
-      case 'audio_only':
-        return 'Nur Audio';
-      default:
-        return value.replace(/_/g, ' ');
-    }
-  }
-
-  private _getSourceQualityLabel(): string {
-    const highestVideoQuality = this._qualityOptions().find(quality => quality !== 'auto' && quality !== 'chunked' && quality !== 'audio_only');
-
-    return highestVideoQuality ? `${highestVideoQuality} (Quelle)` : 'Quelle';
+  protected _trackQuality(_: number, quality: StreamQualityOption): string {
+    return quality.value;
   }
 
   protected _setStreamShowChat(index: number, value: boolean): void {

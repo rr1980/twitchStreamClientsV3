@@ -1,5 +1,10 @@
 export type StreamQuality = string;
 
+export interface StreamQualityOption {
+  value: StreamQuality;
+  label: string;
+}
+
 export interface StreamStatistic {
   name: string;
   value: number;

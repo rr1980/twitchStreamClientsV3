@@ -2,7 +2,7 @@ import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
 import { vi } from 'vitest';
-import type { StreamChannel, StreamList, StreamQuality, StreamStatistic } from '../../core/models/app-settings.model';
+import type { StreamChannel, StreamList, StreamQuality, StreamQualityOption, StreamStatistic } from '../../core/models/app-settings.model';
 import { ListNavigationService } from '../../core/services/list-navigation.service';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { SettingsModalComponent } from './settings-modal.component';
@@ -68,7 +68,13 @@ describe('SettingsModalComponent', () => {
       { id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] },
       { id: 2, name: 'Liste 2', streams: [] },
     ]);
-    state.availableQualities.set(['auto', 'chunked', '1080p60', '720p60', 'audio_only']);
+    state.availableQualities.set([
+      quality('auto', 'Auto'),
+      quality('chunked', '1080p60 (Quelle)'),
+      quality('1080p60'),
+      quality('720p60'),
+      quality('audio_only', 'Nur Audio'),
+    ]);
     state.setActiveListId(1);
     state.quality.set('chunked');
     state.statistics = [
@@ -596,6 +602,10 @@ describe('SettingsModalComponent', () => {
     return { name, showChat };
   }
 
+  function quality(value: string, label = value): StreamQualityOption {
+    return { value, label };
+  }
+
   async function syncComponent(): Promise<void> {
     fixture.detectChanges();
     TestBed.tick();
@@ -612,7 +622,11 @@ class MockStreamStateService {
   public readonly activeList = computed(() => this.lists().find(list => list.id === this.activeListId()) ?? null);
   public readonly streams = computed(() => this.activeList()?.streams ?? []);
   public readonly quality = signal<StreamQuality>('auto');
-  public readonly availableQualities = signal<StreamQuality[]>(['auto', 'chunked', '720p60']);
+  public readonly availableQualities = signal<StreamQualityOption[]>([
+    { value: 'auto', label: 'Auto' },
+    { value: 'chunked', label: 'Quelle' },
+    { value: '720p60', label: '720p60' },
+  ]);
   public statistics: StreamStatistic[] = [];
 
   public readonly addStream = vi.fn<(rawName: string) => { ok: boolean; reason?: string; name?: string }>();

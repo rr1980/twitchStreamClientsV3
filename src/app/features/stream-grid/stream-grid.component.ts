@@ -10,7 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
-import type { StreamQuality } from '../../core/models/app-settings.model';
+import type { StreamQuality, StreamQualityOption } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { TwitchEmbedService } from '../../core/services/twitch-embed.service';
 import type { TwitchEmbedHandle } from '../../core/services/twitch-embed.service';
@@ -43,7 +43,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   private readonly _twitch = inject(TwitchEmbedService);
   private readonly _toast = inject(ToastService);
   private readonly _renderedEmbeds = new Map<string, RenderedEmbedState>();
-  private readonly _availableQualitiesByStream = new Map<string, StreamQuality[]>();
+  private readonly _availableQualitiesByStream = new Map<string, StreamQualityOption[]>();
 
   private readonly _hostRef = viewChild<ElementRef<HTMLElement>>('gridHost');
   private readonly _viewportWidth = signal(this._readViewportDimension('innerWidth'));
@@ -218,13 +218,19 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private _setAvailableQualitiesForStream(stream: string, qualities: StreamQuality[]): void {
-    const normalizedQualities = [...new Set(qualities.map(quality => quality.trim()).filter(quality => quality.length > 0))];
+  private _setAvailableQualitiesForStream(stream: string, qualities: StreamQualityOption[]): void {
+    const normalizedQualities = qualities
+      .map(quality => ({
+        value: quality.value.trim(),
+        label: quality.label.trim(),
+      }))
+      .filter(quality => quality.value.length > 0 && quality.label.length > 0)
+      .filter((quality, index, items) => items.findIndex(candidate => candidate.value === quality.value) === index);
     const currentQualities = this._availableQualitiesByStream.get(stream) ?? [];
 
     if (
       currentQualities.length === normalizedQualities.length
-      && currentQualities.every((quality, index) => quality === normalizedQualities[index])
+      && currentQualities.every((quality, index) => quality.value === normalizedQualities[index]?.value && quality.label === normalizedQualities[index]?.label)
     ) {
       return;
     }

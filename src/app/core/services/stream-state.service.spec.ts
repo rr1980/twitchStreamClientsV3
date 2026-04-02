@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
-import type { StreamChannel } from '../models/app-settings.model';
+import type { StreamChannel, StreamQualityOption } from '../models/app-settings.model';
 import { ToastService } from '../../features/toast/toast.service';
 import { StreamStateService } from './stream-state.service';
 import { StorageService } from './storage.service';
@@ -101,19 +101,67 @@ describe('StreamStateService', () => {
   });
 
   it('builds dynamic quality options from Twitch qualities and keeps the current selection visible', () => {
-    service.setAvailableQualities(['720p60', '1080p60', '1080p60 (Source)', 'audio_only', 'chunked', '1080p60', 'not-a-quality']);
+    service.setAvailableQualities([
+      quality('720p60'),
+      quality('1080p60'),
+      quality('chunked', '1080p60 (Quelle)'),
+      quality('audio_only', 'Nur Audio'),
+      quality('chunked', 'Quelle'),
+      quality('1080p60'),
+      quality('not-a-quality'),
+    ]);
 
-    expect(service.availableQualities()).toEqual(['auto', 'chunked', '1080p60', '720p60', 'audio_only']);
+    expect(service.availableQualities()).toEqual([
+      quality('auto', 'Auto'),
+      quality('chunked', '1080p60 (Quelle)'),
+      quality('1080p60'),
+      quality('720p60'),
+      quality('audio_only', 'Nur Audio'),
+    ]);
 
     service.setQuality('936p60');
 
     expect(service.quality()).toBe('936p60');
-    expect(service.availableQualities()).toEqual(['auto', 'chunked', '1080p60', '936p60', '720p60', 'audio_only']);
+    expect(service.availableQualities()).toEqual([
+      quality('auto', 'Auto'),
+      quality('chunked', '1080p60 (Quelle)'),
+      quality('1080p60'),
+      quality('936p60'),
+      quality('720p60'),
+      quality('audio_only', 'Nur Audio'),
+    ]);
 
     service.setQuality('not-a-quality');
 
     expect(service.quality()).toBe('auto');
-    expect(service.availableQualities()).toEqual(['auto', 'chunked', '1080p60', '720p60', 'audio_only']);
+    expect(service.availableQualities()).toEqual([
+      quality('auto', 'Auto'),
+      quality('chunked', '1080p60 (Quelle)'),
+      quality('1080p60'),
+      quality('720p60'),
+      quality('audio_only', 'Nur Audio'),
+    ]);
+  });
+
+  it('normalizes Twitch quality labels and prefers richer source labels', () => {
+    service.setAvailableQualities([
+      quality('chunked', 'Source'),
+      quality('chunked', '1080p60'),
+      quality('audio_only', 'Audio Only'),
+      quality('720p60', '   '),
+      quality('auto', 'Auto'),
+    ]);
+
+    expect(service.availableQualities()).toEqual([
+      quality('auto', 'Auto'),
+      quality('chunked', '1080p60 (Quelle)'),
+      quality('720p60'),
+      quality('audio_only', 'Nur Audio'),
+    ]);
+
+    service.setQuality('chunked');
+
+    expect(service.availableQualities()[1]).toEqual(quality('chunked', '1080p60 (Quelle)'));
   });
 
   it('normalizes duplicate ids, fallback names and legacy stream objects from persisted lists', () => {
@@ -543,6 +591,10 @@ describe('StreamStateService', () => {
 
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
+  }
+
+  function quality(value: string, label = value): StreamQualityOption {
+    return { value, label };
   }
 
   function createService(): StreamStateService {
