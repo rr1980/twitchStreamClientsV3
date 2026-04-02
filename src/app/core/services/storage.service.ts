@@ -36,20 +36,20 @@ export class StorageService {
     }
   }
 
-  setString(key: string, value: string): void {
-    this.write(storage => storage.setItem(key, value));
+  setString(key: string, value: string): boolean {
+    return this.write(storage => storage.setItem(key, value));
   }
 
-  setBoolean(key: string, value: boolean): void {
-    this.write(storage => storage.setItem(key, String(value)));
+  setBoolean(key: string, value: boolean): boolean {
+    return this.write(storage => storage.setItem(key, String(value)));
   }
 
-  setJson<T>(key: string, value: T): void {
-    this.write(storage => storage.setItem(key, JSON.stringify(value)));
+  setJson<T>(key: string, value: T): boolean {
+    return this.write(storage => storage.setItem(key, JSON.stringify(value)));
   }
 
-  remove(key: string): void {
-    this.write(storage => storage.removeItem(key));
+  remove(key: string): boolean {
+    return this.write(storage => storage.removeItem(key));
   }
 
   private read<T>(reader: (storage: Storage) => T, fallback: T): T {
@@ -66,17 +66,19 @@ export class StorageService {
     }
   }
 
-  private write(writer: (storage: Storage) => void): void {
+  private write(writer: (storage: Storage) => void): boolean {
     const storage = this.storage;
 
     if (!storage) {
-      return;
+      return false;
     }
 
     try {
       writer(storage);
+      return true;
     } catch {
       // Ignore storage write failures and keep the app usable.
+      return false;
     }
   }
 

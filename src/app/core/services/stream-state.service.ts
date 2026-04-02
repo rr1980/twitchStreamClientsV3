@@ -1,6 +1,7 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { StorageService } from './storage.service';
 import { AppSettings, StreamChannel, StreamList, StreamQuality, StreamStatistic } from '../models/app-settings.model';
+import { ToastService } from '../../features/toast/toast.service';
 
 type PersistedStreamState = AppSettings;
 type StoredState = PersistedStreamState & { showChat?: unknown };
@@ -42,8 +43,10 @@ export class StreamStateService {
   readonly listCount = computed(() => this._lists().length);
 
   private readonly storage = inject(StorageService);
+  private readonly toast = inject(ToastService);
   private pendingPersistState?: PersistedStreamState;
   private persistScheduled = false;
+  private persistFailureVisible = false;
   private initialized = false;
 
   constructor() {
@@ -493,7 +496,17 @@ export class StreamStateService {
   }
 
   private persistState(state: PersistedStreamState): void {
-    this.storage.setJson(this.stateKey, state);
+    if (this.storage.setJson(this.stateKey, state)) {
+      this.persistFailureVisible = false;
+      return;
+    }
+
+    if (this.persistFailureVisible) {
+      return;
+    }
+
+    this.persistFailureVisible = true;
+    this.toast.show('Änderungen konnten nicht gespeichert werden. Prüfe den verfügbaren Browser-Speicher.', 'error');
   }
 
   private createDefaultState(): PersistedStreamState {

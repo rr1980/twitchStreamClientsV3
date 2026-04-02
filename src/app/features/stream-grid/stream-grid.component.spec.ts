@@ -38,9 +38,20 @@ describe('StreamGridComponent', () => {
   });
 
   it('returns safely when embeds are synced before wrapper elements exist', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+
+    const component = fixture.componentInstance as unknown as {
+      syncRunId: number;
+      syncEmbeds(runId: number): Promise<void>;
+    };
+    const runId = ++component.syncRunId;
+
     await expect((fixture.componentInstance as unknown as {
-      syncEmbeds(streams: StreamChannel[], quality: StreamQuality): Promise<void>;
-    }).syncEmbeds([channel('shroud')], 'auto')).resolves.toBeUndefined();
+      syncEmbeds(runId: number): Promise<void>;
+    }).syncEmbeds(runId)).resolves.toBeUndefined();
 
     expect(twitch.loadScript).toHaveBeenCalledTimes(1);
     expect(twitch.createEmbed).not.toHaveBeenCalled();
@@ -49,41 +60,72 @@ describe('StreamGridComponent', () => {
   it('returns early when syncEmbeds has no host element', async () => {
     const component = fixture.componentInstance as unknown as {
       hostRef: () => undefined;
-      syncEmbeds(streams: StreamChannel[], quality: StreamQuality): Promise<void>;
+      syncRunId: number;
+      syncEmbeds(runId: number): Promise<void>;
     };
 
     component.hostRef = () => undefined;
 
-    await expect(component.syncEmbeds([channel('shroud')], 'auto')).resolves.toBeUndefined();
+    await expect(component.syncEmbeds(++component.syncRunId)).resolves.toBeUndefined();
 
     expect(twitch.loadScript).not.toHaveBeenCalled();
     expect(twitch.createEmbed).not.toHaveBeenCalled();
   });
 
   it('shows a single toast and skips embed creation when the Twitch script fails to load', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
     const component = fixture.componentInstance as unknown as {
-      syncEmbeds(streams: StreamChannel[], quality: StreamQuality): Promise<void>;
+      syncRunId: number;
+      syncEmbeds(runId: number): Promise<void>;
     };
 
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
     twitch.loadScript.mockRejectedValue(new Error('network'));
 
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    await expect(component.syncEmbeds([channel('shroud')], 'auto')).resolves.toBeUndefined();
-    await expect(component.syncEmbeds([channel('shroud')], 'auto')).resolves.toBeUndefined();
+    await expect(component.syncEmbeds(++component.syncRunId)).resolves.toBeUndefined();
+    await expect(component.syncEmbeds(++component.syncRunId)).resolves.toBeUndefined();
 
     expect(twitch.createEmbed).not.toHaveBeenCalled();
     expect(toast.show).toHaveBeenCalledTimes(1);
     expect(toast.show).toHaveBeenCalledWith('Twitch-Embed konnte nicht geladen werden. Bitte versuche es erneut.', 'error');
   });
 
+  it('ignores stale sync runs after the Twitch script resolves', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    fixture.detectChanges();
+
+    let resolveLoadScript!: (value?: undefined) => void;
+    const pendingLoadScript = new Promise<undefined>(resolve => {
+      resolveLoadScript = resolve;
+    });
+    const component = fixture.componentInstance as unknown as {
+      syncRunId: number;
+      syncEmbeds(runId: number): Promise<void>;
+    };
+
+    twitch.loadScript.mockReturnValueOnce(pendingLoadScript);
+    twitch.createEmbed.mockClear();
+
+    const staleRunId = ++component.syncRunId;
+    const syncPromise = component.syncEmbeds(staleRunId);
+
+    component.syncRunId += 1;
+    resolveLoadScript(undefined);
+    await syncPromise;
+
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+  });
+
   it('drops stale constructor sync runs before syncEmbeds executes', async () => {
     const component = fixture.componentInstance as unknown as {
       viewReady: boolean;
       syncRunId: number;
-      syncEmbeds: (streams: StreamChannel[], quality: StreamQuality) => Promise<void>;
+      syncEmbeds: (runId: number) => Promise<void>;
     };
     const syncEmbedsSpy = vi.spyOn(component, 'syncEmbeds').mockResolvedValue(undefined);
 
@@ -99,7 +141,7 @@ describe('StreamGridComponent', () => {
   it('drops stale after-view-init sync runs before syncEmbeds executes', async () => {
     const component = fixture.componentInstance as unknown as {
       syncRunId: number;
-      syncEmbeds: (streams: StreamChannel[], quality: StreamQuality) => Promise<void>;
+      syncEmbeds: (runId: number) => Promise<void>;
       ngAfterViewInit(): void;
     };
     const syncEmbedsSpy = vi.spyOn(component, 'syncEmbeds').mockResolvedValue(undefined);

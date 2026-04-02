@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { StreamChannel } from '../models/app-settings.model';
+import { ToastService } from '../../features/toast/toast.service';
 import { StreamStateService } from './stream-state.service';
 import { StorageService } from './storage.service';
 
@@ -144,6 +145,47 @@ describe('StreamStateService', () => {
     await flushPersistence();
 
     expect(setJsonSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the persistence error once and resets after a successful save', async () => {
+    const storage = TestBed.inject(StorageService);
+    const toast = TestBed.inject(ToastService);
+    const setJsonSpy = vi.spyOn(storage, 'setJson');
+    const toastSpy = vi.spyOn(toast, 'show');
+
+    setJsonSpy.mockReturnValue(false);
+
+    service.createList('Liste 1');
+    service.setActiveListId(1);
+    service.addStream('first_channel');
+    TestBed.flushEffects();
+    await flushPersistence();
+
+    expect(toastSpy).toHaveBeenCalledTimes(1);
+    expect(toastSpy).toHaveBeenCalledWith(
+      'Änderungen konnten nicht gespeichert werden. Prüfe den verfügbaren Browser-Speicher.',
+      'error',
+    );
+
+    service.setQuality('720p60');
+    TestBed.flushEffects();
+    await flushPersistence();
+
+    expect(toastSpy).toHaveBeenCalledTimes(1);
+
+    setJsonSpy.mockReturnValue(true);
+
+    service.setQuality('480p');
+    TestBed.flushEffects();
+    await flushPersistence();
+
+    setJsonSpy.mockReturnValue(false);
+
+    service.setQuality('auto');
+    TestBed.flushEffects();
+    await flushPersistence();
+
+    expect(toastSpy).toHaveBeenCalledTimes(2);
   });
 
   it('updates the chat visibility for an individual stream only', () => {

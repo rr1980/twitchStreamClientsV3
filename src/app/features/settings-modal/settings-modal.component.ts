@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, viewChild } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { StreamChannel, StreamList, StreamQuality, StreamStatistic } from '../../core/models/app-settings.model';
+import { ListNavigationService } from '../../core/services/list-navigation.service';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { ToastService } from '../toast/toast.service';
 
@@ -12,6 +13,7 @@ import { ToastService } from '../toast/toast.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsModalComponent {
+  private readonly listNavigation = inject(ListNavigationService);
   private readonly state = inject(StreamStateService);
   private readonly toast = inject(ToastService);
   private previouslyFocusedElement: HTMLElement | null = null;
@@ -265,7 +267,7 @@ export class SettingsModalComponent {
   }
 
   private navigateToList(listId: number | null): void {
-    window.location.hash = `#/List/${listId ?? 'null'}`;
+    this.listNavigation.navigateToList(listId);
   }
 
   private getNextListIdAfterDeletion(lists: StreamList[], removedListId: number): number | null {
