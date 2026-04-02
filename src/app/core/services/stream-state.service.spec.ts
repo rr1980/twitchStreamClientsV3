@@ -101,7 +101,7 @@ describe('StreamStateService', () => {
   });
 
   it('builds dynamic quality options from Twitch qualities and keeps the current selection visible', () => {
-    service.setAvailableQualities(['720p60', '1080p60', 'audio_only', 'chunked', '1080p60', 'not-a-quality']);
+    service.setAvailableQualities(['720p60', '1080p60', '1080p60 (Source)', 'audio_only', 'chunked', '1080p60', 'not-a-quality']);
 
     expect(service.availableQualities()).toEqual(['auto', 'chunked', '1080p60', '720p60', 'audio_only']);
 

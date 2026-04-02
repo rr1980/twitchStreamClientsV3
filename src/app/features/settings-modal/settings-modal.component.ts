@@ -259,12 +259,18 @@ export class SettingsModalComponent {
       case 'auto':
         return 'Auto';
       case 'chunked':
-        return 'Source';
+        return this._getSourceQualityLabel();
       case 'audio_only':
         return 'Nur Audio';
       default:
         return value.replace(/_/g, ' ');
     }
+  }
+
+  private _getSourceQualityLabel(): string {
+    const highestVideoQuality = this._qualityOptions().find(quality => quality !== 'auto' && quality !== 'chunked' && quality !== 'audio_only');
+
+    return highestVideoQuality ? `${highestVideoQuality} (Quelle)` : 'Quelle';
   }
 
   protected _setStreamShowChat(index: number, value: boolean): void {

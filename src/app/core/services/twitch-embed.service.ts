@@ -268,9 +268,14 @@ export class TwitchEmbedService {
 
   private _mapRequestedQuality(value: StreamQuality): string | null {
     const normalizedValue = typeof value === 'string' ? value.trim() : 'auto';
+    const sourceQualityMatch = normalizedValue.match(/^(\d+p(?:\d+(?:-\d+)?)?)\s*\((?:source|quelle)\)$/i);
 
     if (normalizedValue === 'auto') {
       return null;
+    }
+
+    if (sourceQualityMatch) {
+      return 'chunked';
     }
 
     return /^(chunked|audio_only|\d+p(?:\d+(?:-\d+)?)?)$/i.test(normalizedValue)

@@ -314,6 +314,11 @@ export class StreamStateService {
 
   private _normalizeStoredQuality(value: unknown): StreamQuality {
     const storedQuality = typeof value === 'string' ? value.trim() : 'auto';
+    const sourceQualityMatch = storedQuality.match(/^(\d+p(?:\d+(?:-\d+)?)?)\s*\((?:source|quelle)\)$/i);
+
+    if (sourceQualityMatch) {
+      return 'chunked';
+    }
 
     return this._isSupportedQuality(storedQuality) ? storedQuality : 'auto';
   }
