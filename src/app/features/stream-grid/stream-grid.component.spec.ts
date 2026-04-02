@@ -5,21 +5,25 @@ import { StreamChannel, StreamList, StreamQuality } from '../../core/models/app-
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { TwitchEmbedHandle, TwitchEmbedService } from '../../core/services/twitch-embed.service';
 import { StreamGridComponent } from './stream-grid.component';
+import { ToastService } from '../toast/toast.service';
 
 describe('StreamGridComponent', () => {
   let fixture: ComponentFixture<StreamGridComponent>;
   let state: MockStreamStateService;
   let twitch: MockTwitchEmbedService;
+  let toast: MockToastService;
 
   beforeEach(async () => {
     state = new MockStreamStateService();
     twitch = new MockTwitchEmbedService();
+    toast = new MockToastService();
 
     await TestBed.configureTestingModule({
       imports: [StreamGridComponent],
       providers: [
         { provide: StreamStateService, useValue: state },
         { provide: TwitchEmbedService, useValue: twitch },
+        { provide: ToastService, useValue: toast },
       ],
     }).compileComponents();
 
@@ -54,6 +58,25 @@ describe('StreamGridComponent', () => {
 
     expect(twitch.loadScript).not.toHaveBeenCalled();
     expect(twitch.createEmbed).not.toHaveBeenCalled();
+  });
+
+  it('shows a single toast and skips embed creation when the Twitch script fails to load', async () => {
+    const component = fixture.componentInstance as unknown as {
+      syncEmbeds(streams: StreamChannel[], quality: StreamQuality): Promise<void>;
+    };
+
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    twitch.loadScript.mockRejectedValue(new Error('network'));
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    await expect(component.syncEmbeds([channel('shroud')], 'auto')).resolves.toBeUndefined();
+    await expect(component.syncEmbeds([channel('shroud')], 'auto')).resolves.toBeUndefined();
+
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(toast.show).toHaveBeenCalledTimes(1);
+    expect(toast.show).toHaveBeenCalledWith('Twitch-Embed konnte nicht geladen werden. Bitte versuche es erneut.', 'error');
   });
 
   it('drops stale constructor sync runs before syncEmbeds executes', async () => {
@@ -259,4 +282,8 @@ class MockTwitchEmbedService {
 
 class MockTwitchEmbedHandle implements TwitchEmbedHandle {
   readonly destroy = vi.fn();
+}
+
+class MockToastService {
+  readonly show = vi.fn();
 }

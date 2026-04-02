@@ -31,7 +31,9 @@ export class App {
   }
 
   onWindowKeydown(event: KeyboardEvent): void {
-    this.hotkeys.handleWindowKeydown(event, document.activeElement);
+    if (this.hotkeys.handleWindowKeydown(event, document.activeElement)) {
+      event.preventDefault();
+    }
   }
 
   onHashChange(): void {

@@ -43,6 +43,34 @@ describe('App', () => {
     expect(spy).toHaveBeenCalledWith(event, document.activeElement);
   });
 
+  it('prevents the default key behavior when a hotkey was handled', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    const hotkeys = TestBed.inject(HotkeyService);
+    const event = new KeyboardEvent('keydown', { key: 'm' });
+    const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+
+    vi.spyOn(hotkeys, 'handleWindowKeydown').mockReturnValue(true);
+
+    app.onWindowKeydown(event);
+
+    expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the default key behavior alone when no hotkey was handled', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    const hotkeys = TestBed.inject(HotkeyService);
+    const event = new KeyboardEvent('keydown', { key: 'x' });
+    const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+
+    vi.spyOn(hotkeys, 'handleWindowKeydown').mockReturnValue(false);
+
+    app.onWindowKeydown(event);
+
+    expect(preventDefaultSpy).not.toHaveBeenCalled();
+  });
+
   it('opens the menu through the state service', () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;

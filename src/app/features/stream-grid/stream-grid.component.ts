@@ -14,6 +14,7 @@ import { StreamChannel, StreamQuality } from '../../core/models/app-settings.mod
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { TwitchEmbedHandle, TwitchEmbedService } from '../../core/services/twitch-embed.service';
 import { calculateOptimalGrid } from '../../shared/utils/grid.util';
+import { ToastService } from '../toast/toast.service';
 
 interface RenderedEmbedState {
   elementId: string;
@@ -37,6 +38,7 @@ type RenderedEmbedSnapshot = Omit<RenderedEmbedState, 'handle'>;
 export class StreamGridComponent implements AfterViewInit, OnDestroy {
   private readonly state = inject(StreamStateService);
   private readonly twitch = inject(TwitchEmbedService);
+  private readonly toast = inject(ToastService);
   private readonly renderedEmbeds = new Map<string, RenderedEmbedState>();
 
   readonly hostRef = viewChild<ElementRef<HTMLElement>>('gridHost');
@@ -48,6 +50,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
   private viewReady = false;
   private syncRunId = 0;
+  private loadScriptErrorVisible = false;
 
   readonly grid = computed(() => calculateOptimalGrid(this.streams(), this.viewportWidth(), this.viewportHeight()));
 
@@ -119,7 +122,17 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    await this.twitch.loadScript();
+    try {
+      await this.twitch.loadScript();
+      this.loadScriptErrorVisible = false;
+    } catch {
+      if (!this.loadScriptErrorVisible) {
+        this.loadScriptErrorVisible = true;
+        this.toast.show('Twitch-Embed konnte nicht geladen werden. Bitte versuche es erneut.', 'error');
+      }
+
+      return;
+    }
 
     streams.forEach((stream, index) => {
       const wrapper = host.querySelector<HTMLElement>(`.twitch-embed-wrapper[data-channel="${stream.name}"]`);
