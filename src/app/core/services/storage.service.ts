@@ -3,10 +3,10 @@ import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class StorageService {
-  private readonly platformId = inject(PLATFORM_ID);
+  private readonly _platformId = inject(PLATFORM_ID);
 
   public getItem(key: string): string | null {
-    return this.read(storage => storage.getItem(key), null);
+    return this._read(storage => storage.getItem(key), null);
   }
 
   public hasKey(key: string): boolean {
@@ -37,23 +37,23 @@ export class StorageService {
   }
 
   public setString(key: string, value: string): boolean {
-    return this.write(storage => storage.setItem(key, value));
+    return this._write(storage => storage.setItem(key, value));
   }
 
   public setBoolean(key: string, value: boolean): boolean {
-    return this.write(storage => storage.setItem(key, String(value)));
+    return this._write(storage => storage.setItem(key, String(value)));
   }
 
   public setJson<T>(key: string, value: T): boolean {
-    return this.write(storage => storage.setItem(key, JSON.stringify(value)));
+    return this._write(storage => storage.setItem(key, JSON.stringify(value)));
   }
 
   public remove(key: string): boolean {
-    return this.write(storage => storage.removeItem(key));
+    return this._write(storage => storage.removeItem(key));
   }
 
-  private read<T>(reader: (storage: Storage) => T, fallback: T): T {
-    const storage = this.storage;
+  private _read<T>(reader: (storage: Storage) => T, fallback: T): T {
+    const storage = this._storage;
 
     if (!storage) {
       return fallback;
@@ -66,8 +66,8 @@ export class StorageService {
     }
   }
 
-  private write(writer: (storage: Storage) => void): boolean {
-    const storage = this.storage;
+  private _write(writer: (storage: Storage) => void): boolean {
+    const storage = this._storage;
 
     if (!storage) {
       return false;
@@ -82,8 +82,8 @@ export class StorageService {
     }
   }
 
-  private get storage(): Storage | null {
-    if (!isPlatformBrowser(this.platformId)) {
+  private get _storage(): Storage | null {
+    if (!isPlatformBrowser(this._platformId)) {
       return null;
     }
 

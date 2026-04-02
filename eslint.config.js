@@ -31,7 +31,6 @@ module.exports = defineConfig([
           style: 'kebab-case',
         },
       ],
-      //---
       quotes: [2, 'single', { avoidEscape: true, allowTemplateLiterals: true }],
       '@typescript-eslint/explicit-member-accessibility': [
         'error',
@@ -39,7 +38,6 @@ module.exports = defineConfig([
       ],
       '@typescript-eslint/explicit-function-return-type': ['warn', { allowExpressions: true }],
       '@typescript-eslint/no-unused-vars': ['error', { args: 'none' }],
-      //---
       '@angular-eslint/no-empty-lifecycle-method': 'off',
       '@angular-eslint/no-output-on-prefix': 'off',
       '@angular-eslint/prefer-standalone': 'off',
@@ -54,6 +52,13 @@ module.exports = defineConfig([
       '@typescript-eslint/consistent-type-imports': [
         'warn',
         { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
+      ],
+      //---
+      '@typescript-eslint/naming-convention': [
+        'error',
+        { selector: 'memberLike', format: ['camelCase', 'snake_case'], leadingUnderscore: 'forbid' },
+        { selector: 'memberLike', modifiers: ['private'], format: ['camelCase', 'snake_case'], leadingUnderscore: 'require' },
+        { selector: 'memberLike', modifiers: ['protected'], format: ['camelCase', 'snake_case'], leadingUnderscore: 'require' },
       ],
     },
   },

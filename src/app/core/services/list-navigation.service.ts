@@ -3,8 +3,8 @@ import { Injectable } from '@angular/core';
 @Injectable({ providedIn: 'root' })
 export class ListNavigationService {
   public syncLocationToListHash(): number | null {
-    const listId = this.parseListId(window.location.hash);
-    const normalizedHash = this.buildListHash(listId);
+    const listId = this._parseListId(window.location.hash);
+    const normalizedHash = this._buildListHash(listId);
 
     if (window.location.hash !== normalizedHash) {
       window.location.hash = normalizedHash;
@@ -14,15 +14,15 @@ export class ListNavigationService {
   }
 
   public navigateToList(listId: number | null): void {
-    const normalizedHash = this.buildListHash(listId);
+    const normalizedHash = this._buildListHash(listId);
 
     if (window.location.hash !== normalizedHash) {
       window.location.hash = normalizedHash;
     }
   }
 
-  private parseListId(hash: string): number | null {
-    const match = this.normalizeHash(hash).match(/^#\/List\/(.+)$/);
+  private _parseListId(hash: string): number | null {
+    const match = this._normalizeHash(hash).match(/^#\/List\/(.+)$/);
     const rawListId = match?.[1] ?? 'null';
 
     if (rawListId === 'null') {
@@ -34,7 +34,7 @@ export class ListNavigationService {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   }
 
-  private normalizeHash(hash: string): string {
+  private _normalizeHash(hash: string): string {
     const trimmedHash = hash.trim();
     const match = trimmedHash.match(/^#\/([^/]+)\/(.+)$/);
 
@@ -65,7 +65,7 @@ export class ListNavigationService {
     return `#/List/${parsed}`;
   }
 
-  private buildListHash(listId: number | null): string {
+  private _buildListHash(listId: number | null): string {
     return `#/List/${listId ?? 'null'}`;
   }
 }

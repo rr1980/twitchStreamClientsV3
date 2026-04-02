@@ -15,6 +15,21 @@ describe('StreamGridComponent', () => {
   let twitch: MockTwitchEmbedService;
   let toast: MockToastService;
 
+  function getPrivateMethod<T extends (...args: never[]) => unknown>(
+    instance: object,
+    propertyName: string,
+  ): T {
+    return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
+  }
+
+  function getPrivateNumber(instance: object, propertyName: string): number {
+    return (instance as Record<string, number>)[propertyName];
+  }
+
+  function setPrivateNumber(instance: object, propertyName: string, value: number): void {
+    (instance as Record<string, number>)[propertyName] = value;
+  }
+
   beforeEach(async () => {
     state = new MockStreamStateService();
     twitch = new MockTwitchEmbedService();
@@ -45,15 +60,12 @@ describe('StreamGridComponent', () => {
 
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
 
-    const component = fixture.componentInstance as unknown as {
-      syncRunId: number;
-      syncEmbeds(runId: number): Promise<void>;
-    };
-    const runId = ++component.syncRunId;
+    const component = fixture.componentInstance;
+    const runId = getPrivateNumber(component, '_syncRunId') + 1;
 
-    await expect((fixture.componentInstance as unknown as {
-      syncEmbeds(runId: number): Promise<void>;
-    }).syncEmbeds(runId)).resolves.toBeUndefined();
+    setPrivateNumber(component, '_syncRunId', runId);
+
+    await expect(getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(runId)).resolves.toBeUndefined();
 
     expect(twitch.loadScript).toHaveBeenCalledTimes(1);
     expect(twitch.createEmbed).not.toHaveBeenCalled();
@@ -62,13 +74,14 @@ describe('StreamGridComponent', () => {
   it('returns early when syncEmbeds has no host element', async () => {
     const component = fixture.componentInstance as unknown as {
       hostRef: () => undefined;
-      syncRunId: number;
-      syncEmbeds(runId: number): Promise<void>;
     };
 
     component.hostRef = () => undefined;
 
-    await expect(component.syncEmbeds(++component.syncRunId)).resolves.toBeUndefined();
+    const runId = getPrivateNumber(component, '_syncRunId') + 1;
+    setPrivateNumber(component, '_syncRunId', runId);
+
+    await expect(getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(runId)).resolves.toBeUndefined();
 
     expect(twitch.loadScript).not.toHaveBeenCalled();
     expect(twitch.createEmbed).not.toHaveBeenCalled();
@@ -78,16 +91,18 @@ describe('StreamGridComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const component = fixture.componentInstance as unknown as {
-      syncRunId: number;
-      syncEmbeds(runId: number): Promise<void>;
-    };
+    const component = fixture.componentInstance;
 
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
     twitch.loadScript.mockRejectedValue(new Error('network'));
 
-    await expect(component.syncEmbeds(++component.syncRunId)).resolves.toBeUndefined();
-    await expect(component.syncEmbeds(++component.syncRunId)).resolves.toBeUndefined();
+    const firstRunId = getPrivateNumber(component, '_syncRunId') + 1;
+    setPrivateNumber(component, '_syncRunId', firstRunId);
+    await expect(getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(firstRunId)).resolves.toBeUndefined();
+
+    const secondRunId = getPrivateNumber(component, '_syncRunId') + 1;
+    setPrivateNumber(component, '_syncRunId', secondRunId);
+    await expect(getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(secondRunId)).resolves.toBeUndefined();
 
     expect(twitch.createEmbed).not.toHaveBeenCalled();
     expect(toast.show).toHaveBeenCalledTimes(1);
@@ -105,18 +120,16 @@ describe('StreamGridComponent', () => {
     const pendingLoadScript = new Promise<undefined>(resolve => {
       resolveLoadScript = resolve;
     });
-    const component = fixture.componentInstance as unknown as {
-      syncRunId: number;
-      syncEmbeds(runId: number): Promise<void>;
-    };
+    const component = fixture.componentInstance;
 
     twitch.loadScript.mockReturnValueOnce(pendingLoadScript);
     twitch.createEmbed.mockClear();
 
-    const staleRunId = ++component.syncRunId;
-    const syncPromise = component.syncEmbeds(staleRunId);
+    const staleRunId = getPrivateNumber(component, '_syncRunId') + 1;
+    setPrivateNumber(component, '_syncRunId', staleRunId);
+    const syncPromise = getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(staleRunId);
 
-    component.syncRunId += 1;
+    setPrivateNumber(component, '_syncRunId', staleRunId + 1);
     resolveLoadScript(undefined);
     await syncPromise;
 
@@ -124,32 +137,30 @@ describe('StreamGridComponent', () => {
   });
 
   it('drops stale constructor sync runs before syncEmbeds executes', async () => {
-    const component = fixture.componentInstance as unknown as {
-      viewReady: boolean;
-      syncRunId: number;
-      syncEmbeds: (runId: number) => Promise<void>;
-    };
-    const syncEmbedsSpy = vi.spyOn(component, 'syncEmbeds').mockResolvedValue(undefined);
+    const component = fixture.componentInstance;
+    const syncEmbedsSpy = vi.spyOn(
+      component as unknown as Record<string, (...args: never[]) => Promise<void>>,
+      '_syncEmbeds',
+    ).mockResolvedValue(undefined);
 
-    component.viewReady = true;
+    (component as unknown as Record<string, unknown>)['_viewReady'] = true;
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
     TestBed.flushEffects();
-    component.syncRunId += 1;
+    setPrivateNumber(component, '_syncRunId', getPrivateNumber(component, '_syncRunId') + 1);
     await Promise.resolve();
 
     expect(syncEmbedsSpy).not.toHaveBeenCalled();
   });
 
   it('drops stale after-view-init sync runs before syncEmbeds executes', async () => {
-    const component = fixture.componentInstance as unknown as {
-      syncRunId: number;
-      syncEmbeds: (runId: number) => Promise<void>;
-      ngAfterViewInit(): void;
-    };
-    const syncEmbedsSpy = vi.spyOn(component, 'syncEmbeds').mockResolvedValue(undefined);
+    const component = fixture.componentInstance;
+    const syncEmbedsSpy = vi.spyOn(
+      component as unknown as Record<string, (...args: never[]) => Promise<void>>,
+      '_syncEmbeds',
+    ).mockResolvedValue(undefined);
 
     component.ngAfterViewInit();
-    component.syncRunId += 1;
+    setPrivateNumber(component, '_syncRunId', getPrivateNumber(component, '_syncRunId') + 1);
     await Promise.resolve();
 
     expect(syncEmbedsSpy).not.toHaveBeenCalled();

@@ -13,10 +13,14 @@ describe('TwitchEmbedService', () => {
     service = TestBed.inject(TwitchEmbedService);
   });
 
+  function setWindowTwitchEmbed(embed: ReturnType<typeof vi.fn>): void {
+    const twitchApi = {} as NonNullable<Window['Twitch']>;
+    twitchApi.Embed = embed as never;
+    window.Twitch = twitchApi;
+  }
+
   it('reuses the already loaded Twitch API', async () => {
-    window.Twitch = {
-      Embed: vi.fn() as never,
-    };
+    setWindowTwitchEmbed(vi.fn());
 
     await expect(service.loadScript()).resolves.toBeUndefined();
     expect(document.head.querySelector('script[data-twitch-embed="true"]')).toBeNull();
@@ -42,9 +46,7 @@ describe('TwitchEmbedService', () => {
 
     expect(secondScript).not.toBe(firstScript);
 
-    window.Twitch = {
-      Embed: vi.fn() as never,
-    };
+    setWindowTwitchEmbed(vi.fn());
 
     secondScript.dispatchEvent(new Event('load'));
     await expect(secondAttempt).resolves.toBeUndefined();
@@ -57,9 +59,7 @@ describe('TwitchEmbedService', () => {
 
     const attempt = service.loadScript();
 
-    window.Twitch = {
-      Embed: vi.fn() as never,
-    };
+    setWindowTwitchEmbed(vi.fn());
 
     existingScript.dispatchEvent(new Event('load'));
 
@@ -71,9 +71,7 @@ describe('TwitchEmbedService', () => {
     const existingScript = document.createElement('script');
     existingScript.dataset['twitchEmbed'] = 'true';
     document.head.appendChild(existingScript);
-    window.Twitch = {
-      Embed: vi.fn() as never,
-    };
+    setWindowTwitchEmbed(vi.fn());
 
     await expect(service.loadScript()).resolves.toBeUndefined();
     expect(document.head.querySelectorAll('script[data-twitch-embed="true"]')).toHaveLength(1);
@@ -101,9 +99,7 @@ describe('TwitchEmbedService', () => {
     expect(replacementScript).not.toBe(existingScript);
     expect(document.head.contains(existingScript)).toBe(false);
 
-    window.Twitch = {
-      Embed: vi.fn() as never,
-    };
+    setWindowTwitchEmbed(vi.fn());
 
     replacementScript.dispatchEvent(new Event('load'));
 
@@ -114,13 +110,9 @@ describe('TwitchEmbedService', () => {
     const existingScript = document.createElement('script');
     existingScript.dataset['twitchEmbed'] = 'true';
     document.head.appendChild(existingScript);
-    window.Twitch = {
-      Embed: vi.fn() as never,
-    };
+    setWindowTwitchEmbed(vi.fn());
 
-    await expect((service as unknown as {
-      createScriptPromise(): Promise<void>;
-    }).createScriptPromise()).resolves.toBeUndefined();
+    await expect((service as unknown as Record<string, () => Promise<void>>)['_createScriptPromise']()).resolves.toBeUndefined();
   });
 
   it('returns a destroyable handle for created embeds', () => {
@@ -134,9 +126,7 @@ describe('TwitchEmbedService', () => {
       return { addEventListener, getPlayer };
     });
 
-    window.Twitch = {
-      Embed: EmbedMock as never,
-    };
+    setWindowTwitchEmbed(EmbedMock);
 
     const host = document.createElement('div');
     host.id = 'twitch-embed-shroud';
@@ -207,9 +197,7 @@ describe('TwitchEmbedService', () => {
       return 1;
     });
 
-    window.Twitch = {
-      Embed: EmbedMock as never,
-    };
+    setWindowTwitchEmbed(EmbedMock);
 
     service.createEmbed({
       elementId: 'twitch-embed-quality',
@@ -254,7 +242,7 @@ describe('TwitchEmbedService', () => {
         };
       });
 
-      window.Twitch = { Embed: EmbedMock as never };
+      setWindowTwitchEmbed(EmbedMock);
 
       return { player, triggerReady: () => readyCallback?.() };
     };
@@ -298,7 +286,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    window.Twitch = { Embed: EmbedMock as never };
+    setWindowTwitchEmbed(EmbedMock);
 
     service.createEmbed({
       elementId: 'fallback-720',
@@ -332,7 +320,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    window.Twitch = { Embed: EmbedMock as never };
+    setWindowTwitchEmbed(EmbedMock);
 
     service.createEmbed({
       elementId: 'fallback-480',
@@ -366,7 +354,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    window.Twitch = { Embed: EmbedMock as never };
+    setWindowTwitchEmbed(EmbedMock);
 
     service.createEmbed({ elementId: 'auto', channel: 'auto', quality: 'auto', showChat: false, muted: false });
     readyCallback?.();
@@ -397,9 +385,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    window.Twitch = {
-      Embed: EmbedMock as never,
-    };
+    setWindowTwitchEmbed(EmbedMock);
 
     const handle = service.createEmbed({
       elementId: 'twitch-embed-destroyed',
@@ -439,9 +425,7 @@ describe('TwitchEmbedService', () => {
       return rafCallbacks.length;
     });
 
-    window.Twitch = {
-      Embed: EmbedMock as never,
-    };
+    setWindowTwitchEmbed(EmbedMock);
 
     const handle = service.createEmbed({
       elementId: 'twitch-embed-frame-destroyed',
@@ -488,11 +472,9 @@ describe('TwitchEmbedService', () => {
       return 1;
     });
 
-    window.Twitch = {
-      Embed: EmbedMock as never,
-    };
+    setWindowTwitchEmbed(EmbedMock);
 
-    (service as unknown as { maxQualitySyncFrames: number }).maxQualitySyncFrames = 2;
+    (service as unknown as Record<string, number>)['_maxQualitySyncFrames'] = 2;
 
     service.createEmbed({
       elementId: 'twitch-embed-unavailable',
@@ -537,7 +519,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    window.Twitch = { Embed: EmbedMock as never };
+    setWindowTwitchEmbed(EmbedMock);
 
     service.createEmbed({
       elementId: 'throwing-quality',

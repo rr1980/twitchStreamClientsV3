@@ -14,44 +14,46 @@ import { StreamStateService } from './core/services/stream-state.service';
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     '(window:keydown)': 'onWindowKeydown($event)',
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     '(window:hashchange)': 'onHashChange()',
   },
 })
 export class App {
   public readonly state = inject(StreamStateService);
-  private readonly hotkeys = inject(HotkeyService);
-  private readonly listNavigation = inject(ListNavigationService);
-  private readonly title = inject(Title);
+  private readonly _hotkeys = inject(HotkeyService);
+  private readonly _listNavigation = inject(ListNavigationService);
+  private readonly _title = inject(Title);
 
   constructor() {
     effect(() => {
-      this.title.setTitle(this.buildDocumentTitle());
+      this._title.setTitle(this._buildDocumentTitle());
     });
 
-    this.syncListFromHash();
+    this._syncListFromHash();
   }
 
   public onWindowKeydown(event: KeyboardEvent): void {
-    if (this.hotkeys.handleWindowKeydown(event, document.activeElement)) {
+    if (this._hotkeys.handleWindowKeydown(event, document.activeElement)) {
       event.preventDefault();
     }
   }
 
   public onHashChange(): void {
-    this.syncListFromHash();
+    this._syncListFromHash();
   }
 
   public openMenu(): void {
     this.state.openMenu();
   }
 
-  private syncListFromHash(): void {
-    const listId = this.listNavigation.syncLocationToListHash();
+  private _syncListFromHash(): void {
+    const listId = this._listNavigation.syncLocationToListHash();
     this.state.setActiveListId(listId);
   }
 
-  private buildDocumentTitle(): string {
+  private _buildDocumentTitle(): string {
     const activeList = this.state.activeList();
     const activeListId = this.state.activeListId();
 

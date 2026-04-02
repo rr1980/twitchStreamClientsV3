@@ -3,7 +3,9 @@ import type { StreamQuality } from '../models/app-settings.model';
 
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     Twitch?: {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       Embed: new (
         elementId: string,
         options: {
@@ -37,21 +39,21 @@ export interface TwitchEmbedHandle {
 
 @Injectable({ providedIn: 'root' })
 export class TwitchEmbedService {
-  private readonly maxQualitySyncFrames = 120;
-  private scriptPromise?: Promise<void>;
+  private readonly _maxQualitySyncFrames = 120;
+  private _scriptPromise?: Promise<void>;
 
   public loadScript(): Promise<void> {
     if (window.Twitch?.Embed) {
       return Promise.resolve();
     }
 
-    if (this.scriptPromise) {
-      return this.scriptPromise;
+    if (this._scriptPromise) {
+      return this._scriptPromise;
     }
 
-    this.scriptPromise = this.createScriptPromise();
+    this._scriptPromise = this._createScriptPromise();
 
-    return this.scriptPromise;
+    return this._scriptPromise;
   }
 
   public createEmbed(options: {
@@ -62,10 +64,10 @@ export class TwitchEmbedService {
     muted: boolean;
   }): TwitchEmbedHandle {
     if (!window.Twitch?.Embed) {
-      return this.createHandle(options.elementId);
+      return this._createHandle(options.elementId);
     }
 
-    const handle = this.createHandle(options.elementId);
+    const handle = this._createHandle(options.elementId);
 
     const embed = new window.Twitch.Embed(options.elementId, {
       width: '100%',
@@ -83,7 +85,7 @@ export class TwitchEmbedService {
       }
 
       const player = embed.getPlayer();
-      void this.syncRequestedQuality(player, options.channel, options.quality, () => handle.isDestroyed());
+      void this._syncRequestedQuality(player, options.channel, options.quality, () => handle.isDestroyed());
     });
 
     return handle;
@@ -93,7 +95,7 @@ export class TwitchEmbedService {
     document.getElementById(elementId)?.replaceChildren();
   }
 
-  private createScriptPromise(): Promise<void> {
+  private _createScriptPromise(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const existingScript = document.querySelector<HTMLScriptElement>('script[data-twitch-embed="true"]');
 
@@ -106,7 +108,7 @@ export class TwitchEmbedService {
         if (existingScript.dataset['loadState'] === 'error') {
           existingScript.remove();
         } else {
-          this.attachScriptListeners(existingScript, resolve, reject);
+          this._attachScriptListeners(existingScript, resolve, reject);
           return;
         }
       }
@@ -115,12 +117,12 @@ export class TwitchEmbedService {
       script.src = 'https://embed.twitch.tv/embed/v1.js';
       script.async = true;
       script.dataset['twitchEmbed'] = 'true';
-      this.attachScriptListeners(script, resolve, reject);
+      this._attachScriptListeners(script, resolve, reject);
       document.head.appendChild(script);
     });
   }
 
-  private attachScriptListeners(
+  private _attachScriptListeners(
     script: HTMLScriptElement,
     resolve: () => void,
     reject: (reason?: unknown) => void,
@@ -133,73 +135,73 @@ export class TwitchEmbedService {
         return;
       }
 
-      this.resetScriptState(script);
+      this._resetScriptState(script);
       reject(new Error('Twitch embed script loaded without exposing Twitch.Embed.'));
     }, { once: true });
 
     script.addEventListener('error', () => {
-      this.resetScriptState(script);
+      this._resetScriptState(script);
       reject(new Error('Twitch embed script failed.'));
     }, { once: true });
   }
 
-  private resetScriptState(script: HTMLScriptElement): void {
+  private _resetScriptState(script: HTMLScriptElement): void {
     script.dataset['loadState'] = 'error';
     script.remove();
-    this.scriptPromise = undefined;
+    this._scriptPromise = undefined;
   }
 
-  private async syncRequestedQuality(
+  private async _syncRequestedQuality(
     player: TwitchPlayer,
     channel: string,
     quality: StreamQuality,
     isDestroyed: () => boolean,
   ): Promise<void> {
-    const requestedQuality = this.mapRequestedQuality(quality);
+    const requestedQuality = this._mapRequestedQuality(quality);
 
     if (!requestedQuality) {
       return;
     }
 
     try {
-      for (let frame = 0; frame < this.maxQualitySyncFrames; frame++) {
+      for (let frame = 0; frame < this._maxQualitySyncFrames; frame++) {
         if (isDestroyed()) {
           return;
         }
 
-        const availableQualities = this.readAvailableQualities(player);
-        const resolvedQuality = this.resolveRequestedQuality(requestedQuality, availableQualities);
+        const availableQualities = this._readAvailableQualities(player);
+        const resolvedQuality = this._resolveRequestedQuality(requestedQuality, availableQualities);
 
         if (resolvedQuality) {
           player.setQuality(resolvedQuality);
           return;
         }
 
-        await this.waitForNextFrame();
+        await this._waitForNextFrame();
       }
 
       console.warn(
         `[Twitch] Quality '${requestedQuality}' für Channel '${channel}' nicht verfügbar.`,
-        this.readAvailableQualities(player),
+        this._readAvailableQualities(player),
       );
     } catch (error) {
       console.warn('[Twitch] Quality Set Error:', error);
     }
   }
 
-  private readAvailableQualities(player: TwitchPlayer): string[] {
+  private _readAvailableQualities(player: TwitchPlayer): string[] {
     return (player.getQualities?.() ?? [])
       .map(quality => typeof quality === 'string' ? quality : quality.name ?? '')
       .filter((quality): quality is string => quality.length > 0);
   }
 
-  private waitForNextFrame(): Promise<void> {
+  private _waitForNextFrame(): Promise<void> {
     return new Promise(resolve => {
       requestAnimationFrame(() => resolve());
     });
   }
 
-  private mapRequestedQuality(value: StreamQuality): string | null {
+  private _mapRequestedQuality(value: StreamQuality): string | null {
     switch (value) {
       case 'auto':
         return null;
@@ -214,7 +216,7 @@ export class TwitchEmbedService {
     }
   }
 
-  private resolveRequestedQuality(requestedQuality: string, availableQualities: string[]): string | null {
+  private _resolveRequestedQuality(requestedQuality: string, availableQualities: string[]): string | null {
     if (availableQualities.includes(requestedQuality)) {
       return requestedQuality;
     }
@@ -223,35 +225,35 @@ export class TwitchEmbedService {
       return null;
     }
 
-    const qualityFamily = this.extractQualityFamily(requestedQuality);
+    const qualityFamily = this._extractQualityFamily(requestedQuality);
 
     if (!qualityFamily) {
       return null;
     }
 
-    const familyMatches = availableQualities.filter(quality => this.extractQualityFamily(quality) === qualityFamily);
+    const familyMatches = availableQualities.filter(quality => this._extractQualityFamily(quality) === qualityFamily);
 
     if (familyMatches.length === 0) {
       return null;
     }
 
-    return this.rankQualityMatches(requestedQuality, qualityFamily, familyMatches)[0] ?? null;
+    return this._rankQualityMatches(requestedQuality, qualityFamily, familyMatches)[0] ?? null;
   }
 
-  private extractQualityFamily(value: string): string | null {
+  private _extractQualityFamily(value: string): string | null {
     const match = value.match(/^\d+p/);
 
     return match?.[0] ?? null;
   }
 
-  private rankQualityMatches(requestedQuality: string, qualityFamily: string, matches: string[]): string[] {
+  private _rankQualityMatches(requestedQuality: string, qualityFamily: string, matches: string[]): string[] {
     return [...matches].sort((left, right) => {
-      return this.getQualityMatchScore(left, requestedQuality, qualityFamily)
-        - this.getQualityMatchScore(right, requestedQuality, qualityFamily);
+      return this._getQualityMatchScore(left, requestedQuality, qualityFamily)
+        - this._getQualityMatchScore(right, requestedQuality, qualityFamily);
     });
   }
 
-  private getQualityMatchScore(candidate: string, requestedQuality: string, qualityFamily: string): number {
+  private _getQualityMatchScore(candidate: string, requestedQuality: string, qualityFamily: string): number {
     if (candidate === requestedQuality) {
       return 0;
     }
@@ -267,7 +269,7 @@ export class TwitchEmbedService {
     return 3;
   }
 
-  private createHandle(elementId: string): TwitchEmbedHandle & { isDestroyed(): boolean } {
+  private _createHandle(elementId: string): TwitchEmbedHandle & { isDestroyed(): boolean } {
     let destroyed = false;
 
     return {

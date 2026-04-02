@@ -14,11 +14,11 @@ import { ToastService } from '../toast/toast.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsModalComponent {
-  private readonly listNavigation = inject(ListNavigationService);
-  private readonly state = inject(StreamStateService);
-  private readonly toast = inject(ToastService);
-  private previouslyFocusedElement: HTMLElement | null = null;
-  private wasOpen = false;
+  private readonly _listNavigation = inject(ListNavigationService);
+  private readonly _state = inject(StreamStateService);
+  private readonly _toast = inject(ToastService);
+  private _previouslyFocusedElement: HTMLElement | null = null;
+  private _wasOpen = false;
 
   public readonly listInputRef = viewChild<ElementRef<HTMLInputElement>>('listInput');
   public readonly streamInputRef = viewChild<ElementRef<HTMLInputElement>>('streamInput');
@@ -29,13 +29,13 @@ export class SettingsModalComponent {
   public readonly newListNameControl = new FormControl('', { nonNullable: true });
   public readonly activeListNameControl = new FormControl('', { nonNullable: true });
   public readonly channelNameControl = new FormControl('', { nonNullable: true });
-  public readonly isOpen = this.state.menuOpen;
-  public readonly lists = this.state.lists;
-  public readonly activeListId = this.state.activeListId;
-  public readonly activeList = this.state.activeList;
-  public readonly streams = this.state.streams;
-  public readonly selectedQuality = this.state.quality;
-  public readonly topStatistics = computed(() => this.state.getTopStatistics(10));
+  public readonly isOpen = this._state.menuOpen;
+  public readonly lists = this._state.lists;
+  public readonly activeListId = this._state.activeListId;
+  public readonly activeList = this._state.activeList;
+  public readonly streams = this._state.streams;
+  public readonly selectedQuality = this._state.quality;
+  public readonly topStatistics = computed(() => this._state.getTopStatistics(10));
   public readonly hasActiveList = computed(() => this.activeList() !== null);
 
   constructor() {
@@ -55,8 +55,8 @@ export class SettingsModalComponent {
     effect(() => {
       const open = this.isOpen();
 
-      if (open && !this.wasOpen) {
-        this.previouslyFocusedElement = document.activeElement instanceof HTMLElement
+      if (open && !this._wasOpen) {
+        this._previouslyFocusedElement = document.activeElement instanceof HTMLElement
           ? document.activeElement
           : null;
 
@@ -69,85 +69,85 @@ export class SettingsModalComponent {
         });
       }
 
-      if (!open && this.wasOpen) {
-        const elementToFocus = this.previouslyFocusedElement;
-        this.previouslyFocusedElement = null;
+      if (!open && this._wasOpen) {
+        const elementToFocus = this._previouslyFocusedElement;
+        this._previouslyFocusedElement = null;
 
         queueMicrotask(() => {
           elementToFocus?.focus();
         });
       }
 
-      this.wasOpen = open;
+      this._wasOpen = open;
     });
   }
 
   public createList(): void {
-    const result = this.state.createList(this.newListNameControl.getRawValue());
+    const result = this._state.createList(this.newListNameControl.getRawValue());
 
     if (!result.ok) {
       if (result.reason === 'duplicate') {
-        this.toast.show('Eine Liste mit diesem Namen gibt es bereits.', 'error');
+        this._toast.show('Eine Liste mit diesem Namen gibt es bereits.', 'error');
         return;
       }
 
-      this.toast.show('Gib einen Namen für die neue Liste ein.', 'error');
+      this._toast.show('Gib einen Namen für die neue Liste ein.', 'error');
       return;
     }
 
     this.newListNameControl.reset('');
-    this.navigateToList(result.list?.id ?? null);
-    this.toast.show(`${result.list?.name} angelegt.`);
+    this._navigateToList(result.list?.id ?? null);
+    this._toast.show(`${result.list?.name} angelegt.`);
   }
 
   public renameActiveList(): void {
     const activeList = this.activeList();
 
     if (!activeList) {
-      this.toast.show('Wähle zuerst eine Liste aus.', 'error');
+      this._toast.show('Wähle zuerst eine Liste aus.', 'error');
       return;
     }
 
-    const result = this.state.renameList(activeList.id, this.activeListNameControl.getRawValue());
+    const result = this._state.renameList(activeList.id, this.activeListNameControl.getRawValue());
 
     if (!result.ok) {
       if (result.reason === 'duplicate') {
-        this.toast.show('Eine Liste mit diesem Namen gibt es bereits.', 'error');
+        this._toast.show('Eine Liste mit diesem Namen gibt es bereits.', 'error');
         return;
       }
 
-      this.toast.show('Der Listenname darf nicht leer sein.', 'error');
+      this._toast.show('Der Listenname darf nicht leer sein.', 'error');
       return;
     }
 
-    this.toast.show(`${result.list?.name} gespeichert.`);
+    this._toast.show(`${result.list?.name} gespeichert.`);
     this.renameListInputRef()?.nativeElement.focus();
   }
 
   public selectList(listId: number): void {
-    this.navigateToList(listId);
+    this._navigateToList(listId);
   }
 
   public deleteList(list: StreamList): void {
     const listsBeforeDeletion = this.lists();
     const wasActiveList = this.activeListId() === list.id;
-    const removed = this.state.deleteList(list.id);
+    const removed = this._state.deleteList(list.id);
 
     if (!removed) {
       return;
     }
 
-    const nextListId = this.getNextListIdAfterDeletion(listsBeforeDeletion, list.id);
+    const nextListId = this._getNextListIdAfterDeletion(listsBeforeDeletion, list.id);
 
     if (wasActiveList) {
-      this.navigateToList(nextListId);
+      this._navigateToList(nextListId);
     }
 
-    this.toast.show(`${removed.name} gelöscht.`, 'info');
+    this._toast.show(`${removed.name} gelöscht.`, 'info');
   }
 
   public close(): void {
-    this.state.closeMenu();
+    this._state.closeMenu();
   }
 
   public onBackdropClick(event: MouseEvent): void {
@@ -172,7 +172,7 @@ export class SettingsModalComponent {
       return;
     }
 
-    const focusableElements = this.getFocusableElements(modalPanel);
+    const focusableElements = this._getFocusableElements(modalPanel);
 
     if (focusableElements.length === 0) {
       event.preventDefault();
@@ -197,50 +197,50 @@ export class SettingsModalComponent {
   }
 
   public addStream(): void {
-    const channelName = this.extractChannelName(this.channelNameControl.getRawValue());
-    const result = this.state.addStream(channelName);
+    const channelName = this._extractChannelName(this.channelNameControl.getRawValue());
+    const result = this._state.addStream(channelName);
 
     if (!result.ok) {
       if (result.reason === 'no-list') {
-        this.toast.show('Lege zuerst eine Liste an oder wähle eine vorhandene Liste aus.', 'error');
+        this._toast.show('Lege zuerst eine Liste an oder wähle eine vorhandene Liste aus.', 'error');
         return;
       }
 
       if (result.reason === 'invalid') {
-        this.toast.show('Ungültiger Kanalname. Erlaubt: a-z, äöü, 0-9, _ (max. 25 Zeichen).', 'error');
+        this._toast.show('Ungültiger Kanalname. Erlaubt: a-z, äöü, 0-9, _ (max. 25 Zeichen).', 'error');
         return;
       }
 
       if (result.reason === 'duplicate') {
-        this.toast.show(`${result.name} ist bereits aktiv.`, 'error');
+        this._toast.show(`${result.name} ist bereits aktiv.`, 'error');
         return;
       }
 
       return;
     }
 
-    this.toast.show(`${result.name} hinzugefügt.`);
+    this._toast.show(`${result.name} hinzugefügt.`);
     this.channelNameControl.reset('');
     this.streamInputRef()?.nativeElement.focus();
   }
 
   public removeStream(index: number): void {
-    const removed = this.state.removeStream(index);
+    const removed = this._state.removeStream(index);
     if (removed) {
-      this.toast.show(`${removed} entfernt.`, 'info');
+      this._toast.show(`${removed} entfernt.`, 'info');
     }
   }
 
   public moveStream(index: number, direction: -1 | 1): void {
-    this.state.moveStream(index, direction);
+    this._state.moveStream(index, direction);
   }
 
   public setQuality(value: StreamQuality): void {
-    this.state.setQuality(value);
+    this._state.setQuality(value);
   }
 
   public setStreamShowChat(index: number, value: boolean): void {
-    this.state.setStreamShowChat(index, value);
+    this._state.setStreamShowChat(index, value);
   }
 
   public onStreamChatChange(index: number, event: Event): void {
@@ -263,20 +263,20 @@ export class SettingsModalComponent {
     return stream.name;
   }
 
-  private extractChannelName(value: string): string {
+  private _extractChannelName(value: string): string {
     return value.replace(/\s+\(\d+\)$/, '');
   }
 
-  private navigateToList(listId: number | null): void {
-    this.listNavigation.navigateToList(listId);
+  private _navigateToList(listId: number | null): void {
+    this._listNavigation.navigateToList(listId);
   }
 
-  private getNextListIdAfterDeletion(lists: StreamList[], removedListId: number): number | null {
+  private _getNextListIdAfterDeletion(lists: StreamList[], removedListId: number): number | null {
     const remainingLists = lists.filter(list => list.id !== removedListId);
     return remainingLists[0]?.id ?? null;
   }
 
-  private getFocusableElements(container: HTMLElement): HTMLElement[] {
+  private _getFocusableElements(container: HTMLElement): HTMLElement[] {
     return Array.from(
       container.querySelectorAll<HTMLElement>(
         'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',

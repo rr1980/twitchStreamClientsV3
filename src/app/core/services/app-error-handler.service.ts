@@ -4,19 +4,19 @@ import { ToastService } from '../../features/toast/toast.service';
 
 @Injectable()
 export class AppErrorHandler implements ErrorHandler {
-  private readonly toast = inject(ToastService);
+  private readonly _toast = inject(ToastService);
 
   public handleError(error: unknown): void {
-    const normalizedError = this.normalizeError(error);
+    const normalizedError = this._normalizeError(error);
 
     console.error('[AppError]', normalizedError);
 
     if (!isDevMode()) {
-      this.toast.show('Unerwarteter Fehler. Bitte versuche es erneut.', 'error');
+      this._toast.show('Unerwarteter Fehler. Bitte versuche es erneut.', 'error');
     }
   }
 
-  private normalizeError(error: unknown): Error {
+  private _normalizeError(error: unknown): Error {
     if (error instanceof Error) {
       return error;
     }
