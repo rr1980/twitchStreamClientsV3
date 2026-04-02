@@ -41,14 +41,14 @@ describe('HotkeyService', () => {
     expect(state.closeMenu).not.toHaveBeenCalled();
   });
 
-  it('toggles the menu on m outside typing contexts', () => {
+  it('opens the menu on m outside typing contexts', () => {
     const button = document.createElement('button');
     const event = new KeyboardEvent('keydown', { key: 'm' });
 
     const handled = service.handleWindowKeydown(event, button);
 
     expect(handled).toBe(true);
-    expect(state.toggleMenu).toHaveBeenCalledTimes(1);
+    expect(state.openMenu).toHaveBeenCalledTimes(1);
   });
 
   it('ignores m inside typing contexts', () => {
@@ -58,7 +58,18 @@ describe('HotkeyService', () => {
     const handled = service.handleWindowKeydown(event, input);
 
     expect(handled).toBe(false);
-    expect(state.toggleMenu).not.toHaveBeenCalled();
+    expect(state.openMenu).not.toHaveBeenCalled();
+  });
+
+  it('ignores m when the menu is already open', () => {
+    state.menuOpen.set(true);
+    const button = document.createElement('button');
+    const event = new KeyboardEvent('keydown', { key: 'm' });
+
+    const handled = service.handleWindowKeydown(event, button);
+
+    expect(handled).toBe(false);
+    expect(state.openMenu).not.toHaveBeenCalled();
   });
 
   it('ignores repeated and modified shortcuts', () => {
@@ -72,16 +83,16 @@ describe('HotkeyService', () => {
     Object.defineProperty(repeatEvent, 'repeat', { value: true });
 
     expect(service.handleWindowKeydown(repeatEvent, button)).toBe(false);
-    expect(state.toggleMenu).not.toHaveBeenCalled();
+    expect(state.openMenu).not.toHaveBeenCalled();
   });
 });
 
 class MockStreamStateService {
   public readonly menuOpen = signal(false);
+  public readonly openMenu = vi.fn(() => {
+    this.menuOpen.set(true);
+  });
   public readonly closeMenu = vi.fn(() => {
     this.menuOpen.set(false);
-  });
-  public readonly toggleMenu = vi.fn(() => {
-    this.menuOpen.update(value => !value);
   });
 }

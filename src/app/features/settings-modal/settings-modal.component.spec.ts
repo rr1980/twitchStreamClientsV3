@@ -258,9 +258,14 @@ describe('SettingsModalComponent', () => {
     state.setActiveListId(1);
     await syncComponent();
 
+    const streamInput = fixture.nativeElement.querySelector('#stream-input') as HTMLInputElement;
+
     state.addStream.mockReturnValueOnce({ ok: false, reason: 'invalid' });
     getComponentMember<{ setValue(value: string): void }>(component, '_channelNameControl').setValue('invalid-name');
     getComponentMethod<() => void>(component, '_addStream')();
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(streamInput);
 
     state.addStream.mockReturnValueOnce({ ok: false, reason: 'duplicate', name: 'shroud' });
     getComponentMember<{ setValue(value: string): void }>(component, '_channelNameControl').setValue('shroud');
@@ -277,10 +282,29 @@ describe('SettingsModalComponent', () => {
     state.addStream.mockReturnValue({ ok: false, reason: 'empty' });
     await syncComponent();
 
+    const streamInput = fixture.nativeElement.querySelector('#stream-input') as HTMLInputElement;
+
     getComponentMember<{ setValue(value: string): void }>(component, '_channelNameControl').setValue('   ');
     getComponentMethod<() => void>(component, '_addStream')();
+    await Promise.resolve();
 
     expect(toast.show).toHaveBeenCalledWith('Gib einen Kanalnamen ein.', 'error');
+    expect(document.activeElement).toBe(streamInput);
+  });
+
+  it('focuses the list input when creating a list fails validation', async () => {
+    state.menuOpen.set(true);
+    state.createList.mockReturnValue({ ok: false, reason: 'empty' });
+    await syncComponent();
+
+    const listInput = fixture.nativeElement.querySelector('#list-input') as HTMLInputElement;
+
+    getComponentMember<{ setValue(value: string): void }>(component, '_newListNameControl').setValue('   ');
+    getComponentMethod<() => void>(component, '_createList')();
+    await Promise.resolve();
+
+    expect(toast.show).toHaveBeenCalledWith('Gib einen Namen für die neue Liste ein.', 'error');
+    expect(document.activeElement).toBe(listInput);
   });
 
   it('removes streams, updates quality and chat state, and ignores invalid show-chat events', async () => {

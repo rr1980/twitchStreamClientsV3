@@ -89,10 +89,12 @@ export class SettingsModalComponent {
 
     if (!result.ok) {
       if (result.reason === 'duplicate') {
+        this._focusInput(this._listInputRef, true);
         this._toast.show('Eine Liste mit diesem Namen gibt es bereits.', 'error');
         return;
       }
 
+      this._focusInput(this._listInputRef, true);
       this._toast.show('Gib einen Namen für die neue Liste ein.', 'error');
       return;
     }
@@ -106,6 +108,7 @@ export class SettingsModalComponent {
     const activeList = this._activeList();
 
     if (!activeList) {
+      this._focusInput(this._listInputRef);
       this._toast.show('Wähle zuerst eine Liste aus.', 'error');
       return;
     }
@@ -114,10 +117,12 @@ export class SettingsModalComponent {
 
     if (!result.ok) {
       if (result.reason === 'duplicate') {
+        this._focusInput(this._renameListInputRef, true);
         this._toast.show('Eine Liste mit diesem Namen gibt es bereits.', 'error');
         return;
       }
 
+      this._focusInput(this._renameListInputRef, true);
       this._toast.show('Der Listenname darf nicht leer sein.', 'error');
       return;
     }
@@ -204,21 +209,25 @@ export class SettingsModalComponent {
 
     if (!result.ok) {
       if (result.reason === 'no-list') {
+        this._focusInput(this._listInputRef);
         this._toast.show('Lege zuerst eine Liste an oder wähle eine vorhandene Liste aus.', 'error');
         return;
       }
 
       if (result.reason === 'invalid') {
+        this._focusInput(this._streamInputRef, true);
         this._toast.show('Ungültiger Kanalname. Erlaubt: a-z, äöü, 0-9, _ (max. 25 Zeichen).', 'error');
         return;
       }
 
       if (result.reason === 'duplicate') {
+        this._focusInput(this._streamInputRef, true);
         this._toast.show(`${result.name} ist bereits aktiv.`, 'error');
         return;
       }
 
       if (result.reason === 'empty') {
+        this._focusInput(this._streamInputRef, true);
         this._toast.show('Gib einen Kanalnamen ein.', 'error');
       }
 
@@ -287,6 +296,22 @@ export class SettingsModalComponent {
     const remainingLists = lists.filter(list => list.id !== removedListId);
 
     return remainingLists[removedIndex]?.id ?? remainingLists[removedIndex - 1]?.id ?? null;
+  }
+
+  private _focusInput(inputRef: () => ElementRef<HTMLInputElement> | undefined, selectText = false): void {
+    queueMicrotask(() => {
+      const input = inputRef()?.nativeElement;
+
+      if (!input) {
+        return;
+      }
+
+      input.focus();
+
+      if (selectText) {
+        input.select();
+      }
+    });
   }
 
   private _getFocusableElements(container: HTMLElement): HTMLElement[] {

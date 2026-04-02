@@ -23,8 +23,8 @@ export class HotkeyService {
       return false;
     }
 
-    if (event.key.toLowerCase() === 'm' && !this._isTypingContext(activeElement)) {
-      this._state.toggleMenu();
+    if (event.key.toLowerCase() === 'm' && !this._state.menuOpen() && !this._isTypingContext(activeElement)) {
+      this._state.openMenu();
       return true;
     }
 
