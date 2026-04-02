@@ -593,7 +593,7 @@ describe('SettingsModalComponent', () => {
 
   async function syncComponent(): Promise<void> {
     fixture.detectChanges();
-    TestBed.flushEffects();
+    TestBed.tick();
     await fixture.whenStable();
     await Promise.resolve();
     fixture.detectChanges();

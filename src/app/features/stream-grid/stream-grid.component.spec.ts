@@ -178,7 +178,7 @@ describe('StreamGridComponent', () => {
 
     (component as unknown as Record<string, unknown>)['_viewReady'] = true;
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
-    TestBed.flushEffects();
+    TestBed.tick();
     setPrivateNumber(component, '_syncRunId', getPrivateNumber(component, '_syncRunId') + 1);
     await Promise.resolve();
 
@@ -369,7 +369,7 @@ describe('StreamGridComponent', () => {
 
   async function syncComponent(): Promise<void> {
     fixture.detectChanges();
-    TestBed.flushEffects();
+    TestBed.tick();
     await fixture.whenStable();
     await Promise.resolve();
     fixture.detectChanges();

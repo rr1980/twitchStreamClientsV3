@@ -112,7 +112,7 @@ describe('App', () => {
     fixture.detectChanges();
     await router.navigateByUrl('/list/001');
     await fixture.whenStable();
-    TestBed.flushEffects();
+    TestBed.tick();
 
     const state = TestBed.inject(StreamStateService);
 
@@ -125,7 +125,7 @@ describe('App', () => {
     fixture.detectChanges();
     await router.navigateByUrl('/Streams/abc');
     await fixture.whenStable();
-    TestBed.flushEffects();
+    TestBed.tick();
 
     const state = TestBed.inject(StreamStateService);
 
@@ -139,7 +139,7 @@ describe('App', () => {
     fixture.detectChanges();
     await router.navigateByUrl('/list/001?layout=compact#stats');
     await fixture.whenStable();
-    TestBed.flushEffects();
+    TestBed.tick();
 
     expect(router.url).toBe('/List/1?layout=compact#stats');
   });
@@ -152,7 +152,7 @@ describe('App', () => {
     fixture.detectChanges();
     await router.navigateByUrl('/List/1');
     await fixture.whenStable();
-    TestBed.flushEffects();
+    TestBed.tick();
 
     expect(document.title).toBe('Favoriten | Twitch Multi-Viewer');
   });
@@ -163,7 +163,7 @@ describe('App', () => {
     fixture.detectChanges();
     await router.navigateByUrl('/List/9');
     await fixture.whenStable();
-    TestBed.flushEffects();
+    TestBed.tick();
 
     expect(document.title).toBe('Liste 9 nicht gefunden | Twitch Multi-Viewer');
   });
@@ -173,7 +173,7 @@ describe('App', () => {
 
     fixture.detectChanges();
     await fixture.whenStable();
-    TestBed.flushEffects();
+    TestBed.tick();
 
     expect(document.title).toBe('Twitch Multi-Viewer');
   });

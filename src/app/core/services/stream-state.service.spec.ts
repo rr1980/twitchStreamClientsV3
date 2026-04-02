@@ -149,7 +149,7 @@ describe('StreamStateService', () => {
     service.moveStream(1, -1);
     service.setQuality('720p60');
     service.setStreamShowChat(0, true);
-    TestBed.flushEffects();
+    TestBed.tick();
     await flushPersistence();
 
     expect(JSON.parse(localStorage.getItem('app_state_v3') ?? '{}')).toEqual({
@@ -183,7 +183,7 @@ describe('StreamStateService', () => {
       statistics: [],
     }));
     service.initialize();
-    TestBed.flushEffects();
+    TestBed.tick();
 
     expect(service.streams()).toEqual([channel('first_channel')]);
   });
@@ -200,7 +200,7 @@ describe('StreamStateService', () => {
     service.addStream('second_channel');
     service.setQuality('720p60');
     service.setStreamShowChat(1, true);
-    TestBed.flushEffects();
+    TestBed.tick();
 
     expect(setJsonSpy).not.toHaveBeenCalled();
 
@@ -220,7 +220,7 @@ describe('StreamStateService', () => {
     service.createList('Liste 1');
     service.setActiveListId(1);
     service.addStream('first_channel');
-    TestBed.flushEffects();
+    TestBed.tick();
     await flushPersistence();
 
     expect(toastSpy).toHaveBeenCalledTimes(1);
@@ -230,7 +230,7 @@ describe('StreamStateService', () => {
     );
 
     service.setQuality('720p60');
-    TestBed.flushEffects();
+    TestBed.tick();
     await flushPersistence();
 
     expect(toastSpy).toHaveBeenCalledTimes(1);
@@ -238,13 +238,13 @@ describe('StreamStateService', () => {
     setJsonSpy.mockReturnValue(true);
 
     service.setQuality('480p');
-    TestBed.flushEffects();
+    TestBed.tick();
     await flushPersistence();
 
     setJsonSpy.mockReturnValue(false);
 
     service.setQuality('auto');
-    TestBed.flushEffects();
+    TestBed.tick();
     await flushPersistence();
 
     expect(toastSpy).toHaveBeenCalledTimes(2);
@@ -443,7 +443,7 @@ describe('StreamStateService', () => {
     const normalizeStoredLists = getServiceMethod<(
       value: unknown,
       defaultShowChat?: boolean,
-    ) => Array<{ id: number; name: string; streams: StreamChannel[] }>>(service, '_normalizeStoredLists');
+    ) => { id: number; name: string; streams: StreamChannel[] }[]>(service, '_normalizeStoredLists');
 
     expect(normalizeStoredLists(null)).toEqual([]);
     expect(normalizeStoredLists([null, 'broken', { id: 2, name: 'Main', streams: ['shroud'] }], true)).toEqual([
@@ -535,7 +535,7 @@ describe('StreamStateService', () => {
 
     const instance = TestBed.inject(StreamStateService);
     instance.initialize();
-    TestBed.flushEffects();
+    TestBed.tick();
 
     return instance;
   }

@@ -13,6 +13,12 @@ module.exports = defineConfig([
       tseslint.configs.stylistic,
       angular.configs.tsRecommended,
     ],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: __dirname,
+      },
+    },
     processor: angular.processInlineTemplates,
     rules: {
       '@angular-eslint/directive-selector': [
@@ -53,6 +59,7 @@ module.exports = defineConfig([
         'warn',
         { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
       ],
+      '@typescript-eslint/no-deprecated': 'error',
       //---
       '@typescript-eslint/naming-convention': [
         'error',
