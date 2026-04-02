@@ -58,13 +58,20 @@ describe('SettingsModalComponent', () => {
     await syncComponent();
 
     const datalist = fixture.nativeElement.querySelector('#history-datalist') as HTMLDataListElement | null;
-    const options = Array.from(datalist?.querySelectorAll('option') ?? []).map(option => option.value);
+    const options = Array.from(datalist?.querySelectorAll('option') ?? []).map(option => ({
+      value: option.value,
+      label: option.getAttribute('label'),
+      text: option.textContent?.trim(),
+    }));
     const countLabel = fixture.nativeElement.querySelector('.list-block__header span')?.textContent?.trim();
     const checkedRadio = fixture.nativeElement.querySelector('input[name="stream-quality"]:checked') as HTMLInputElement | null;
     const qualityButtons = fixture.nativeElement.querySelectorAll('.quality-btn') as NodeListOf<HTMLElement>;
     const qualityLabels = Array.from(qualityButtons, element => element.textContent?.trim());
 
-    expect(options).toEqual(['gronkh', 'papaplatte']);
+    expect(options).toEqual([
+      { value: 'gronkh (3)', label: null, text: '' },
+      { value: 'papaplatte (2)', label: null, text: '' },
+    ]);
     expect(countLabel).toBe('2 Streams');
     expect(checkedRadio).not.toBeNull();
     expect(qualityLabels).toContain('Source');
@@ -122,7 +129,7 @@ describe('SettingsModalComponent', () => {
     await syncComponent();
 
     const input = fixture.nativeElement.querySelector('#stream-input') as HTMLInputElement;
-    input.value = 'Gronkh';
+    input.value = 'Gronkh (3)';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await syncComponent();

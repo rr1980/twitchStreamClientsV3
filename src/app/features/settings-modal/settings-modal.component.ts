@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, viewChild } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { StreamQuality } from '../../core/models/app-settings.model';
+import { StreamQuality, StreamStatistic } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { ToastService } from '../toast/toast.service';
 
@@ -26,7 +26,7 @@ export class SettingsModalComponent {
   readonly streams = this.state.streams;
   readonly selectedQuality = this.state.quality;
   readonly showChat = this.state.showChat;
-  readonly topStatistics = computed(() => this.state.getTopStatistics(10).map(item => item.name));
+  readonly topStatistics = computed(() => this.state.getTopStatistics(10));
 
   constructor() {
     effect(() => {
@@ -106,7 +106,8 @@ export class SettingsModalComponent {
   }
 
   addStream(): void {
-    const result = this.state.addStream(this.channelNameControl.getRawValue());
+    const channelName = this.extractChannelName(this.channelNameControl.getRawValue());
+    const result = this.state.addStream(channelName);
 
     if (!result.ok) {
       if (result.reason === 'invalid') {
@@ -152,6 +153,14 @@ export class SettingsModalComponent {
     if (target instanceof HTMLInputElement) {
       this.setShowChat(target.checked);
     }
+  }
+
+  formatStatisticLabel(item: StreamStatistic): string {
+    return `${item.name} (${item.value})`;
+  }
+
+  private extractChannelName(value: string): string {
+    return value.replace(/\s+\(\d+\)$/, '');
   }
 
   private getFocusableElements(container: HTMLElement): HTMLElement[] {

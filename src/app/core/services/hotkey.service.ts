@@ -10,6 +10,10 @@ export class HotkeyService {
       return false;
     }
 
+    if(!event.key){
+      return false;
+    }
+
     if (event.key === 'Escape') {
       this.state.closeMenu();
       return true;

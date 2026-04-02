@@ -46,8 +46,8 @@
 
             @if (topStatistics().length) {
               <datalist id="history-datalist">
-                @for (item of topStatistics(); track item) {
-                  <option [value]="item"></option>
+                @for (item of topStatistics(); track item.name) {
+                  <option [value]="formatStatisticLabel(item)"></option>
                 }
               </datalist>
             }
