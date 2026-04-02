@@ -157,12 +157,13 @@
                           </div>
 
                           <div class="stream-item__index">{{ i + 1 }}</div>
-                          <div class="stream-item__name">{{ stream.name }}</div>
+                          <div class="stream-item__name" [title]="stream.name">{{ stream.name }}</div>
                           <label class="toggle-row stream-item__chat">
+                            <input class="toggle-row__input" type="checkbox" [checked]="stream.showChat" [attr.aria-label]="stream.name + ' Chat anzeigen'" (change)="onStreamChatChange(i, $event)" />
                             <span class="stream-item__chat-label">Chat</span>
-                            <input type="checkbox" [checked]="stream.showChat" [attr.aria-label]="stream.name + ' Chat anzeigen'" (change)="onStreamChatChange(i, $event)" />
+                            <span class="toggle-row__indicator" aria-hidden="true"></span>
                           </label>
-                          <button type="button" class="danger-btn danger-btn--compact" [attr.aria-label]="stream.name + ' entfernen'" (click)="removeStream(i)">Entfernen</button>
+                          <button type="button" class="stream-item__remove danger-btn danger-btn--compact" [attr.aria-label]="stream.name + ' entfernen'" (click)="removeStream(i)">Entfernen</button>
                         </div>
                       }
                     }
