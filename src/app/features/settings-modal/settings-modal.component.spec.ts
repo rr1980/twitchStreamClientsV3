@@ -280,7 +280,7 @@ describe('SettingsModalComponent', () => {
     getComponentMember<{ setValue(value: string): void }>(component, '_channelNameControl').setValue('   ');
     getComponentMethod<() => void>(component, '_addStream')();
 
-    expect(toast.show).not.toHaveBeenCalled();
+    expect(toast.show).toHaveBeenCalledWith('Gib einen Kanalnamen ein.', 'error');
   });
 
   it('removes streams, updates quality and chat state, and ignores invalid show-chat events', async () => {

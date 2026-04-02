@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
@@ -22,6 +23,7 @@ import { StreamStateService } from './core/services/stream-state.service';
 })
 export class App {
   protected readonly _state = inject(StreamStateService);
+  private readonly _document = inject(DOCUMENT);
   private readonly _hotkeys = inject(HotkeyService);
   private readonly _listNavigation = inject(ListNavigationService);
   private readonly _title = inject(Title);
@@ -46,7 +48,7 @@ export class App {
   }
 
   protected _onWindowKeydown(event: KeyboardEvent): void {
-    if (this._hotkeys.handleWindowKeydown(event, document.activeElement)) {
+    if (this._hotkeys.handleWindowKeydown(event, this._document.activeElement)) {
       event.preventDefault();
     }
   }

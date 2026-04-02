@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, viewChild } from '@angular/core';
 import type { ElementRef } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
@@ -14,6 +15,7 @@ import { ToastService } from '../toast/toast.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsModalComponent {
+  private readonly _document = inject(DOCUMENT);
   private readonly _listNavigation = inject(ListNavigationService);
   private readonly _state = inject(StreamStateService);
   private readonly _toast = inject(ToastService);
@@ -56,8 +58,8 @@ export class SettingsModalComponent {
       const open = this._isOpen();
 
       if (open && !this._wasOpen) {
-        this._previouslyFocusedElement = document.activeElement instanceof HTMLElement
-          ? document.activeElement
+        this._previouslyFocusedElement = this._document.activeElement instanceof HTMLElement
+          ? this._document.activeElement
           : null;
 
         queueMicrotask(() => {
@@ -182,7 +184,7 @@ export class SettingsModalComponent {
 
     const firstElement = focusableElements[0];
     const lastElement = focusableElements[focusableElements.length - 1];
-    const activeElement = document.activeElement as HTMLElement | null;
+    const activeElement = this._document.activeElement as HTMLElement | null;
 
     if (event.shiftKey && (activeElement === firstElement || activeElement === modalPanel)) {
       event.preventDefault();
@@ -214,6 +216,10 @@ export class SettingsModalComponent {
       if (result.reason === 'duplicate') {
         this._toast.show(`${result.name} ist bereits aktiv.`, 'error');
         return;
+      }
+
+      if (result.reason === 'empty') {
+        this._toast.show('Gib einen Kanalnamen ein.', 'error');
       }
 
       return;
