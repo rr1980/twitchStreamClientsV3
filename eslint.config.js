@@ -31,7 +31,30 @@ module.exports = defineConfig([
           style: 'kebab-case',
         },
       ],
+      //---
+      quotes: [2, 'single', { avoidEscape: true, allowTemplateLiterals: true }],
+      '@typescript-eslint/explicit-member-accessibility': [
+        'error',
+        { accessibility: 'explicit', ignoredMethodNames: ['constructor'] },
+      ],
+      '@typescript-eslint/explicit-function-return-type': ['warn', { allowExpressions: true }],
+      '@typescript-eslint/no-unused-vars': ['error', { args: 'none' }],
+      //---
+      '@angular-eslint/no-empty-lifecycle-method': 'off',
+      '@angular-eslint/no-output-on-prefix': 'off',
+      '@angular-eslint/prefer-standalone': 'off',
+      '@typescript-eslint/class-literal-property-style': 'off',
+      '@typescript-eslint/no-empty-function': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-inferrable-types': 'off',
+      '@typescript-eslint/no-namespace': 'off',
+      '@typescript-eslint/prefer-for-of': 'off',
+      'no-empty-function': 'off',
+      '@angular-eslint/prefer-inject': ['warn'],
+      '@typescript-eslint/consistent-type-imports': [
+        'warn',
+        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
+      ],
     },
   },
   {
@@ -41,6 +64,7 @@ module.exports = defineConfig([
       '@angular-eslint/template/label-has-associated-control': 'off',
       '@angular-eslint/template/click-events-have-key-events': 'off',
       '@angular-eslint/template/interactive-supports-focus': 'off',
+      '@angular-eslint/template/prefer-control-flow': 'warn',
     },
   },
 ]);

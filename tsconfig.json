@@ -4,6 +4,8 @@
   "compileOnSave": false,
   "compilerOptions": {
     "strict": true,
+    "strictNullChecks": true, // Strikte Nullprüfungen aktivieren
+    "strictFunctionTypes": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "noImplicitReturns": true,
