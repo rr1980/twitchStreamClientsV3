@@ -7,7 +7,7 @@ describe('TwitchEmbedService', () => {
   let service: TwitchEmbedService;
 
   beforeEach(() => {
-    document.head.querySelectorAll('script[data-twitch-embed="true"]').forEach(script => script.remove());
+    document.head?.querySelectorAll('script[data-twitch-embed="true"]').forEach(script => script.remove());
     delete window.Twitch;
 
     TestBed.configureTestingModule({});
@@ -18,6 +18,14 @@ describe('TwitchEmbedService', () => {
     const twitchApi = {} as NonNullable<Window['Twitch']>;
     twitchApi.Embed = embed as never;
     window.Twitch = twitchApi;
+  }
+
+  function getServiceMethod<T extends (...args: never[]) => unknown>(propertyName: string): T {
+    return ((service as unknown as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(service) as T;
+  }
+
+  function setServiceMember<T>(propertyName: string, value: T): void {
+    (service as unknown as Record<string, unknown>)[propertyName] = value;
   }
 
   it('reuses the already loaded Twitch API', async () => {
@@ -126,6 +134,29 @@ describe('TwitchEmbedService', () => {
     setWindowTwitchEmbed(vi.fn());
 
     await expect((service as unknown as Record<string, () => Promise<void>>)['_createScriptPromise']()).resolves.toBeUndefined();
+  });
+
+  it('resolves createScriptPromise immediately when no browser window is available', async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [{ provide: PLATFORM_ID, useValue: 'server' }],
+    });
+
+    const serverService = TestBed.inject(TwitchEmbedService);
+    const createScriptPromise = ((serverService as unknown as Record<string, unknown>)['_createScriptPromise'] as () => Promise<void>)
+      .bind(serverService);
+
+    await expect(createScriptPromise()).resolves.toBeUndefined();
+  });
+
+  it('fails cleanly when the document head is unavailable during script creation', async () => {
+    const headSpy = vi.spyOn(document, 'head', 'get').mockReturnValue(null as never);
+
+    try {
+      await expect(service.loadScript()).rejects.toThrow('Document head is unavailable.');
+    } finally {
+      headSpy.mockRestore();
+    }
   });
 
   it('returns a destroyable handle for created embeds', () => {
@@ -548,5 +579,53 @@ describe('TwitchEmbedService', () => {
     expect(warnSpy).toHaveBeenCalledWith('[Twitch] Quality Set Error:', expect.any(Error));
 
     warnSpy.mockRestore();
+  });
+
+  it('falls back to setTimeout when requestAnimationFrame is unavailable', async () => {
+    const waitForNextFrame = getServiceMethod<() => Promise<void>>('_waitForNextFrame');
+    const timeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    const originalDocument = (service as unknown as Record<string, unknown>)['_document'];
+
+    try {
+      setServiceMember('_document', { defaultView: {} } as Document);
+
+      await waitForNextFrame();
+
+      expect(timeoutSpy).toHaveBeenCalled();
+    } finally {
+      setServiceMember('_document', originalDocument);
+      timeoutSpy.mockRestore();
+    }
+  });
+
+  it('returns null when a requested quality has no family match', () => {
+    const resolveRequestedQuality = getServiceMethod<(requestedQuality: string, availableQualities: string[]) => string | null>('_resolveRequestedQuality');
+
+    expect(resolveRequestedQuality('audio_only', ['chunked', '480p'])).toBeNull();
+    expect(resolveRequestedQuality('720p60', ['480p', '360p'])).toBeNull();
+  });
+
+  it('scores and ranks quality candidates in the expected order', () => {
+    const getQualityMatchScore = getServiceMethod<(
+      candidate: string,
+      requestedQuality: string,
+      qualityFamily: string,
+    ) => number>('_getQualityMatchScore');
+    const rankQualityMatches = getServiceMethod<(
+      requestedQuality: string,
+      qualityFamily: string,
+      matches: string[],
+    ) => string[]>('_rankQualityMatches');
+
+    expect(getQualityMatchScore('720p60', '720p60', '720p')).toBe(0);
+    expect(getQualityMatchScore('720p', '720p60', '720p')).toBe(1);
+    expect(getQualityMatchScore('720p30-60', '720p60', '720p')).toBe(2);
+    expect(getQualityMatchScore('720p30', '720p60', '720p')).toBe(3);
+    expect(rankQualityMatches('720p60', '720p', ['720p30', '720p', '720p30-60', '720p60'])).toEqual([
+      '720p60',
+      '720p',
+      '720p30-60',
+      '720p30',
+    ]);
   });
 });
