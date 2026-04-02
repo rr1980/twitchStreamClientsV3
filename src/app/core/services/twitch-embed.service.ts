@@ -168,9 +168,10 @@ export class TwitchEmbedService {
         }
 
         const availableQualities = this.readAvailableQualities(player);
+        const resolvedQuality = this.resolveRequestedQuality(requestedQuality, availableQualities);
 
-        if (availableQualities.includes(requestedQuality)) {
-          player.setQuality(requestedQuality);
+        if (resolvedQuality) {
+          player.setQuality(resolvedQuality);
           return;
         }
 
@@ -211,6 +212,59 @@ export class TwitchEmbedService {
       default:
         return null;
     }
+  }
+
+  private resolveRequestedQuality(requestedQuality: string, availableQualities: string[]): string | null {
+    if (availableQualities.includes(requestedQuality)) {
+      return requestedQuality;
+    }
+
+    if (requestedQuality === 'chunked') {
+      return null;
+    }
+
+    const qualityFamily = this.extractQualityFamily(requestedQuality);
+
+    if (!qualityFamily) {
+      return null;
+    }
+
+    const familyMatches = availableQualities.filter(quality => this.extractQualityFamily(quality) === qualityFamily);
+
+    if (familyMatches.length === 0) {
+      return null;
+    }
+
+    return this.rankQualityMatches(requestedQuality, qualityFamily, familyMatches)[0] ?? null;
+  }
+
+  private extractQualityFamily(value: string): string | null {
+    const match = value.match(/^\d+p/);
+
+    return match?.[0] ?? null;
+  }
+
+  private rankQualityMatches(requestedQuality: string, qualityFamily: string, matches: string[]): string[] {
+    return [...matches].sort((left, right) => {
+      return this.getQualityMatchScore(left, requestedQuality, qualityFamily)
+        - this.getQualityMatchScore(right, requestedQuality, qualityFamily);
+    });
+  }
+
+  private getQualityMatchScore(candidate: string, requestedQuality: string, qualityFamily: string): number {
+    if (candidate === requestedQuality) {
+      return 0;
+    }
+
+    if (candidate === qualityFamily) {
+      return 1;
+    }
+
+    if (requestedQuality.endsWith('60') && candidate.includes('60')) {
+      return 2;
+    }
+
+    return 3;
   }
 
   private createHandle(elementId: string): TwitchEmbedHandle & { isDestroyed(): boolean } {

@@ -8,11 +8,17 @@
   @if (streams().length === 0) {
     <div class="empty-state">
       <h1>Dein Setup ist leer</h1>
-      <p>Pack ein paar Channels rein, sonst ist das hier nur schwarzes CSS mit Hoffnung.</p>
+      @if (listCount() === 0) {
+        <p>Es gibt noch keine Listen. Lege im Menü zuerst eine Liste an.</p>
+      } @else if (activeList()) {
+        <p>Die Liste {{ activeList()!.name }} enthält noch keine Streams.</p>
+      } @else {
+        <p>Diese Liste wurde nicht gefunden. Wähle im Menü eine vorhandene Liste oder lege eine neue an.</p>
+      }
     </div>
   } @else {
-    @for (stream of streams(); track stream) {
-      <div class="twitch-embed-wrapper" [attr.data-channel]="stream" [id]="'twitch-embed-' + stream"></div>
+    @for (stream of streams(); track stream.name) {
+      <div class="twitch-embed-wrapper" [attr.data-channel]="stream.name" [id]="'twitch-embed-' + stream.name"></div>
     }
   }
 </main>
