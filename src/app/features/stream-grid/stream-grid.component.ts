@@ -32,7 +32,7 @@ type RenderedEmbedSnapshot = Omit<RenderedEmbedState, 'handle'>;
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    '(window:resize)': 'onResize()',
+    '(window:resize)': '_onResize()',
   },
 })
 export class StreamGridComponent implements AfterViewInit, OnDestroy {
@@ -41,9 +41,9 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   private readonly _toast = inject(ToastService);
   private readonly _renderedEmbeds = new Map<string, RenderedEmbedState>();
 
-  public readonly hostRef = viewChild<ElementRef<HTMLElement>>('gridHost');
-  public readonly viewportWidth = signal(window.innerWidth);
-  public readonly viewportHeight = signal(window.innerHeight);
+  private readonly _hostRef = viewChild<ElementRef<HTMLElement>>('gridHost');
+  private readonly _viewportWidth = signal(window.innerWidth);
+  private readonly _viewportHeight = signal(window.innerHeight);
   protected readonly _activeList = this._state.activeList;
   protected readonly _listCount = this._state.listCount;
   protected readonly _streams = this._state.streams;
@@ -52,10 +52,10 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   private _syncRunId = 0;
   private _loadScriptErrorVisible = false;
 
-  public readonly grid = computed(() => calculateOptimalGrid(this._streams(), this.viewportWidth(), this.viewportHeight()));
+  private readonly _grid = computed(() => calculateOptimalGrid(this._streams(), this._viewportWidth(), this._viewportHeight()));
 
-  protected readonly _gridTemplateColumns = computed(() => `repeat(${this.grid().cols}, 1fr)`);
-  protected readonly _gridTemplateRows = computed(() => `repeat(${this.grid().rows}, 1fr)`);
+  protected readonly _gridTemplateColumns = computed(() => `repeat(${this._grid().cols}, 1fr)`);
+  protected readonly _gridTemplateRows = computed(() => `repeat(${this._grid().rows}, 1fr)`);
 
   constructor() {
     effect(() => {
@@ -83,9 +83,9 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     this._renderedEmbeds.clear();
   }
 
-  public onResize(): void {
-    this.viewportWidth.set(window.innerWidth);
-    this.viewportHeight.set(window.innerHeight);
+  protected _onResize(): void {
+    this._viewportWidth.set(window.innerWidth);
+    this._viewportHeight.set(window.innerHeight);
   }
 
   private _scheduleSync(): void {
@@ -105,7 +105,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const host = this.hostRef()?.nativeElement;
+    const host = this._hostRef()?.nativeElement;
 
     if (!host) {
       return;

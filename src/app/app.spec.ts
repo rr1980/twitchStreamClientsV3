@@ -5,6 +5,10 @@ import { HotkeyService } from './core/services/hotkey.service';
 import { StreamStateService } from './core/services/stream-state.service';
 
 describe('App', () => {
+  function getAppMethod<T extends (...args: never[]) => unknown>(instance: object, propertyName: string): T {
+    return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
+  }
+
   beforeEach(async () => {
     window.location.hash = '#/List/null';
     document.title = 'Test';
@@ -38,7 +42,7 @@ describe('App', () => {
     const spy = vi.spyOn(hotkeys, 'handleWindowKeydown');
     const event = new KeyboardEvent('keydown', { key: 'm' });
 
-    app.onWindowKeydown(event);
+    getAppMethod<(event: KeyboardEvent) => void>(app, '_onWindowKeydown')(event);
 
     expect(spy).toHaveBeenCalledWith(event, document.activeElement);
   });
@@ -52,7 +56,7 @@ describe('App', () => {
 
     vi.spyOn(hotkeys, 'handleWindowKeydown').mockReturnValue(true);
 
-    app.onWindowKeydown(event);
+    getAppMethod<(event: KeyboardEvent) => void>(app, '_onWindowKeydown')(event);
 
     expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
   });
@@ -66,7 +70,7 @@ describe('App', () => {
 
     vi.spyOn(hotkeys, 'handleWindowKeydown').mockReturnValue(false);
 
-    app.onWindowKeydown(event);
+    getAppMethod<(event: KeyboardEvent) => void>(app, '_onWindowKeydown')(event);
 
     expect(preventDefaultSpy).not.toHaveBeenCalled();
   });
@@ -77,7 +81,7 @@ describe('App', () => {
     const state = TestBed.inject(StreamStateService);
     const spy = vi.spyOn(state, 'openMenu');
 
-    app.openMenu();
+    getAppMethod<() => void>(app, '_openMenu')();
 
     expect(spy).toHaveBeenCalledTimes(1);
   });

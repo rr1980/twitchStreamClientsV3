@@ -20,10 +20,10 @@ export class SettingsModalComponent {
   private _previouslyFocusedElement: HTMLElement | null = null;
   private _wasOpen = false;
 
-  public readonly listInputRef = viewChild<ElementRef<HTMLInputElement>>('listInput');
-  public readonly streamInputRef = viewChild<ElementRef<HTMLInputElement>>('streamInput');
-  public readonly renameListInputRef = viewChild<ElementRef<HTMLInputElement>>('renameListInput');
-  public readonly modalPanelRef = viewChild<ElementRef<HTMLElement>>('modalPanel');
+  private readonly _listInputRef = viewChild<ElementRef<HTMLInputElement>>('listInput');
+  private readonly _streamInputRef = viewChild<ElementRef<HTMLInputElement>>('streamInput');
+  private readonly _renameListInputRef = viewChild<ElementRef<HTMLInputElement>>('renameListInput');
+  private readonly _modalPanelRef = viewChild<ElementRef<HTMLElement>>('modalPanel');
 
   protected readonly _qualityOptions: StreamQuality[] = ['auto', '480p', '720p60', 'chunked'];
   protected readonly _newListNameControl = new FormControl('', { nonNullable: true });
@@ -62,8 +62,8 @@ export class SettingsModalComponent {
 
         queueMicrotask(() => {
           const primaryInput = this._activeList()
-            ? this.streamInputRef()?.nativeElement
-            : this.listInputRef()?.nativeElement;
+            ? this._streamInputRef()?.nativeElement
+            : this._listInputRef()?.nativeElement;
 
           primaryInput?.focus();
         });
@@ -82,7 +82,7 @@ export class SettingsModalComponent {
     });
   }
 
-  public createList(): void {
+  protected _createList(): void {
     const result = this._state.createList(this._newListNameControl.getRawValue());
 
     if (!result.ok) {
@@ -100,7 +100,7 @@ export class SettingsModalComponent {
     this._toast.show(`${result.list?.name} angelegt.`);
   }
 
-  public renameActiveList(): void {
+  protected _renameActiveList(): void {
     const activeList = this._activeList();
 
     if (!activeList) {
@@ -121,14 +121,14 @@ export class SettingsModalComponent {
     }
 
     this._toast.show(`${result.list?.name} gespeichert.`);
-    this.renameListInputRef()?.nativeElement.focus();
+    this._renameListInputRef()?.nativeElement.focus();
   }
 
-  public selectList(listId: number): void {
+  protected _selectList(listId: number): void {
     this._navigateToList(listId);
   }
 
-  public deleteList(list: StreamList): void {
+  protected _deleteList(list: StreamList): void {
     const listsBeforeDeletion = this._lists();
     const wasActiveList = this._activeListId() === list.id;
     const removed = this._state.deleteList(list.id);
@@ -146,20 +146,20 @@ export class SettingsModalComponent {
     this._toast.show(`${removed.name} gelöscht.`, 'info');
   }
 
-  public close(): void {
+  protected _close(): void {
     this._state.closeMenu();
   }
 
-  public onBackdropClick(event: MouseEvent): void {
+  protected _onBackdropClick(event: MouseEvent): void {
     if (event.target === event.currentTarget) {
-      this.close();
+      this._close();
     }
   }
 
-  public onDialogKeydown(event: KeyboardEvent): void {
+  protected _onDialogKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       event.preventDefault();
-      this.close();
+      this._close();
       return;
     }
 
@@ -167,7 +167,7 @@ export class SettingsModalComponent {
       return;
     }
 
-    const modalPanel = this.modalPanelRef()?.nativeElement;
+    const modalPanel = this._modalPanelRef()?.nativeElement;
     if (!modalPanel) {
       return;
     }
@@ -196,7 +196,7 @@ export class SettingsModalComponent {
     }
   }
 
-  public addStream(): void {
+  protected _addStream(): void {
     const channelName = this._extractChannelName(this._channelNameControl.getRawValue());
     const result = this._state.addStream(channelName);
 
@@ -221,45 +221,45 @@ export class SettingsModalComponent {
 
     this._toast.show(`${result.name} hinzugefügt.`);
     this._channelNameControl.reset('');
-    this.streamInputRef()?.nativeElement.focus();
+    this._streamInputRef()?.nativeElement.focus();
   }
 
-  public removeStream(index: number): void {
+  protected _removeStream(index: number): void {
     const removed = this._state.removeStream(index);
     if (removed) {
       this._toast.show(`${removed} entfernt.`, 'info');
     }
   }
 
-  public moveStream(index: number, direction: -1 | 1): void {
+  protected _moveStream(index: number, direction: -1 | 1): void {
     this._state.moveStream(index, direction);
   }
 
-  public setQuality(value: StreamQuality): void {
+  protected _setQuality(value: StreamQuality): void {
     this._state.setQuality(value);
   }
 
-  public setStreamShowChat(index: number, value: boolean): void {
+  protected _setStreamShowChat(index: number, value: boolean): void {
     this._state.setStreamShowChat(index, value);
   }
 
-  public onStreamChatChange(index: number, event: Event): void {
+  protected _onStreamChatChange(index: number, event: Event): void {
     const target = event.target;
 
     if (target instanceof HTMLInputElement) {
-      this.setStreamShowChat(index, target.checked);
+      this._setStreamShowChat(index, target.checked);
     }
   }
 
-  public formatStatisticLabel(item: StreamStatistic): string {
+  protected _formatStatisticLabel(item: StreamStatistic): string {
     return `${item.name} (${item.value})`;
   }
 
-  public trackList(_: number, list: StreamList): number {
+  protected _trackList(_: number, list: StreamList): number {
     return list.id;
   }
 
-  public trackStream(_: number, stream: StreamChannel): string {
+  protected _trackStream(_: number, stream: StreamChannel): string {
     return stream.name;
   }
 

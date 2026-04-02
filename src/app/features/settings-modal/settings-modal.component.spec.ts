@@ -17,6 +17,10 @@ describe('SettingsModalComponent', () => {
     return (instance as Record<string, unknown>)[propertyName] as T;
   }
 
+  function getComponentMethod<T extends (...args: never[]) => unknown>(instance: object, propertyName: string): T {
+    return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
+  }
+
   beforeEach(async () => {
     window.location.hash = '#/List/null';
     state = new MockStreamStateService();
@@ -198,11 +202,11 @@ describe('SettingsModalComponent', () => {
   it('ignores non-tab dialog keydowns and returns safely without a modal panel', () => {
     const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
 
-    component.onDialogKeydown(enterEvent);
+    getComponentMethod<(event: KeyboardEvent) => void>(component, '_onDialogKeydown')(enterEvent);
     expect(enterEvent.defaultPrevented).toBe(false);
 
     const tabEvent = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
-    component.onDialogKeydown(tabEvent);
+    getComponentMethod<(event: KeyboardEvent) => void>(component, '_onDialogKeydown')(tabEvent);
     expect(tabEvent.defaultPrevented).toBe(false);
   });
 
@@ -215,7 +219,7 @@ describe('SettingsModalComponent', () => {
     dialog.focus();
 
     const event = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
-    component.onDialogKeydown(event);
+    getComponentMethod<(event: KeyboardEvent) => void>(component, '_onDialogKeydown')(event);
 
     expect(event.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(dialog);
@@ -253,11 +257,11 @@ describe('SettingsModalComponent', () => {
 
     state.addStream.mockReturnValueOnce({ ok: false, reason: 'invalid' });
     getComponentMember<{ setValue(value: string): void }>(component, '_channelNameControl').setValue('invalid-name');
-    component.addStream();
+    getComponentMethod<() => void>(component, '_addStream')();
 
     state.addStream.mockReturnValueOnce({ ok: false, reason: 'duplicate', name: 'shroud' });
     getComponentMember<{ setValue(value: string): void }>(component, '_channelNameControl').setValue('shroud');
-    component.addStream();
+    getComponentMethod<() => void>(component, '_addStream')();
 
     expect(toast.show).toHaveBeenNthCalledWith(1, 'Ungültiger Kanalname. Erlaubt: a-z, äöü, 0-9, _ (max. 25 Zeichen).', 'error');
     expect(toast.show).toHaveBeenNthCalledWith(2, 'shroud ist bereits aktiv.', 'error');
@@ -271,7 +275,7 @@ describe('SettingsModalComponent', () => {
     await syncComponent();
 
     getComponentMember<{ setValue(value: string): void }>(component, '_channelNameControl').setValue('   ');
-    component.addStream();
+    getComponentMethod<() => void>(component, '_addStream')();
 
     expect(toast.show).not.toHaveBeenCalled();
   });
@@ -283,14 +287,14 @@ describe('SettingsModalComponent', () => {
     state.removeStream.mockReturnValue('shroud');
     await syncComponent();
 
-    component.removeStream(0);
-    component.setQuality('720p60');
-    component.onStreamChatChange(0, new Event('change'));
+    getComponentMethod<(index: number) => void>(component, '_removeStream')(0);
+    getComponentMethod<(value: StreamQuality) => void>(component, '_setQuality')('720p60');
+    getComponentMethod<(index: number, event: Event) => void>(component, '_onStreamChatChange')(0, new Event('change'));
 
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = true;
-    component.onStreamChatChange(0, { target: checkbox } as unknown as Event);
+    getComponentMethod<(index: number, event: Event) => void>(component, '_onStreamChatChange')(0, { target: checkbox } as unknown as Event);
 
     expect(toast.show).toHaveBeenCalledWith('shroud entfernt.', 'info');
     expect(state.setQuality).toHaveBeenCalledWith('720p60');
@@ -326,7 +330,7 @@ describe('SettingsModalComponent', () => {
   });
 
   it('delegates stream movement to the state service', () => {
-    component.moveStream(2, -1);
+    getComponentMethod<(index: number, direction: -1 | 1) => void>(component, '_moveStream')(2, -1);
 
     expect(state.moveStream).toHaveBeenCalledWith(2, -1);
   });
@@ -337,7 +341,7 @@ describe('SettingsModalComponent', () => {
     await syncComponent();
 
     getComponentMember<{ setValue(value: string): void }>(component, '_newListNameControl').setValue('Esports');
-    component.createList();
+    getComponentMethod<() => void>(component, '_createList')();
 
     expect(state.createList).toHaveBeenCalledWith('Esports');
     expect(window.location.hash).toBe('#/List/4');
@@ -356,8 +360,8 @@ describe('SettingsModalComponent', () => {
     await syncComponent();
 
     getComponentMember<{ setValue(value: string): void }>(component, '_activeListNameControl').setValue('Main');
-    component.renameActiveList();
-    component.deleteList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    getComponentMethod<() => void>(component, '_renameActiveList')();
+    getComponentMethod<(list: StreamList) => void>(component, '_deleteList')({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
 
     expect(state.renameList).toHaveBeenCalledWith(1, 'Main');
     expect(state.deleteList).toHaveBeenCalledWith(1);

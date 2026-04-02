@@ -15,13 +15,13 @@ import { StreamStateService } from './core/services/stream-state.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    '(window:keydown)': 'onWindowKeydown($event)',
+    '(window:keydown)': '_onWindowKeydown($event)',
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    '(window:hashchange)': 'onHashChange()',
+    '(window:hashchange)': '_onHashChange()',
   },
 })
 export class App {
-  public readonly state = inject(StreamStateService);
+  protected readonly _state = inject(StreamStateService);
   private readonly _hotkeys = inject(HotkeyService);
   private readonly _listNavigation = inject(ListNavigationService);
   private readonly _title = inject(Title);
@@ -34,28 +34,28 @@ export class App {
     this._syncListFromHash();
   }
 
-  public onWindowKeydown(event: KeyboardEvent): void {
+  protected _onWindowKeydown(event: KeyboardEvent): void {
     if (this._hotkeys.handleWindowKeydown(event, document.activeElement)) {
       event.preventDefault();
     }
   }
 
-  public onHashChange(): void {
+  protected _onHashChange(): void {
     this._syncListFromHash();
   }
 
-  public openMenu(): void {
-    this.state.openMenu();
+  protected _openMenu(): void {
+    this._state.openMenu();
   }
 
   private _syncListFromHash(): void {
     const listId = this._listNavigation.syncLocationToListHash();
-    this.state.setActiveListId(listId);
+    this._state.setActiveListId(listId);
   }
 
   private _buildDocumentTitle(): string {
-    const activeList = this.state.activeList();
-    const activeListId = this.state.activeListId();
+    const activeList = this._state.activeList();
+    const activeListId = this._state.activeListId();
 
     if (activeList) {
       return `${activeList.name} | Twitch Multi-Viewer`;

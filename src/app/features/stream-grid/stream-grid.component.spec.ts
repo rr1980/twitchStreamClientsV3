@@ -30,6 +30,10 @@ describe('StreamGridComponent', () => {
     (instance as Record<string, number>)[propertyName] = value;
   }
 
+  function setPrivateMember<T>(instance: object, propertyName: string, value: T): void {
+    (instance as Record<string, unknown>)[propertyName] = value;
+  }
+
   beforeEach(async () => {
     state = new MockStreamStateService();
     twitch = new MockTwitchEmbedService();
@@ -72,11 +76,9 @@ describe('StreamGridComponent', () => {
   });
 
   it('returns early when syncEmbeds has no host element', async () => {
-    const component = fixture.componentInstance as unknown as {
-      hostRef: () => undefined;
-    };
+    const component = fixture.componentInstance;
 
-    component.hostRef = () => undefined;
+    setPrivateMember(component, '_hostRef', () => undefined);
 
     const runId = getPrivateNumber(component, '_syncRunId') + 1;
     setPrivateNumber(component, '_syncRunId', runId);
@@ -292,10 +294,10 @@ describe('StreamGridComponent', () => {
     window.innerWidth = 1440;
     window.innerHeight = 900;
 
-    component.onResize();
+    getPrivateMethod<() => void>(component, '_onResize')();
 
-    expect(component.viewportWidth()).toBe(1440);
-    expect(component.viewportHeight()).toBe(900);
+    expect(getPrivateMethod<() => number>(component, '_viewportWidth')()).toBe(1440);
+    expect(getPrivateMethod<() => number>(component, '_viewportHeight')()).toBe(900);
   });
 
   function channel(name: string, showChat = false): StreamChannel {
