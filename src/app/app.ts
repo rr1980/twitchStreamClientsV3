@@ -1,23 +1,23 @@
 import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { filter, map, startWith } from 'rxjs';
 import { HotkeyService } from './core/services/hotkey.service';
 import { ListNavigationService } from './core/services/list-navigation.service';
-import { StreamGridComponent } from './features/stream-grid/stream-grid.component';
 import { SettingsModalComponent } from './features/settings-modal/settings-modal.component';
 import { ToastContainerComponent } from './features/toast/toast-container.component';
 import { StreamStateService } from './core/services/stream-state.service';
 
 @Component({
   selector: 'app-root',
-  imports: [StreamGridComponent, SettingsModalComponent, ToastContainerComponent],
+  imports: [RouterOutlet, SettingsModalComponent, ToastContainerComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     '(window:keydown)': '_onWindowKeydown($event)',
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    '(window:hashchange)': '_onHashChange()',
   },
 })
 export class App {
@@ -25,13 +25,24 @@ export class App {
   private readonly _hotkeys = inject(HotkeyService);
   private readonly _listNavigation = inject(ListNavigationService);
   private readonly _title = inject(Title);
+  private readonly _router = inject(Router);
+  private readonly _activeListIdFromRoute = toSignal(
+    this._router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map(() => this._listNavigation.readListId(this._router.url)),
+      startWith(this._listNavigation.readListId(this._router.url)),
+    ),
+    { initialValue: this._listNavigation.readListId(this._router.url) },
+  );
 
   constructor() {
     effect(() => {
-      this._title.setTitle(this._buildDocumentTitle());
+      this._state.setActiveListId(this._activeListIdFromRoute());
     });
 
-    this._syncListFromHash();
+    effect(() => {
+      this._title.setTitle(this._buildDocumentTitle());
+    });
   }
 
   protected _onWindowKeydown(event: KeyboardEvent): void {
@@ -40,17 +51,8 @@ export class App {
     }
   }
 
-  protected _onHashChange(): void {
-    this._syncListFromHash();
-  }
-
   protected _openMenu(): void {
     this._state.openMenu();
-  }
-
-  private _syncListFromHash(): void {
-    const listId = this._listNavigation.syncLocationToListHash();
-    this._state.setActiveListId(listId);
   }
 
   private _buildDocumentTitle(): string {

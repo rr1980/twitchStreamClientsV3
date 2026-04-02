@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
 import { vi } from 'vitest';
 import type { StreamChannel, StreamList, StreamQuality, StreamStatistic } from '../../core/models/app-settings.model';
+import { ListNavigationService } from '../../core/services/list-navigation.service';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { SettingsModalComponent } from './settings-modal.component';
 import { ToastService } from '../toast/toast.service';
@@ -10,6 +11,7 @@ import { ToastService } from '../toast/toast.service';
 describe('SettingsModalComponent', () => {
   let fixture: ComponentFixture<SettingsModalComponent>;
   let component: SettingsModalComponent;
+  let listNavigation: MockListNavigationService;
   let state: MockStreamStateService;
   let toast: MockToastService;
 
@@ -22,13 +24,14 @@ describe('SettingsModalComponent', () => {
   }
 
   beforeEach(async () => {
-    window.location.hash = '#/List/null';
+    listNavigation = new MockListNavigationService();
     state = new MockStreamStateService();
     toast = new MockToastService();
 
     await TestBed.configureTestingModule({
       imports: [SettingsModalComponent],
       providers: [
+        { provide: ListNavigationService, useValue: listNavigation },
         { provide: StreamStateService, useValue: state },
         { provide: ToastService, useValue: toast },
       ],
@@ -335,7 +338,7 @@ describe('SettingsModalComponent', () => {
     expect(state.moveStream).toHaveBeenCalledWith(2, -1);
   });
 
-  it('creates a list, navigates via hash and shows a toast', async () => {
+  it('creates a list, navigates via the router service and shows a toast', async () => {
     state.menuOpen.set(true);
     state.createList.mockReturnValue({ ok: true, list: { id: 4, name: 'Esports', streams: [] } });
     await syncComponent();
@@ -344,7 +347,7 @@ describe('SettingsModalComponent', () => {
     getComponentMethod<() => void>(component, '_createList')();
 
     expect(state.createList).toHaveBeenCalledWith('Esports');
-    expect(window.location.hash).toBe('#/List/4');
+    expect(listNavigation.navigateToList).toHaveBeenCalledWith(4);
     expect(toast.show).toHaveBeenCalledWith('Esports angelegt.');
   });
 
@@ -365,7 +368,7 @@ describe('SettingsModalComponent', () => {
 
     expect(state.renameList).toHaveBeenCalledWith(1, 'Main');
     expect(state.deleteList).toHaveBeenCalledWith(1);
-    expect(window.location.hash).toBe('#/List/2');
+    expect(listNavigation.navigateToList).toHaveBeenCalledWith(2);
   });
 
   function channel(name: string, showChat = false): StreamChannel {
@@ -419,4 +422,8 @@ class MockStreamStateService {
 
 class MockToastService {
   public readonly show = vi.fn();
+}
+
+class MockListNavigationService {
+  public readonly navigateToList = vi.fn<(listId: number | null) => void>();
 }

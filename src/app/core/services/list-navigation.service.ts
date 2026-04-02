@@ -1,31 +1,39 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { PRIMARY_OUTLET, Router } from '@angular/router';
+import type { UrlTree } from '@angular/router';
 
 @Injectable({ providedIn: 'root' })
 export class ListNavigationService {
-  public syncLocationToListHash(): number | null {
-    const listId = this._parseListId(window.location.hash);
-    const normalizedHash = this._buildListHash(listId);
-
-    if (window.location.hash !== normalizedHash) {
-      window.location.hash = normalizedHash;
-    }
-
-    return listId;
-  }
+  private readonly _router = inject(Router);
 
   public navigateToList(listId: number | null): void {
-    const normalizedHash = this._buildListHash(listId);
-
-    if (window.location.hash !== normalizedHash) {
-      window.location.hash = normalizedHash;
-    }
+    void this._router.navigate(['/List', listId ?? 'null']);
   }
 
-  private _parseListId(hash: string): number | null {
-    const match = this._normalizeHash(hash).match(/^#\/List\/(.+)$/);
-    const rawListId = match?.[1] ?? 'null';
+  public readListId(url: string): number | null {
+    const segments = this._getPrimarySegments(url);
 
+    if (segments.length !== 2 || segments[0]?.toLowerCase() !== 'list') {
+      return null;
+    }
+
+    return this._parseListId(segments[1] ?? null);
+  }
+
+  public ensureCanonicalUrl(url: string): true | UrlTree {
+    const canonicalUrl = this._buildListUrl(this.readListId(url));
+
+    return url === canonicalUrl
+      ? true
+      : this._router.parseUrl(canonicalUrl);
+  }
+
+  private _parseListId(rawListId: string | null): number | null {
     if (rawListId === 'null') {
+      return null;
+    }
+
+    if (!rawListId || !/^\d+$/.test(rawListId)) {
       return null;
     }
 
@@ -34,38 +42,11 @@ export class ListNavigationService {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   }
 
-  private _normalizeHash(hash: string): string {
-    const trimmedHash = hash.trim();
-    const match = trimmedHash.match(/^#\/([^/]+)\/(.+)$/);
-
-    if (!match) {
-      return '#/List/null';
-    }
-
-    const [, routeSegment, rawListId] = match;
-
-    if (routeSegment.toLocaleLowerCase() !== 'list') {
-      return '#/List/null';
-    }
-
-    if (rawListId === 'null') {
-      return '#/List/null';
-    }
-
-    if (!/^\d+$/.test(rawListId)) {
-      return '#/List/null';
-    }
-
-    const parsed = Number(rawListId);
-
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      return '#/List/null';
-    }
-
-    return `#/List/${parsed}`;
+  private _getPrimarySegments(url: string): string[] {
+    return this._router.parseUrl(url || '/').root.children[PRIMARY_OUTLET]?.segments.map(segment => segment.path) ?? [];
   }
 
-  private _buildListHash(listId: number | null): string {
-    return `#/List/${listId ?? 'null'}`;
+  private _buildListUrl(listId: number | null): string {
+    return `/List/${listId ?? 'null'}`;
   }
 }
