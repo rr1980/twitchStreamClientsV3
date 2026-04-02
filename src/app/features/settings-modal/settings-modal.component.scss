@@ -377,7 +377,7 @@
 
 .stream-item {
   display: grid;
-  grid-template-columns: 40px 40px minmax(0, 1fr) auto;
+  grid-template-columns: 40px 40px minmax(0, 1fr) auto auto;
   gap: 10px;
   align-items: center;
   min-height: 60px;
@@ -424,6 +424,15 @@
   white-space: nowrap;
   font-size: 0.98rem;
   font-weight: 700;
+}
+
+.stream-item__chat {
+  min-width: 92px;
+  margin: 0;
+}
+
+.stream-item__chat-label {
+  white-space: nowrap;
 }
 
 .danger-btn {

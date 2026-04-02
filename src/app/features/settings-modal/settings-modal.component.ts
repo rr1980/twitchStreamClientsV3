@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, viewChild } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { StreamList, StreamQuality, StreamStatistic } from '../../core/models/app-settings.model';
+import { StreamChannel, StreamList, StreamQuality, StreamStatistic } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { ToastService } from '../toast/toast.service';
 
@@ -32,7 +32,6 @@ export class SettingsModalComponent {
   readonly activeList = this.state.activeList;
   readonly streams = this.state.streams;
   readonly selectedQuality = this.state.quality;
-  readonly showChat = this.state.showChat;
   readonly topStatistics = computed(() => this.state.getTopStatistics(10));
   readonly hasActiveList = computed(() => this.activeList() !== null);
 
@@ -237,15 +236,15 @@ export class SettingsModalComponent {
     this.state.setQuality(value);
   }
 
-  setShowChat(value: boolean): void {
-    this.state.setShowChat(value);
+  setStreamShowChat(index: number, value: boolean): void {
+    this.state.setStreamShowChat(index, value);
   }
 
-  onShowChatChange(event: Event): void {
+  onStreamChatChange(index: number, event: Event): void {
     const target = event.target;
 
     if (target instanceof HTMLInputElement) {
-      this.setShowChat(target.checked);
+      this.setStreamShowChat(index, target.checked);
     }
   }
 
@@ -255,6 +254,10 @@ export class SettingsModalComponent {
 
   trackList(_: number, list: StreamList): number {
     return list.id;
+  }
+
+  trackStream(_: number, stream: StreamChannel): string {
+    return stream.name;
   }
 
   private extractChannelName(value: string): string {

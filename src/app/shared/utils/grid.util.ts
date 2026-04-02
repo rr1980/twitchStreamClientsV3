@@ -1,14 +1,17 @@
+import { StreamChannel } from '../../core/models/app-settings.model';
+
 export interface GridLayout {
   cols: number;
   rows: number;
 }
 
 export function calculateOptimalGrid(
-  count: number,
+  streams: StreamChannel[],
   containerWidth: number,
   containerHeight: number,
-  showChat: boolean,
 ): GridLayout {
+  const count = streams.length;
+
   if (count === 0) {
     return { cols: 1, rows: 1 };
   }
@@ -21,17 +24,8 @@ export function calculateOptimalGrid(
     const rows = Math.ceil(count / cols);
     const cellWidth = containerWidth / cols;
     const cellHeight = containerHeight / rows;
-    const targetRatio = showChat ? 21 / 9 : 16 / 9;
+    const totalArea = streams.reduce((sum, stream) => sum + thisCellArea(cellWidth, cellHeight, stream.showChat), 0);
 
-    let videoWidth = cellWidth;
-    let videoHeight = cellWidth / targetRatio;
-
-    if (videoHeight > cellHeight) {
-      videoHeight = cellHeight;
-      videoWidth = cellHeight * targetRatio;
-    }
-
-    const totalArea = videoWidth * videoHeight * count;
     if (totalArea > maxArea) {
       maxArea = totalArea;
       bestCols = cols;
@@ -40,4 +34,18 @@ export function calculateOptimalGrid(
   }
 
   return { cols: bestCols, rows: bestRows };
+}
+
+function thisCellArea(cellWidth: number, cellHeight: number, showChat: boolean): number {
+  const targetRatio = showChat ? 21 / 9 : 16 / 9;
+
+  let videoWidth = cellWidth;
+  let videoHeight = cellWidth / targetRatio;
+
+  if (videoHeight > cellHeight) {
+    videoHeight = cellHeight;
+    videoWidth = cellHeight * targetRatio;
+  }
+
+  return videoWidth * videoHeight;
 }

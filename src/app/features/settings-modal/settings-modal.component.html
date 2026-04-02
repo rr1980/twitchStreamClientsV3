@@ -149,16 +149,20 @@
                         }
                       </div>
                     } @else {
-                      @for (stream of streams(); track stream; let i = $index) {
+                      @for (stream of streams(); track trackStream($index, stream); let i = $index) {
                         <div class="stream-item" role="listitem">
                           <div class="stream-item__move">
-                            <button type="button" [disabled]="i === 0" [attr.aria-label]="stream + ' nach oben verschieben'" (click)="moveStream(i, -1)">↑</button>
-                            <button type="button" [disabled]="i === streams().length - 1" [attr.aria-label]="stream + ' nach unten verschieben'" (click)="moveStream(i, 1)">↓</button>
+                            <button type="button" [disabled]="i === 0" [attr.aria-label]="stream.name + ' nach oben verschieben'" (click)="moveStream(i, -1)">↑</button>
+                            <button type="button" [disabled]="i === streams().length - 1" [attr.aria-label]="stream.name + ' nach unten verschieben'" (click)="moveStream(i, 1)">↓</button>
                           </div>
 
                           <div class="stream-item__index">{{ i + 1 }}</div>
-                          <div class="stream-item__name">{{ stream }}</div>
-                          <button type="button" class="danger-btn danger-btn--compact" [attr.aria-label]="stream + ' entfernen'" (click)="removeStream(i)">Entfernen</button>
+                          <div class="stream-item__name">{{ stream.name }}</div>
+                          <label class="toggle-row stream-item__chat">
+                            <span class="stream-item__chat-label">Chat</span>
+                            <input type="checkbox" [checked]="stream.showChat" [attr.aria-label]="stream.name + ' Chat anzeigen'" (change)="onStreamChatChange(i, $event)" />
+                          </label>
+                          <button type="button" class="danger-btn danger-btn--compact" [attr.aria-label]="stream.name + ' entfernen'" (click)="removeStream(i)">Entfernen</button>
                         </div>
                       }
                     }
@@ -187,13 +191,6 @@
               }
               </div>
             </fieldset>
-          </div>
-
-          <div class="option-block panel-card panel-card--compact panel-card--subtle">
-            <label class="toggle-row">
-              <span>Twitch Chat anzeigen</span>
-              <input type="checkbox" [checked]="showChat()" (change)="onShowChatChange($event)" />
-            </label>
           </div>
         </aside>
       </div>

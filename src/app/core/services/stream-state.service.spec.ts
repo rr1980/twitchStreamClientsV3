@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
+import { StreamChannel } from '../models/app-settings.model';
 import { StreamStateService } from './stream-state.service';
 import { StorageService } from './storage.service';
 
@@ -38,7 +39,7 @@ describe('StreamStateService', () => {
     const result = service.addStream('  RocketBeansTV,  ');
 
     expect(result).toEqual({ ok: true, name: 'rocketbeanstv' });
-    expect(service.streams()).toEqual(['rocketbeanstv']);
+    expect(service.streams()).toEqual([channel('rocketbeanstv')]);
   });
 
   it('rejects duplicate channel names after normalization', () => {
@@ -49,7 +50,7 @@ describe('StreamStateService', () => {
     const result = service.addStream('  SHROUD  ');
 
     expect(result).toEqual({ ok: false, reason: 'duplicate', name: 'shroud' });
-    expect(service.streams()).toEqual(['shroud']);
+    expect(service.streams()).toEqual([channel('shroud')]);
   });
 
   it('filters invalid persisted data during initialization', () => {
@@ -58,7 +59,7 @@ describe('StreamStateService', () => {
         {
           id: 9,
           name: ' Favoriten ',
-          streams: [' valid_name ', 'INVALID-NAME', { name: 'second_one' }, null, 'valid_name'],
+          streams: [' valid_name ', 'INVALID-NAME', { name: 'second_one', showChat: false }, null, 'valid_name'],
         },
       ],
       quality: 'not-a-quality',
@@ -69,9 +70,11 @@ describe('StreamStateService', () => {
     service = createService();
     service.setActiveListId(9);
 
-    expect(service.streams()).toEqual(['valid_name', 'second_one']);
+    expect(service.streams()).toEqual([
+      channel('valid_name', true),
+      channel('second_one', false),
+    ]);
     expect(service.quality()).toBe('auto');
-    expect(service.showChat()).toBe(true);
     expect(service.getTopStatistics(10)).toEqual([{ name: 'shroud', value: 2 }]);
   });
 
@@ -82,16 +85,19 @@ describe('StreamStateService', () => {
     service.addStream('second_channel');
     service.moveStream(1, -1);
     service.setQuality('720p60');
-    service.setShowChat(true);
+    service.setStreamShowChat(0, true);
     TestBed.flushEffects();
     await flushPersistence();
 
     expect(JSON.parse(localStorage.getItem('app_state_v3') ?? '{}')).toEqual({
       lists: [
-        { id: 1, name: 'Liste 1', streams: ['second_channel', 'first_channel'] },
+        {
+          id: 1,
+          name: 'Liste 1',
+          streams: [channel('second_channel', true), channel('first_channel')],
+        },
       ],
       quality: '720p60',
-      showChat: true,
       statistics: [
         { name: 'first_channel', value: 1 },
         { name: 'second_channel', value: 1 },
@@ -101,24 +107,22 @@ describe('StreamStateService', () => {
 
   it('initializes only once even when called repeatedly', () => {
     localStorage.setItem('app_state_v3', JSON.stringify({
-      lists: [{ id: 1, name: 'Liste 1', streams: ['first_channel'] }],
+      lists: [{ id: 1, name: 'Liste 1', streams: [channel('first_channel')] }],
       quality: 'auto',
-      showChat: false,
       statistics: [],
     }));
     service = createService();
     service.setActiveListId(1);
 
     localStorage.setItem('app_state_v3', JSON.stringify({
-      lists: [{ id: 1, name: 'Liste 1', streams: ['second_channel'] }],
+      lists: [{ id: 1, name: 'Liste 1', streams: [channel('second_channel')] }],
       quality: 'auto',
-      showChat: false,
       statistics: [],
     }));
     service.initialize();
     TestBed.flushEffects();
 
-    expect(service.streams()).toEqual(['first_channel']);
+    expect(service.streams()).toEqual([channel('first_channel')]);
   });
 
   it('coalesces multiple state changes into one storage write burst', async () => {
@@ -132,7 +136,7 @@ describe('StreamStateService', () => {
     service.addStream('first_channel');
     service.addStream('second_channel');
     service.setQuality('720p60');
-    service.setShowChat(true);
+    service.setStreamShowChat(1, true);
     TestBed.flushEffects();
 
     expect(setJsonSpy).not.toHaveBeenCalled();
@@ -140,6 +144,20 @@ describe('StreamStateService', () => {
     await flushPersistence();
 
     expect(setJsonSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates the chat visibility for an individual stream only', () => {
+    service.createList('Liste 1');
+    service.setActiveListId(1);
+    service.addStream('first_channel');
+    service.addStream('second_channel');
+
+    service.setStreamShowChat(1, true);
+
+    expect(service.streams()).toEqual([
+      channel('first_channel'),
+      channel('second_channel', true),
+    ]);
   });
 
   it('handles empty, invalid, duplicate and missing-list add requests', () => {
@@ -164,7 +182,7 @@ describe('StreamStateService', () => {
 
     service.moveStream(0, -1);
 
-    expect(service.streams()).toEqual(['shroud']);
+    expect(service.streams()).toEqual([channel('shroud')]);
   });
 
   it('removes valid streams and can increment an existing statistic on re-add', () => {
@@ -207,7 +225,6 @@ describe('StreamStateService', () => {
     localStorage.setItem('app_state_v3', JSON.stringify({
       lists: [],
       quality: 'auto',
-      showChat: false,
       statistics: [
         { name: 'rocketbeanstv', value: 2 },
         { name: 'shroud', value: 5 },
@@ -227,15 +244,20 @@ describe('StreamStateService', () => {
     localStorage.clear();
     localStorage.setItem('streams', JSON.stringify(['legacy_channel']));
     localStorage.setItem('streams_qualies', '480p');
+    localStorage.setItem('showChat_v2', 'true');
 
     service = createService();
     service.setActiveListId(1);
     await flushPersistence();
 
-    expect(service.streams()).toEqual(['legacy_channel']);
+    expect(service.streams()).toEqual([channel('legacy_channel', true)]);
     expect(service.quality()).toBe('480p');
-    expect(service.lists()).toEqual([{ id: 1, name: 'Liste 1', streams: ['legacy_channel'] }]);
+    expect(service.lists()).toEqual([{ id: 1, name: 'Liste 1', streams: [channel('legacy_channel', true)] }]);
   });
+
+  function channel(name: string, showChat = false): StreamChannel {
+    return { name, showChat };
+  }
 
   function createService(): StreamStateService {
     TestBed.resetTestingModule();

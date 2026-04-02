@@ -1,8 +1,9 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { StorageService } from './storage.service';
-import { AppSettings, StreamList, StreamQuality, StreamStatistic } from '../models/app-settings.model';
+import { AppSettings, StreamChannel, StreamList, StreamQuality, StreamStatistic } from '../models/app-settings.model';
 
 type PersistedStreamState = AppSettings;
+type StoredState = PersistedStreamState & { showChat?: unknown };
 
 type StreamMutationResultReason = 'empty' | 'invalid' | 'duplicate' | 'no-list';
 type ListMutationResultReason = 'empty' | 'duplicate' | 'not-found';
@@ -27,7 +28,6 @@ export class StreamStateService {
   private readonly _lists = signal<StreamList[]>([]);
   private readonly _activeListId = signal<number | null>(null);
   private readonly _quality = signal<StreamQuality>('auto');
-  private readonly _showChat = signal(false);
   private readonly _statistics = signal<StreamStatistic[]>([]);
   private readonly _menuOpen = signal(false);
 
@@ -36,7 +36,6 @@ export class StreamStateService {
   readonly activeList = computed(() => this._lists().find(list => list.id === this._activeListId()) ?? null);
   readonly streams = computed(() => this.activeList()?.streams ?? []);
   readonly quality = computed(() => this._quality());
-  readonly showChat = computed(() => this._showChat());
   readonly statistics = computed(() => this._statistics());
   readonly menuOpen = computed(() => this._menuOpen());
   readonly streamCount = computed(() => this.streams().length);
@@ -56,7 +55,6 @@ export class StreamStateService {
       this.schedulePersist({
         lists: this._lists(),
         quality: this._quality(),
-        showChat: this._showChat(),
         statistics: this._statistics(),
       });
     });
@@ -170,13 +168,13 @@ export class StreamStateService {
       return { ok: false, reason: 'invalid' };
     }
 
-    if (activeList.streams.includes(name)) {
+    if (activeList.streams.some(stream => stream.name === name)) {
       return { ok: false, reason: 'duplicate', name };
     }
 
     this.updateList(activeList.id, list => ({
       ...list,
-      streams: [...list.streams, name],
+      streams: [...list.streams, { name, showChat: false }],
     }));
     this.bumpStatistic(name);
 
@@ -203,7 +201,7 @@ export class StreamStateService {
       streams: current,
     }));
 
-    return removed;
+    return removed.name;
   }
 
   moveStream(index: number, direction: -1 | 1): void {
@@ -232,8 +230,25 @@ export class StreamStateService {
     this._quality.set(value);
   }
 
-  setShowChat(value: boolean): void {
-    this._showChat.set(value);
+  setStreamShowChat(index: number, value: boolean): void {
+    const activeList = this.activeList();
+
+    if (!activeList) {
+      return;
+    }
+
+    const currentStream = activeList.streams[index];
+
+    if (!currentStream || currentStream.showChat === value) {
+      return;
+    }
+
+    this.updateList(activeList.id, list => ({
+      ...list,
+      streams: list.streams.map((stream, streamIndex) => streamIndex === index
+        ? { ...stream, showChat: value }
+        : stream),
+    }));
   }
 
   getTopStatistics(limit = 10): StreamStatistic[] {
@@ -244,16 +259,16 @@ export class StreamStateService {
 
   private init(): void {
     const persistedState = this.readPersistedState();
+    const legacyShowChat = Boolean(persistedState.showChat);
 
-    this._lists.set(this.normalizeStoredLists(persistedState.lists));
+    this._lists.set(this.normalizeStoredLists(persistedState.lists, legacyShowChat));
     this._quality.set(this.normalizeStoredQuality(persistedState.quality));
-    this._showChat.set(Boolean(persistedState.showChat));
     this._statistics.set(this.normalizeStoredStatistics(persistedState.statistics));
   }
 
-  private readPersistedState(): PersistedStreamState {
+  private readPersistedState(): StoredState {
     if (this.storage.hasKey(this.stateKey)) {
-      return this.storage.getJson<PersistedStreamState>(this.stateKey, this.createDefaultState());
+      return this.storage.getJson<StoredState>(this.stateKey, this.createDefaultState());
     }
 
     return this.migrateLegacyState();
@@ -263,9 +278,14 @@ export class StreamStateService {
     const legacyStreams = this.normalizeStoredStreams(this.storage.getJson<unknown[]>('streams_v2', []));
     const olderStreams = this.normalizeStoredStreams(this.storage.getJson<unknown[]>('streams', []));
     const migratedStreams = legacyStreams.length > 0 ? legacyStreams : olderStreams;
+    const showChat = this.storage.getBoolean('showChat_v2', false);
     const migratedState: PersistedStreamState = {
       lists: migratedStreams.length > 0
-        ? [{ id: 1, name: 'Liste 1', streams: migratedStreams }]
+        ? [{
+          id: 1,
+          name: 'Liste 1',
+          streams: migratedStreams.map(stream => ({ ...stream, showChat })),
+        }]
         : [],
       quality: this.normalizeStoredQuality(
         this.storage.getItem('quality_v2') ||
@@ -273,7 +293,6 @@ export class StreamStateService {
         this.storage.getItem('streams_qualies') ||
         'auto',
       ),
-      showChat: this.storage.getBoolean('showChat_v2', false),
       statistics: this.normalizeStoredStatistics(this.storage.getJson<StreamStatistic[]>('stats_v2', [])),
     };
 
@@ -317,7 +336,7 @@ export class StreamStateService {
       .filter((item): item is StreamStatistic => item !== null);
   }
 
-  private normalizeStoredLists(value: unknown): StreamList[] {
+  private normalizeStoredLists(value: unknown, defaultShowChat = false): StreamList[] {
     if (!Array.isArray(value)) {
       return [];
     }
@@ -325,11 +344,16 @@ export class StreamStateService {
     const usedIds = new Set<number>();
 
     return value
-      .map((item, index) => this.normalizeStoredList(item, index, usedIds))
+      .map((item, index) => this.normalizeStoredList(item, index, usedIds, defaultShowChat))
       .filter((item): item is StreamList => item !== null);
   }
 
-  private normalizeStoredList(value: unknown, index: number, usedIds: Set<number>): StreamList | null {
+  private normalizeStoredList(
+    value: unknown,
+    index: number,
+    usedIds: Set<number>,
+    defaultShowChat: boolean,
+  ): StreamList | null {
     if (!value || typeof value !== 'object') {
       return null;
     }
@@ -337,7 +361,7 @@ export class StreamStateService {
     const candidate = value as { id?: unknown; name?: unknown; streams?: unknown };
     const id = this.normalizeStoredListId(candidate.id, usedIds);
     const name = this.normalizeListName(typeof candidate.name === 'string' ? candidate.name : '') || `Liste ${index + 1}`;
-    const streams = this.normalizeStoredStreams(Array.isArray(candidate.streams) ? candidate.streams : []);
+    const streams = this.normalizeStoredStreams(Array.isArray(candidate.streams) ? candidate.streams : [], defaultShowChat);
 
     usedIds.add(id);
 
@@ -393,19 +417,31 @@ export class StreamStateService {
       .replace(/\s+/g, ' ');
   }
 
-  private normalizeStoredStreams(values: unknown[]): string[] {
-    return values
-      .map(item => {
-        if (typeof item === 'object' && item !== null) {
-          const candidate = item as { name?: string; id?: string };
-          return candidate.name || candidate.id || '';
-        }
+  private normalizeStoredStreams(values: unknown[], defaultShowChat = false): StreamChannel[] {
+    const channels = new Map<string, StreamChannel>();
 
-        return String(item ?? '');
-      })
-      .map(value => this.normalizeChannelName(value))
-      .filter((value, index, items) => value.length > 0 && value !== '[object Object]' && items.indexOf(value) === index)
-      .filter(value => this.isValidChannelName(value));
+    values.forEach(item => {
+      let rawName: string;
+      let showChat = defaultShowChat;
+
+      if (typeof item === 'object' && item !== null) {
+        const candidate = item as { name?: unknown; id?: unknown; showChat?: unknown };
+        rawName = String(candidate.name ?? candidate.id ?? '');
+        showChat = typeof candidate.showChat === 'boolean' ? candidate.showChat : defaultShowChat;
+      } else {
+        rawName = String(item ?? '');
+      }
+
+      const name = this.normalizeChannelName(rawName);
+
+      if (!name || name === '[object object]' || !this.isValidChannelName(name) || channels.has(name)) {
+        return;
+      }
+
+      channels.set(name, { name, showChat });
+    });
+
+    return [...channels.values()];
   }
 
   private isValidChannelName(value: string): boolean {
@@ -432,10 +468,9 @@ export class StreamStateService {
     this.pendingPersistState = {
       lists: state.lists.map(list => ({
         ...list,
-        streams: [...list.streams],
+        streams: list.streams.map(stream => ({ ...stream })),
       })),
       quality: state.quality,
-      showChat: state.showChat,
       statistics: [...state.statistics],
     };
 
@@ -465,7 +500,6 @@ export class StreamStateService {
     return {
       lists: [],
       quality: 'auto',
-      showChat: false,
       statistics: [],
     };
   }

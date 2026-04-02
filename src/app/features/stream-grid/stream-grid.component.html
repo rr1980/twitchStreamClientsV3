@@ -17,8 +17,8 @@
       }
     </div>
   } @else {
-    @for (stream of streams(); track stream) {
-      <div class="twitch-embed-wrapper" [attr.data-channel]="stream" [id]="'twitch-embed-' + stream"></div>
+    @for (stream of streams(); track stream.name) {
+      <div class="twitch-embed-wrapper" [attr.data-channel]="stream.name" [id]="'twitch-embed-' + stream.name"></div>
     }
   }
 </main>
