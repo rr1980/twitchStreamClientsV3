@@ -205,7 +205,7 @@ export class StreamStateService {
   }
 
   private isValidChannelName(value: string): boolean {
-    return /^[a-z0-9_]{1,25}$/.test(value);
+    return /^[a-zäöü0-9_]{1,25}$/.test(value);
   }
 
   private schedulePersist(state: PersistedStreamState): void {

@@ -111,7 +111,7 @@ export class SettingsModalComponent {
 
     if (!result.ok) {
       if (result.reason === 'invalid') {
-        this.toast.show('Ungültiger Kanalname. Erlaubt: a-z, 0-9, _ (max. 25 Zeichen).', 'error');
+        this.toast.show('Ungültiger Kanalname. Erlaubt: a-z, äöü, 0-9, _ (max. 25 Zeichen).', 'error');
         return;
       }
 
