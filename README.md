@@ -197,6 +197,11 @@ That means other developers may use, modify, and redistribute the code with mini
 The MIT License applies to the source code in this repository.
 It does not grant rights to Twitch branding, trademarks, or third-party streamed content.
 
+## Contributing
+
+Contributions are welcome.
+See `CONTRIBUTING.md` for local checks, code expectations, and pull request guidance.
+
 ## License
 
 This project is licensed under the MIT License. See `LICENSE` for details.
