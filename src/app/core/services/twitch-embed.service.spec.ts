@@ -1,3 +1,4 @@
+import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { TwitchEmbedService } from './twitch-embed.service';
@@ -23,6 +24,18 @@ describe('TwitchEmbedService', () => {
     setWindowTwitchEmbed(vi.fn());
 
     await expect(service.loadScript()).resolves.toBeUndefined();
+    expect(document.head.querySelector('script[data-twitch-embed="true"]')).toBeNull();
+  });
+
+  it('short-circuits script loading on the server platform', async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [{ provide: PLATFORM_ID, useValue: 'server' }],
+    });
+
+    const serverService = TestBed.inject(TwitchEmbedService);
+
+    await expect(serverService.loadScript()).resolves.toBeUndefined();
     expect(document.head.querySelector('script[data-twitch-embed="true"]')).toBeNull();
   });
 

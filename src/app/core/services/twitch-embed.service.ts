@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import type { StreamQuality } from '../models/app-settings.model';
 
 declare global {
@@ -40,10 +41,18 @@ export interface TwitchEmbedHandle {
 @Injectable({ providedIn: 'root' })
 export class TwitchEmbedService {
   private readonly _maxQualitySyncFrames = 120;
+  private readonly _document = inject(DOCUMENT);
+  private readonly _platformId = inject(PLATFORM_ID);
   private _scriptPromise?: Promise<void>;
 
   public loadScript(): Promise<void> {
-    if (window.Twitch?.Embed) {
+    const browserWindow = this._window;
+
+    if (!browserWindow) {
+      return Promise.resolve();
+    }
+
+    if (browserWindow.Twitch?.Embed) {
       return Promise.resolve();
     }
 
@@ -63,20 +72,22 @@ export class TwitchEmbedService {
     showChat: boolean;
     muted: boolean;
   }): TwitchEmbedHandle {
-    if (!window.Twitch?.Embed) {
+    const browserWindow = this._window;
+
+    if (!browserWindow?.Twitch?.Embed) {
       return this._createHandle(options.elementId);
     }
 
     const handle = this._createHandle(options.elementId);
 
-    const embed = new window.Twitch.Embed(options.elementId, {
+    const embed = new browserWindow.Twitch.Embed(options.elementId, {
       width: '100%',
       height: '100%',
       channel: options.channel,
       layout: options.showChat ? 'video-with-chat' : 'video',
       autoplay: true,
       muted: options.muted,
-      parent: [window.location.hostname || 'localhost'],
+      parent: [browserWindow.location.hostname || 'localhost'],
     });
 
     embed.addEventListener('ready', () => {
@@ -92,15 +103,21 @@ export class TwitchEmbedService {
   }
 
   public clearEmbed(elementId: string): void {
-    document.getElementById(elementId)?.replaceChildren();
+    this._document.getElementById(elementId)?.replaceChildren();
   }
 
   private _createScriptPromise(): Promise<void> {
+    const browserWindow = this._window;
+
+    if (!browserWindow) {
+      return Promise.resolve();
+    }
+
     return new Promise<void>((resolve, reject) => {
-      const existingScript = document.querySelector<HTMLScriptElement>('script[data-twitch-embed="true"]');
+      const existingScript = this._document.querySelector<HTMLScriptElement>('script[data-twitch-embed="true"]');
 
       if (existingScript) {
-        if (window.Twitch?.Embed) {
+        if (browserWindow.Twitch?.Embed) {
           resolve();
           return;
         }
@@ -118,7 +135,14 @@ export class TwitchEmbedService {
       script.async = true;
       script.dataset['twitchEmbed'] = 'true';
       this._attachScriptListeners(script, resolve, reject);
-      document.head.appendChild(script);
+
+      if (!this._document.head) {
+        this._scriptPromise = undefined;
+        reject(new Error('Document head is unavailable.'));
+        return;
+      }
+
+      this._document.head.appendChild(script);
     });
   }
 
@@ -127,10 +151,12 @@ export class TwitchEmbedService {
     resolve: () => void,
     reject: (reason?: unknown) => void,
   ): void {
+    const browserWindow = this._window;
+
     script.addEventListener('load', () => {
       script.dataset['loadState'] = 'loaded';
 
-      if (window.Twitch?.Embed) {
+      if (browserWindow?.Twitch?.Embed) {
         resolve();
         return;
       }
@@ -197,8 +223,23 @@ export class TwitchEmbedService {
 
   private _waitForNextFrame(): Promise<void> {
     return new Promise(resolve => {
-      requestAnimationFrame(() => resolve());
+      const browserWindow = this._window;
+
+      if (!browserWindow?.requestAnimationFrame) {
+        globalThis.setTimeout(resolve, 0);
+        return;
+      }
+
+      browserWindow.requestAnimationFrame(() => resolve());
     });
+  }
+
+  private get _window(): Window | null {
+    if (!isPlatformBrowser(this._platformId)) {
+      return null;
+    }
+
+    return this._document.defaultView;
   }
 
   private _mapRequestedQuality(value: StreamQuality): string | null {

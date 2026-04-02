@@ -15,7 +15,7 @@ export class ToastService {
   private readonly _maxVisibleToasts = 4;
   private _nextId = 1;
   private readonly _messages = signal<ToastMessage[]>([]);
-  private readonly _removalTimers = new Map<number, number>();
+  private readonly _removalTimers = new Map<number, ReturnType<typeof globalThis.setTimeout>>();
 
   public readonly messages = this._messages.asReadonly();
 
@@ -63,7 +63,7 @@ export class ToastService {
   private _scheduleRemoval(id: number): void {
     this._clearRemovalTimer(id);
 
-    const timeoutId = window.setTimeout(() => {
+    const timeoutId = globalThis.setTimeout(() => {
       this._removalTimers.delete(id);
       this.remove(id);
     }, this._toastLifetimeMs);
@@ -78,7 +78,7 @@ export class ToastService {
       return;
     }
 
-    window.clearTimeout(timeoutId);
+    globalThis.clearTimeout(timeoutId);
     this._removalTimers.delete(id);
   }
 }

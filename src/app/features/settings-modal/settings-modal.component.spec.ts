@@ -371,6 +371,22 @@ describe('SettingsModalComponent', () => {
     expect(listNavigation.navigateToList).toHaveBeenCalledWith(2);
   });
 
+  it('navigates to the next neighboring list after deleting the active middle list', async () => {
+    state.menuOpen.set(true);
+    state.setLists([
+      { id: 1, name: 'Liste 1', streams: [] },
+      { id: 2, name: 'Liste 2', streams: [] },
+      { id: 3, name: 'Liste 3', streams: [] },
+    ]);
+    state.setActiveListId(2);
+    state.deleteList.mockReturnValue({ id: 2, name: 'Liste 2', streams: [] });
+    await syncComponent();
+
+    getComponentMethod<(list: StreamList) => void>(component, '_deleteList')({ id: 2, name: 'Liste 2', streams: [] });
+
+    expect(listNavigation.navigateToList).toHaveBeenCalledWith(3);
+  });
+
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }

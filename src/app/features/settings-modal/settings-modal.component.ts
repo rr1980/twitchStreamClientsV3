@@ -272,8 +272,15 @@ export class SettingsModalComponent {
   }
 
   private _getNextListIdAfterDeletion(lists: StreamList[], removedListId: number): number | null {
+    const removedIndex = lists.findIndex(list => list.id === removedListId);
+
+    if (removedIndex < 0) {
+      return null;
+    }
+
     const remainingLists = lists.filter(list => list.id !== removedListId);
-    return remainingLists[0]?.id ?? null;
+
+    return remainingLists[removedIndex]?.id ?? remainingLists[removedIndex - 1]?.id ?? null;
   }
 
   private _getFocusableElements(container: HTMLElement): HTMLElement[] {
