@@ -5,138 +5,146 @@
 [![Vitest](https://img.shields.io/badge/Tested%20with-Vitest-6e9f18?logo=vitest&logoColor=white)](https://vitest.dev/)
 [![PWA](https://img.shields.io/badge/PWA-Service%20Worker-0f766e)](https://angular.dev/ecosystem/service-workers)
 
-Twitch Stream Clients V3 is a compact multi-viewer for Twitch streams built with Angular 21.
-It lets you organize streams into reusable lists, switch quality globally, toggle chat per stream, and keep your setup persisted across sessions.
+Twitch Stream Clients V3 is a browser-only Twitch multi-viewer built with Angular 21.
+It lets you group channels into reusable lists, switch stream quality globally, enable chat per stream, and keep the full setup persisted locally.
 
-The project focuses on a fast browser-only experience with a small codebase, predictable state handling, and solid test coverage.
+The app is optimized for a compact codebase, predictable state handling, and strong automated test coverage.
 
-## Highlights
+## Overview
 
-- Multi-stream Twitch viewer with adaptive grid layout
-- Named stream lists with direct linking via hash-based URLs
-- Per-stream chat toggle and list-local stream ordering
-- Global quality switching with Twitch quality fallback handling
-- Local persistence for lists, quality, statistics, and UI state migration
-- Keyboard shortcuts for quick interaction
-- Toast-based feedback for user actions and storage failures
-- Service worker support for production builds
-- Unit and component tests with Vitest
+- Adaptive multi-stream grid driven by viewport size and chat layout
+- Named stream lists with canonical hash URLs such as `#/List/1`
+- Global quality selection with Twitch quality fallback handling
+- Per-stream chat toggle and list-local ordering
+- Local persistence for lists, quality, and usage statistics
+- Legacy storage migration into the current list-based state model
+- Keyboard shortcuts, modal focus handling, and toast-based feedback
+- Production service worker support for static hosting
 
-## How It Works
+## Runtime Behavior
 
-The application is built around a single state service that owns the persisted app model.
-Users manage lists of Twitch channels, choose the active list through the URL hash, and render each stream through the Twitch embed API.
+The app uses a single state service as the persistence boundary and derives UI state through Angular signals.
+The active list is selected from the URL and rendered lazily through the stream grid route.
 
-Examples:
+Canonical route examples:
 
 - `#/List/null` opens the app without an active list
 - `#/List/1` opens list `1`
-- invalid hashes are normalized to the canonical format automatically
+- non-canonical or invalid routes are normalized to `#/List/<id|null>` while preserving query params and fragments
 
-## Feature Overview
+Persistence details:
+
+- Current application state is stored in `localStorage` under `app_state_v3`
+- Legacy keys such as `streams_v2`, `streams`, `quality_v2`, `streams_qualities`, `streams_qualies`, and `stats_v2` are migrated on first load
+- Failed persistence writes are surfaced to the user instead of failing silently
+
+## Features
+
+### Stream Lists
+
+- Create, rename, select, and delete named lists
+- Keep independent channel collections per list
+- Navigate directly to a list through the URL
+- Automatically choose the next sensible list after deletion
 
 ### Stream Management
 
-- Create, rename, select, and delete named stream lists
-- Add channels with normalization and duplicate protection
-- Reorder streams within a list
-- Remove channels individually
-- Use recent stream statistics as datalist suggestions
+- Add Twitch channels with normalization and duplicate protection
+- Accept channel names containing `a-z`, `äöü`, `0-9`, and `_` with a maximum of 25 characters
+- Reorder streams inside the active list
+- Remove individual streams without affecting other lists
+- Reuse recent stream statistics as datalist suggestions
 
 ### Viewing Experience
 
-- Automatically calculates an efficient stream grid based on viewport size
-- Supports `auto`, `480p`, `720p60`, and `chunked` quality modes
-- Falls back to the closest available Twitch quality when needed
-- Allows chat to be enabled per stream
-- Mutes all but the primary stream on initial render
+- Calculate an efficient grid layout based on the current viewport
+- Render Twitch embeds lazily for the active list only
+- Support dynamic quality options reported by the Twitch player
+- Preserve the selected quality even when Twitch reports a different option set
+- Mute all but the first rendered stream on initial sync
 
-### State, Navigation, and Resilience
+### Interaction and Accessibility
 
-- Persists app state in `localStorage`
-- Migrates legacy storage keys into the current list-based state model
-- Keeps navigation centralized through a dedicated hash navigation service
-- Normalizes invalid URLs into a stable `#/List/<id|null>` format
-- Surfaces persistence failures to the user instead of silently losing changes
-
-### UX Details
-
-- `M` toggles the settings menu when focus is not inside a typing field
-- `Escape` closes the settings menu
-- Modal focus is restored when the dialog closes
-- Toast messages are deduplicated and counted when repeated
+- `M` opens the settings dialog when focus is not inside a typing context
+- `Escape` closes the dialog
+- Focus is restored to the previously active element after closing the dialog
+- Toasts are deduplicated and counted when the same message repeats
 
 ## Tech Stack
 
-- Angular 21
+- Angular 21 with standalone components
 - TypeScript 6
-- Angular Signals for local app state
-- Angular Service Worker for production PWA support
-- Vitest for tests
-- ESLint for linting
+- Angular Signals and computed state
+- Angular Router with hash location strategy
+- Angular Service Worker for production builds
+- Vitest through Angular's unit test builder
+- ESLint with Angular ESLint flat config
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 22+ recommended
-- npm 11+
+- Node.js 22 or newer recommended
+- npm 11 or newer
 
-### Installation
+### Install Dependencies
 
 ```bash
 npm install
 ```
 
-### Start the Development Server
+### Start Development
 
 ```bash
 npm start
 ```
 
-The app starts with Angular's dev server.
-If port `4200` is already in use, Angular may offer a different port automatically.
+This starts Angular's development server.
+If port `4200` is already occupied, Angular may offer another port.
 
 ## Available Scripts
 
 | Command | Description |
 | --- | --- |
-| `npm start` | Starts the Angular dev server |
-| `npm run build` | Creates a production build |
-| `npm run watch` | Builds in watch mode for development |
-| `npm test` | Runs the Vitest-based Angular test suite once |
-| `npm run test:coverage` | Runs tests with coverage output |
-| `npm run coverage:check` | Verifies coverage thresholds |
-| `npm run test:coverage:ci` | Full CI coverage run plus threshold check |
-| `npm run lint` | Runs ESLint |
-| `npm run http` | Serves the production build from `dist/twitchStreamClientsV3/browser` |
+| `npm start` | Start the Angular development server |
+| `npm run build` | Create the production build with static output |
+| `npm run watch` | Run a development build in watch mode |
+| `npm test` | Run the full test suite once |
+| `npm run test:coverage` | Run the test suite with coverage |
+| `npm run coverage:check` | Validate coverage thresholds from the generated coverage report |
+| `npm run test:coverage:ci` | Run coverage generation and threshold validation together |
+| `npm run lint` | Run ESLint for TypeScript and Angular templates |
+| `npm run http` | Serve the production build from `dist/twitchStreamClientsV3/browser` on port `8086` |
 
-## Build and Preview Production Output
+## Production Preview
+
+Build and preview the static production output locally:
 
 ```bash
 npm run build
 npm run http
 ```
 
-Then open:
+Then open `http://localhost:8086`.
 
-```text
-http://localhost:8086
-```
+## Quality Gates
 
-## Testing
+The project uses automated linting, unit tests, component tests, and coverage checks.
 
-The project uses Angular's test integration with Vitest and includes unit and component tests for core state, embeds, modal interactions, error handling, hotkeys, and grid calculation.
-
-Useful commands:
+Common verification commands:
 
 ```bash
+npm run lint
 npm test
-npm run test:coverage
 npm run test:coverage:ci
 ```
 
-Coverage artifacts are written to `coverage/twitchStreamClientsV3/`.
+Coverage reports are written to `coverage/twitchStreamClientsV3/`.
+The current enforced minimum thresholds are:
+
+- Statements: `97%`
+- Branches: `93.5%`
+- Functions: `94.5%`
 
 ## Project Structure
 
@@ -144,36 +152,51 @@ Coverage artifacts are written to `coverage/twitchStreamClientsV3/`.
 src/
 	app/
 		core/
-			models/       App state types
-			services/     State, storage, navigation, hotkeys, embeds, error handling
-			utils/        Bootstrap helpers
+			models/        App state and persistence types
+			services/      State, storage, routing, hotkeys, embeds, error handling
+			utils/         Bootstrap and error utilities
 		features/
 			settings-modal/  List and stream management UI
-			stream-grid/     Twitch embed grid
-			toast/           Notification system
+			stream-grid/     Twitch embed grid and layout sync
+			toast/           Toast container and notification service
 		shared/
-			utils/        Shared layout helpers
+			utils/         Shared layout helpers
+public/
+	icons/             PWA icons
+scripts/
+	check-coverage.mjs Coverage threshold validation
 ```
 
 ## Architecture Notes
 
-- `StreamStateService` is the central state owner and persistence boundary.
-- `ListNavigationService` keeps URL hash parsing and normalization in one place.
-- `TwitchEmbedService` wraps script loading, embed creation, cleanup, and quality synchronization.
-- UI feedback is routed through `ToastService`.
+- `StreamStateService` owns the persisted state model for lists, quality, statistics, and menu visibility
+- `ListNavigationService` encapsulates URL parsing, canonicalization, and list navigation
+- `TwitchEmbedService` wraps Twitch script loading, embed lifecycle management, and quality synchronization
+- `HotkeyService` centralizes keyboard shortcuts and typing-context guards
+- `ToastService` handles transient user-facing notifications with deduplication
 
-This keeps the application small while avoiding navigation and persistence logic leaking across multiple components.
+The result is a small application where routing, persistence, and embed concerns stay isolated instead of leaking across components.
 
 ## PWA Support
 
-Production builds include an Angular service worker configuration and a web app manifest.
-That means the app is structured to behave like a lightweight installable web application when served in production.
+Production builds register Angular's service worker and include a web app manifest.
+That makes the app suitable for static hosting with installable web app behavior in supported browsers.
 
 ## Notes
 
-- This project uses the Twitch embed API and therefore depends on Twitch availability and embed restrictions.
-- The application is not affiliated with Twitch.
+- The app depends on the Twitch embed API and on Twitch's embed availability and restrictions
+- The UI copy is currently German
+- This project has no backend and stores all state in the browser
+- The application is not affiliated with Twitch
+
+## Open Source
+
+This repository is intended to be publicly reusable under the MIT License.
+That means other developers may use, modify, and redistribute the code with minimal restrictions, as long as the license notice is kept with substantial portions of the software.
+
+The MIT License applies to the source code in this repository.
+It does not grant rights to Twitch branding, trademarks, or third-party streamed content.
 
 ## License
 
-No license file is included in this repository at the moment.
+This project is licensed under the MIT License. See `LICENSE` for details.
