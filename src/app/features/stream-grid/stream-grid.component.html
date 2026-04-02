@@ -1,23 +1,23 @@
 <main
   #gridHost
   class="stream-container"
-  [class.stream-container--empty]="streams().length === 0"
-  [style.gridTemplateColumns]="gridTemplateColumns()"
-  [style.gridTemplateRows]="gridTemplateRows()">
+  [class.stream-container--empty]="_streams().length === 0"
+  [style.gridTemplateColumns]="_gridTemplateColumns()"
+  [style.gridTemplateRows]="_gridTemplateRows()">
 
-  @if (streams().length === 0) {
+  @if (_streams().length === 0) {
     <div class="empty-state">
       <h1>Dein Setup ist leer</h1>
-      @if (listCount() === 0) {
+      @if (_listCount() === 0) {
         <p>Es gibt noch keine Listen. Lege im Menü zuerst eine Liste an.</p>
-      } @else if (activeList()) {
-        <p>Die Liste {{ activeList()!.name }} enthält noch keine Streams.</p>
+      } @else if (_activeList()) {
+        <p>Die Liste {{ _activeList()!.name }} enthält noch keine Streams.</p>
       } @else {
         <p>Diese Liste wurde nicht gefunden. Wähle im Menü eine vorhandene Liste oder lege eine neue an.</p>
       }
     </div>
   } @else {
-    @for (stream of streams(); track stream.name) {
+    @for (stream of _streams(); track stream.name) {
       <div class="twitch-embed-wrapper" [attr.data-channel]="stream.name" [id]="'twitch-embed-' + stream.name"></div>
     }
   }

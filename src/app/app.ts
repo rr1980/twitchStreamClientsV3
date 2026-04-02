@@ -1,59 +1,65 @@
+import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { filter, map, startWith } from 'rxjs';
 import { HotkeyService } from './core/services/hotkey.service';
 import { ListNavigationService } from './core/services/list-navigation.service';
-import { StreamGridComponent } from './features/stream-grid/stream-grid.component';
 import { SettingsModalComponent } from './features/settings-modal/settings-modal.component';
 import { ToastContainerComponent } from './features/toast/toast-container.component';
 import { StreamStateService } from './core/services/stream-state.service';
 
 @Component({
   selector: 'app-root',
-  imports: [StreamGridComponent, SettingsModalComponent, ToastContainerComponent],
+  imports: [RouterOutlet, SettingsModalComponent, ToastContainerComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    '(window:keydown)': 'onWindowKeydown($event)',
-    '(window:hashchange)': 'onHashChange()',
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    '(window:keydown)': '_onWindowKeydown($event)',
   },
 })
 export class App {
-  readonly state = inject(StreamStateService);
-  private readonly hotkeys = inject(HotkeyService);
-  private readonly listNavigation = inject(ListNavigationService);
-  private readonly title = inject(Title);
+  protected readonly _state = inject(StreamStateService);
+  private readonly _document = inject(DOCUMENT);
+  private readonly _hotkeys = inject(HotkeyService);
+  private readonly _listNavigation = inject(ListNavigationService);
+  private readonly _title = inject(Title);
+  private readonly _router = inject(Router);
+  private readonly _activeListIdFromRoute = toSignal(
+    this._router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map(() => this._listNavigation.readListId(this._router.url)),
+      startWith(this._listNavigation.readListId(this._router.url)),
+    ),
+    { initialValue: this._listNavigation.readListId(this._router.url) },
+  );
 
   constructor() {
     effect(() => {
-      this.title.setTitle(this.buildDocumentTitle());
+      this._state.setActiveListId(this._activeListIdFromRoute());
     });
 
-    this.syncListFromHash();
+    effect(() => {
+      this._title.setTitle(this._buildDocumentTitle());
+    });
   }
 
-  onWindowKeydown(event: KeyboardEvent): void {
-    if (this.hotkeys.handleWindowKeydown(event, document.activeElement)) {
+  protected _onWindowKeydown(event: KeyboardEvent): void {
+    if (this._hotkeys.handleWindowKeydown(event, this._document.activeElement)) {
       event.preventDefault();
     }
   }
 
-  onHashChange(): void {
-    this.syncListFromHash();
+  protected _openMenu(): void {
+    this._state.openMenu();
   }
 
-  openMenu(): void {
-    this.state.openMenu();
-  }
-
-  private syncListFromHash(): void {
-    const listId = this.listNavigation.syncLocationToListHash();
-    this.state.setActiveListId(listId);
-  }
-
-  private buildDocumentTitle(): string {
-    const activeList = this.state.activeList();
-    const activeListId = this.state.activeListId();
+  private _buildDocumentTitle(): string {
+    const activeList = this._state.activeList();
+    const activeListId = this._state.activeListId();
 
     if (activeList) {
       return `${activeList.name} | Twitch Multi-Viewer`;

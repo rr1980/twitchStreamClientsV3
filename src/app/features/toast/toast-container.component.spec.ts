@@ -1,7 +1,9 @@
 import { signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
+import type { ComponentFixture } from '@angular/core/testing';
 import { ToastContainerComponent } from './toast-container.component';
-import { ToastMessage, ToastService } from './toast.service';
+import { ToastService } from './toast.service';
+import type { ToastMessage } from './toast.service';
 
 describe('ToastContainerComponent', () => {
   let fixture: ComponentFixture<ToastContainerComponent>;
@@ -46,5 +48,5 @@ describe('ToastContainerComponent', () => {
 });
 
 class MockToastService {
-  readonly messages = signal<ToastMessage[]>([]);
+  public readonly messages = signal<ToastMessage[]>([]);
 }

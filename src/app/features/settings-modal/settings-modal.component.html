@@ -1,5 +1,5 @@
-@if (isOpen()) {
-  <div class="modal-backdrop" (click)="onBackdropClick($event)">
+@if (_isOpen()) {
+  <div class="modal-backdrop" (click)="_onBackdropClick($event)">
     <div
       #modalPanel
       id="settings-modal"
@@ -8,13 +8,13 @@
       aria-modal="true"
       aria-labelledby="settings-modal-title"
       tabindex="-1"
-      (keydown)="onDialogKeydown($event)">
+      (keydown)="_onDialogKeydown($event)">
       <div class="modal__header">
         <div>
           <h2 id="settings-modal-title">Twitch Multi-Viewer</h2>
         </div>
 
-        <button type="button" class="icon-btn" aria-label="Einstellungen schließen" (click)="close()">✕</button>
+        <button type="button" class="icon-btn" aria-label="Einstellungen schließen" (click)="_close()">✕</button>
       </div>
 
       <div class="modal__body">
@@ -23,15 +23,15 @@
             <section class="settings-summary" aria-label="Übersicht">
               <div class="summary-pill summary-pill--accent">
                 <span class="summary-pill__label">Aktive Liste</span>
-                <strong class="summary-pill__value">{{ activeList()?.name ?? 'Keine Auswahl' }}</strong>
+                <strong class="summary-pill__value">{{ _activeList()?.name ?? 'Keine Auswahl' }}</strong>
               </div>
               <div class="summary-pill">
                 <span class="summary-pill__label">Listen</span>
-                <strong class="summary-pill__value">{{ lists().length }}</strong>
+                <strong class="summary-pill__value">{{ _lists().length }}</strong>
               </div>
               <div class="summary-pill">
                 <span class="summary-pill__label">Streams</span>
-                <strong class="summary-pill__value">{{ streams().length }}</strong>
+                <strong class="summary-pill__value">{{ _streams().length }}</strong>
               </div>
             </section>
 
@@ -43,16 +43,16 @@
                     #listInput
                     id="list-input"
                     type="text"
-                    [formControl]="newListNameControl"
+                    [formControl]="_newListNameControl"
                     autocomplete="off"
                     maxlength="60"
                     placeholder="z. B. Esports"
-                    (keydown.enter)="createList()" />
-                  <button type="button" class="primary-btn" aria-label="Liste anlegen" (click)="createList()">+</button>
+                    (keydown.enter)="_createList()" />
+                  <button type="button" class="primary-btn" aria-label="Liste anlegen" (click)="_createList()">+</button>
                 </div>
               </div>
 
-              @if (activeList()) {
+              @if (_activeList()) {
                 <div class="form-block panel-card panel-card--compact">
                   <label for="rename-list-input">Liste umbenennen</label>
                   <div class="input-row input-row--compact">
@@ -60,12 +60,12 @@
                       #renameListInput
                       id="rename-list-input"
                       type="text"
-                      [formControl]="activeListNameControl"
+                      [formControl]="_activeListNameControl"
                       autocomplete="off"
                       maxlength="60"
                       placeholder="Listenname"
-                      (keydown.enter)="renameActiveList()" />
-                    <button type="button" class="apply-btn" aria-label="Listenname speichern" (click)="renameActiveList()">Speichern</button>
+                      (keydown.enter)="_renameActiveList()" />
+                    <button type="button" class="apply-btn" aria-label="Listenname speichern" (click)="_renameActiveList()">Speichern</button>
                   </div>
                 </div>
               }
@@ -76,20 +76,20 @@
                 <div class="list-block panel-card">
                   <div class="list-block__header">
                     <p class="section-label">Listen</p>
-                    <span>{{ lists().length }} Liste{{ lists().length === 1 ? '' : 'n' }}</span>
+                    <span>{{ _lists().length }} Liste{{ _lists().length === 1 ? '' : 'n' }}</span>
                   </div>
 
                   <div class="list-selector" role="list" aria-label="Verfügbare Listen">
-                    @if (lists().length === 0) {
+                    @if (_lists().length === 0) {
                       <div class="empty-box">Noch keine Listen vorhanden.</div>
                     } @else {
-                      @for (list of lists(); track trackList($index, list)) {
-                        <div class="list-item" [class.list-item--active]="activeListId() === list.id" role="listitem">
-                          <button type="button" class="list-item__select" [attr.aria-pressed]="activeListId() === list.id" (click)="selectList(list.id)">
+                      @for (list of _lists(); track _trackList($index, list)) {
+                        <div class="list-item" [class.list-item--active]="_activeListId() === list.id" role="listitem">
+                          <button type="button" class="list-item__select" [attr.aria-pressed]="_activeListId() === list.id" (click)="_selectList(list.id)">
                             <span class="list-item__name">{{ list.name }}</span>
                             <span class="list-item__meta">#{{ list.id }} · {{ list.streams.length }} Stream{{ list.streams.length === 1 ? '' : 's' }}</span>
                           </button>
-                          <button type="button" class="danger-btn danger-btn--compact" [attr.aria-label]="list.name + ' löschen'" (click)="deleteList(list)">Löschen</button>
+                          <button type="button" class="danger-btn danger-btn--compact" [attr.aria-label]="list.name + ' löschen'" (click)="_deleteList(list)">Löschen</button>
                         </div>
                       }
                     }
@@ -98,10 +98,10 @@
               </div>
 
               <div class="content-grid__secondary">
-                <div class="form-block panel-card panel-card--compact" [class.panel-card--muted]="!hasActiveList()">
+                <div class="form-block panel-card panel-card--compact" [class.panel-card--muted]="!_hasActiveList()">
                   <label for="stream-input">Kanal</label>
                   <p id="stream-input-hint" class="field-hint field-hint--compact">
-                    @if (activeList()) {
+                    @if (_activeList()) {
                       a-z, äöü, 0-9 und Unterstriche, maximal 25 Zeichen.
                     } @else {
                       Erstelle zuerst eine Liste.
@@ -112,58 +112,58 @@
                       #streamInput
                       id="stream-input"
                       type="text"
-                      [formControl]="channelNameControl"
-                      [attr.list]="topStatistics().length ? 'history-datalist' : null"
+                      [formControl]="_channelNameControl"
+                      [attr.list]="_topStatistics().length ? 'history-datalist' : null"
                       aria-describedby="stream-input-hint"
                       autocomplete="off"
                       autocorrect="off"
                       spellcheck="false"
                       maxlength="25"
                       placeholder="z. B. rocketbeanstv"
-                      (keydown.enter)="addStream()" />
-                    <button type="button" class="primary-btn" [disabled]="!hasActiveList()" aria-label="Kanal hinzufügen" (click)="addStream()">+</button>
+                      (keydown.enter)="_addStream()" />
+                    <button type="button" class="primary-btn" [disabled]="!_hasActiveList()" aria-label="Kanal hinzufügen" (click)="_addStream()">+</button>
                   </div>
 
-                  @if (topStatistics().length) {
+                  @if (_topStatistics().length) {
                     <datalist id="history-datalist">
-                      @for (item of topStatistics(); track item.name) {
-                        <option [value]="formatStatisticLabel(item)"></option>
+                      @for (item of _topStatistics(); track item.name) {
+                        <option [value]="_formatStatisticLabel(item)"></option>
                       }
                     </datalist>
                   }
                 </div>
 
-                <div class="list-block panel-card" [class.panel-card--muted]="!hasActiveList()">
+                <div class="list-block panel-card" [class.panel-card--muted]="!_hasActiveList()">
                   <div class="list-block__header">
                     <p class="section-label">Streams</p>
-                    <span>{{ streams().length }} Stream{{ streams().length === 1 ? '' : 's' }}</span>
+                    <span>{{ _streams().length }} Stream{{ _streams().length === 1 ? '' : 's' }}</span>
                   </div>
 
                   <div class="stream-list" role="list" aria-label="Aktive Streams">
-                    @if (streams().length === 0) {
+                    @if (_streams().length === 0) {
                       <div class="empty-box">
-                        @if (activeList()) {
+                        @if (_activeList()) {
                           Noch keine Streams aktiv.
                         } @else {
                           Keine aktive Liste ausgewählt.
                         }
                       </div>
                     } @else {
-                      @for (stream of streams(); track trackStream($index, stream); let i = $index) {
+                      @for (stream of _streams(); track _trackStream($index, stream); let i = $index) {
                         <div class="stream-item" role="listitem">
                           <div class="stream-item__move">
-                            <button type="button" [disabled]="i === 0" [attr.aria-label]="stream.name + ' nach oben verschieben'" (click)="moveStream(i, -1)">↑</button>
-                            <button type="button" [disabled]="i === streams().length - 1" [attr.aria-label]="stream.name + ' nach unten verschieben'" (click)="moveStream(i, 1)">↓</button>
+                            <button type="button" [disabled]="i === 0" [attr.aria-label]="stream.name + ' nach oben verschieben'" (click)="_moveStream(i, -1)">↑</button>
+                            <button type="button" [disabled]="i === _streams().length - 1" [attr.aria-label]="stream.name + ' nach unten verschieben'" (click)="_moveStream(i, 1)">↓</button>
                           </div>
 
                           <div class="stream-item__index">{{ i + 1 }}</div>
                           <div class="stream-item__name" [title]="stream.name">{{ stream.name }}</div>
                           <label class="toggle-row stream-item__chat">
-                            <input class="toggle-row__input" type="checkbox" [checked]="stream.showChat" [attr.aria-label]="stream.name + ' Chat anzeigen'" (change)="onStreamChatChange(i, $event)" />
+                            <input class="toggle-row__input" type="checkbox" [checked]="stream.showChat" [attr.aria-label]="stream.name + ' Chat anzeigen'" (change)="_onStreamChatChange(i, $event)" />
                             <span class="stream-item__chat-label">Chat</span>
                             <span class="toggle-row__indicator" aria-hidden="true"></span>
                           </label>
-                          <button type="button" class="stream-item__remove danger-btn danger-btn--compact" [attr.aria-label]="stream.name + ' entfernen'" (click)="removeStream(i)">Entfernen</button>
+                          <button type="button" class="stream-item__remove danger-btn danger-btn--compact" [attr.aria-label]="stream.name + ' entfernen'" (click)="_removeStream(i)">Entfernen</button>
                         </div>
                       }
                     }
@@ -180,14 +180,14 @@
               <legend class="section-label" id="quality-label">Qualität</legend>
 
               <div class="quality-grid">
-              @for (quality of qualityOptions; track quality) {
-                  <label class="quality-option" [class.quality-option--active]="selectedQuality() === quality">
+              @for (quality of _qualityOptions(); track _trackQuality($index, quality)) {
+                  <label class="quality-option" [class.quality-option--active]="_selectedQuality() === quality.value">
                     <input
                       type="radio"
                       name="stream-quality"
-                      [checked]="selectedQuality() === quality"
-                      (change)="setQuality(quality)" />
-                    <span class="quality-btn">{{ quality === 'chunked' ? 'Source' : quality }}</span>
+                      [checked]="_selectedQuality() === quality.value"
+                      (change)="_setQuality(quality.value)" />
+                    <span class="quality-btn">{{ quality.label }}</span>
                   </label>
               }
               </div>

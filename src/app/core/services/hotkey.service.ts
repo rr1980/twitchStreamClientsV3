@@ -3,19 +3,19 @@ import { StreamStateService } from './stream-state.service';
 
 @Injectable({ providedIn: 'root' })
 export class HotkeyService {
-  private readonly state = inject(StreamStateService);
+  private readonly _state = inject(StreamStateService);
 
-  handleWindowKeydown(event: KeyboardEvent, activeElement: Element | null): boolean {
+  public handleWindowKeydown(event: KeyboardEvent, activeElement: Element | null): boolean {
     if (event.defaultPrevented || event.isComposing) {
       return false;
     }
 
-    if(!event.key){
+    if (!event.key) {
       return false;
     }
 
-    if (event.key === 'Escape') {
-      this.state.closeMenu();
+    if (event.key === 'Escape' && this._state.menuOpen()) {
+      this._state.closeMenu();
       return true;
     }
 
@@ -23,15 +23,15 @@ export class HotkeyService {
       return false;
     }
 
-    if (event.key.toLowerCase() === 'm' && !this.isTypingContext(activeElement)) {
-      this.state.toggleMenu();
+    if (event.key.toLowerCase() === 'm' && !this._state.menuOpen() && !this._isTypingContext(activeElement)) {
+      this._state.openMenu();
       return true;
     }
 
     return false;
   }
 
-  private isTypingContext(activeElement: Element | null): boolean {
+  private _isTypingContext(activeElement: Element | null): boolean {
     if (!(activeElement instanceof HTMLElement)) {
       return false;
     }

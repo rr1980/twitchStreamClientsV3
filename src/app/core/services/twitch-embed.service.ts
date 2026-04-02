@@ -1,9 +1,12 @@
-import { Injectable } from '@angular/core';
-import { StreamQuality } from '../models/app-settings.model';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { Injectable, PLATFORM_ID, inject, isDevMode } from '@angular/core';
+import type { StreamQuality, StreamQualityOption } from '../models/app-settings.model';
 
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     Twitch?: {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       Embed: new (
         elementId: string,
         options: {
@@ -22,9 +25,21 @@ declare global {
 
 interface TwitchPlayer {
   setQuality(value: string): void;
-  getQualities(): (string | { name?: string })[];
+  getQualities(): TwitchQualityDescriptor[];
   getQuality(): string;
 }
+
+type TwitchQualityDescriptor = string | {
+  name?: string;
+  quality?: string;
+  value?: string;
+  label?: string;
+  title?: string;
+  displayName?: string;
+  display_name?: string;
+  localizedName?: string;
+  localized_name?: string;
+};
 
 interface TwitchEmbedInstance {
   addEventListener(event: string, callback: () => void): void;
@@ -35,46 +50,60 @@ export interface TwitchEmbedHandle {
   destroy(): void;
 }
 
+interface CreateEmbedOptions {
+  elementId: string;
+  channel: string;
+  quality: StreamQuality;
+  showChat: boolean;
+  muted: boolean;
+  onAvailableQualities?: (qualities: StreamQualityOption[]) => void;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TwitchEmbedService {
-  private readonly maxQualitySyncFrames = 120;
-  private scriptPromise?: Promise<void>;
+  private readonly _maxQualitySyncFrames = 120;
+  private readonly _document = inject(DOCUMENT);
+  private readonly _platformId = inject(PLATFORM_ID);
+  private _scriptPromise?: Promise<void>;
+  private _didLogQualityDescriptors = false;
 
-  loadScript(): Promise<void> {
-    if (window.Twitch?.Embed) {
+  public loadScript(): Promise<void> {
+    const browserWindow = this._window;
+
+    if (!browserWindow) {
       return Promise.resolve();
     }
 
-    if (this.scriptPromise) {
-      return this.scriptPromise;
+    if (browserWindow.Twitch?.Embed) {
+      return Promise.resolve();
     }
 
-    this.scriptPromise = this.createScriptPromise();
+    if (this._scriptPromise) {
+      return this._scriptPromise;
+    }
 
-    return this.scriptPromise;
+    this._scriptPromise = this._createScriptPromise();
+
+    return this._scriptPromise;
   }
 
-  createEmbed(options: {
-    elementId: string;
-    channel: string;
-    quality: StreamQuality;
-    showChat: boolean;
-    muted: boolean;
-  }): TwitchEmbedHandle {
-    if (!window.Twitch?.Embed) {
-      return this.createHandle(options.elementId);
+  public createEmbed(options: CreateEmbedOptions): TwitchEmbedHandle {
+    const browserWindow = this._window;
+
+    if (!browserWindow?.Twitch?.Embed) {
+      return this._createHandle(options.elementId);
     }
 
-    const handle = this.createHandle(options.elementId);
+    const handle = this._createHandle(options.elementId);
 
-    const embed = new window.Twitch.Embed(options.elementId, {
+    const embed = new browserWindow.Twitch.Embed(options.elementId, {
       width: '100%',
       height: '100%',
       channel: options.channel,
       layout: options.showChat ? 'video-with-chat' : 'video',
       autoplay: true,
       muted: options.muted,
-      parent: [window.location.hostname || 'localhost'],
+      parent: [browserWindow.location.hostname || 'localhost'],
     });
 
     embed.addEventListener('ready', () => {
@@ -83,22 +112,34 @@ export class TwitchEmbedService {
       }
 
       const player = embed.getPlayer();
-      void this.syncRequestedQuality(player, options.channel, options.quality, () => handle.isDestroyed());
+      void this._syncRequestedQuality(
+        player,
+        options.channel,
+        options.quality,
+        () => handle.isDestroyed(),
+        options.onAvailableQualities,
+      );
     });
 
     return handle;
   }
 
-  clearEmbed(elementId: string): void {
-    document.getElementById(elementId)?.replaceChildren();
+  public clearEmbed(elementId: string): void {
+    this._document.getElementById(elementId)?.replaceChildren();
   }
 
-  private createScriptPromise(): Promise<void> {
+  private _createScriptPromise(): Promise<void> {
+    const browserWindow = this._window;
+
+    if (!browserWindow) {
+      return Promise.resolve();
+    }
+
     return new Promise<void>((resolve, reject) => {
-      const existingScript = document.querySelector<HTMLScriptElement>('script[data-twitch-embed="true"]');
+      const existingScript = this._document.querySelector<HTMLScriptElement>('script[data-twitch-embed="true"]');
 
       if (existingScript) {
-        if (window.Twitch?.Embed) {
+        if (browserWindow.Twitch?.Embed) {
           resolve();
           return;
         }
@@ -106,7 +147,7 @@ export class TwitchEmbedService {
         if (existingScript.dataset['loadState'] === 'error') {
           existingScript.remove();
         } else {
-          this.attachScriptListeners(existingScript, resolve, reject);
+          this._attachScriptListeners(existingScript, resolve, reject);
           return;
         }
       }
@@ -115,106 +156,166 @@ export class TwitchEmbedService {
       script.src = 'https://embed.twitch.tv/embed/v1.js';
       script.async = true;
       script.dataset['twitchEmbed'] = 'true';
-      this.attachScriptListeners(script, resolve, reject);
-      document.head.appendChild(script);
+      this._attachScriptListeners(script, resolve, reject);
+
+      if (!this._document.head) {
+        this._scriptPromise = undefined;
+        reject(new Error('Document head is unavailable.'));
+        return;
+      }
+
+      this._document.head.appendChild(script);
     });
   }
 
-  private attachScriptListeners(
+  private _attachScriptListeners(
     script: HTMLScriptElement,
     resolve: () => void,
     reject: (reason?: unknown) => void,
   ): void {
+    const browserWindow = this._window;
+
     script.addEventListener('load', () => {
       script.dataset['loadState'] = 'loaded';
 
-      if (window.Twitch?.Embed) {
+      if (browserWindow?.Twitch?.Embed) {
         resolve();
         return;
       }
 
-      this.resetScriptState(script);
+      this._resetScriptState(script);
       reject(new Error('Twitch embed script loaded without exposing Twitch.Embed.'));
     }, { once: true });
 
     script.addEventListener('error', () => {
-      this.resetScriptState(script);
+      this._resetScriptState(script);
       reject(new Error('Twitch embed script failed.'));
     }, { once: true });
   }
 
-  private resetScriptState(script: HTMLScriptElement): void {
+  private _resetScriptState(script: HTMLScriptElement): void {
     script.dataset['loadState'] = 'error';
     script.remove();
-    this.scriptPromise = undefined;
+    this._scriptPromise = undefined;
   }
 
-  private async syncRequestedQuality(
+  private async _syncRequestedQuality(
     player: TwitchPlayer,
     channel: string,
     quality: StreamQuality,
     isDestroyed: () => boolean,
+    onAvailableQualities?: (qualities: StreamQualityOption[]) => void,
   ): Promise<void> {
-    const requestedQuality = this.mapRequestedQuality(quality);
-
-    if (!requestedQuality) {
-      return;
-    }
+    const requestedQuality = this._mapRequestedQuality(quality);
 
     try {
-      for (let frame = 0; frame < this.maxQualitySyncFrames; frame++) {
+      for (let frame = 0; frame < this._maxQualitySyncFrames; frame++) {
         if (isDestroyed()) {
           return;
         }
 
-        const availableQualities = this.readAvailableQualities(player);
-        const resolvedQuality = this.resolveRequestedQuality(requestedQuality, availableQualities);
+        const availableQualityOptions = this._readAvailableQualities(player);
+        const availableQualities = availableQualityOptions.map(option => option.value);
+
+        if (availableQualityOptions.length > 0) {
+          onAvailableQualities?.(availableQualityOptions);
+        }
+
+        if (!requestedQuality) {
+          if (availableQualities.length > 0) {
+            return;
+          }
+
+          await this._waitForNextFrame();
+          continue;
+        }
+
+        const resolvedQuality = this._resolveRequestedQuality(requestedQuality, availableQualities);
 
         if (resolvedQuality) {
           player.setQuality(resolvedQuality);
           return;
         }
 
-        await this.waitForNextFrame();
+        await this._waitForNextFrame();
+      }
+
+      if (!requestedQuality) {
+        return;
       }
 
       console.warn(
         `[Twitch] Quality '${requestedQuality}' für Channel '${channel}' nicht verfügbar.`,
-        this.readAvailableQualities(player),
+        this._readAvailableQualities(player).map(option => option.value),
       );
     } catch (error) {
       console.warn('[Twitch] Quality Set Error:', error);
     }
   }
 
-  private readAvailableQualities(player: TwitchPlayer): string[] {
-    return (player.getQualities?.() ?? [])
-      .map(quality => typeof quality === 'string' ? quality : quality.name ?? '')
-      .filter((quality): quality is string => quality.length > 0);
+  private _readAvailableQualities(player: TwitchPlayer): StreamQualityOption[] {
+    const rawQualities = player.getQualities?.() ?? [];
+
+    if (isDevMode() && !this._didLogQualityDescriptors && rawQualities.some(quality => typeof quality !== 'string')) {
+      this._didLogQualityDescriptors = true;
+      console.info('[Twitch] Raw quality descriptors:', rawQualities);
+    }
+
+    const qualities = new Map<string, StreamQualityOption>();
+
+    rawQualities
+      .map(quality => this._normalizeQualityDescriptor(quality))
+      .filter((quality): quality is StreamQualityOption => quality !== null)
+      .forEach(quality => {
+        const existingQuality = qualities.get(quality.value.toLowerCase());
+
+        if (!existingQuality || this._getQualityLabelScore(quality) > this._getQualityLabelScore(existingQuality)) {
+          qualities.set(quality.value.toLowerCase(), quality);
+        }
+      });
+
+    return [...qualities.values()];
   }
 
-  private waitForNextFrame(): Promise<void> {
+  private _waitForNextFrame(): Promise<void> {
     return new Promise(resolve => {
-      requestAnimationFrame(() => resolve());
+      const browserWindow = this._window;
+
+      if (!browserWindow?.requestAnimationFrame) {
+        globalThis.setTimeout(resolve, 0);
+        return;
+      }
+
+      browserWindow.requestAnimationFrame(() => resolve());
     });
   }
 
-  private mapRequestedQuality(value: StreamQuality): string | null {
-    switch (value) {
-      case 'auto':
-        return null;
-      case 'chunked':
-        return 'chunked';
-      case '480p':
-        return '480p';
-      case '720p60':
-        return '720p60';
-      default:
-        return null;
+  private get _window(): Window | null {
+    if (!isPlatformBrowser(this._platformId)) {
+      return null;
     }
+
+    return this._document.defaultView;
   }
 
-  private resolveRequestedQuality(requestedQuality: string, availableQualities: string[]): string | null {
+  private _mapRequestedQuality(value: StreamQuality): string | null {
+    const normalizedValue = typeof value === 'string' ? value.trim() : 'auto';
+    const sourceQualityMatch = normalizedValue.match(/^(\d+p(?:\d+(?:-\d+)?)?)\s*\((?:source|quelle)\)$/i);
+
+    if (normalizedValue === 'auto') {
+      return null;
+    }
+
+    if (sourceQualityMatch) {
+      return 'chunked';
+    }
+
+    return /^(chunked|audio_only|\d+p(?:\d+(?:-\d+)?)?)$/i.test(normalizedValue)
+      ? normalizedValue
+      : null;
+  }
+
+  private _resolveRequestedQuality(requestedQuality: string, availableQualities: string[]): string | null {
     if (availableQualities.includes(requestedQuality)) {
       return requestedQuality;
     }
@@ -223,35 +324,35 @@ export class TwitchEmbedService {
       return null;
     }
 
-    const qualityFamily = this.extractQualityFamily(requestedQuality);
+    const qualityFamily = this._extractQualityFamily(requestedQuality);
 
     if (!qualityFamily) {
       return null;
     }
 
-    const familyMatches = availableQualities.filter(quality => this.extractQualityFamily(quality) === qualityFamily);
+    const familyMatches = availableQualities.filter(quality => this._extractQualityFamily(quality) === qualityFamily);
 
     if (familyMatches.length === 0) {
       return null;
     }
 
-    return this.rankQualityMatches(requestedQuality, qualityFamily, familyMatches)[0] ?? null;
+    return this._rankQualityMatches(requestedQuality, qualityFamily, familyMatches)[0] ?? null;
   }
 
-  private extractQualityFamily(value: string): string | null {
+  private _extractQualityFamily(value: string): string | null {
     const match = value.match(/^\d+p/);
 
     return match?.[0] ?? null;
   }
 
-  private rankQualityMatches(requestedQuality: string, qualityFamily: string, matches: string[]): string[] {
+  private _rankQualityMatches(requestedQuality: string, qualityFamily: string, matches: string[]): string[] {
     return [...matches].sort((left, right) => {
-      return this.getQualityMatchScore(left, requestedQuality, qualityFamily)
-        - this.getQualityMatchScore(right, requestedQuality, qualityFamily);
+      return this._getQualityMatchScore(left, requestedQuality, qualityFamily)
+        - this._getQualityMatchScore(right, requestedQuality, qualityFamily);
     });
   }
 
-  private getQualityMatchScore(candidate: string, requestedQuality: string, qualityFamily: string): number {
+  private _getQualityMatchScore(candidate: string, requestedQuality: string, qualityFamily: string): number {
     if (candidate === requestedQuality) {
       return 0;
     }
@@ -267,7 +368,94 @@ export class TwitchEmbedService {
     return 3;
   }
 
-  private createHandle(elementId: string): TwitchEmbedHandle & { isDestroyed(): boolean } {
+  private _normalizeQualityDescriptor(descriptor: TwitchQualityDescriptor): StreamQualityOption | null {
+    if (typeof descriptor === 'string') {
+      const normalizedValue = this._mapRequestedQuality(descriptor);
+
+      return normalizedValue
+        ? { value: normalizedValue, label: this._getDefaultQualityLabel(normalizedValue) }
+        : null;
+    }
+
+    const normalizedValue = [descriptor.name, descriptor.quality, descriptor.value]
+      .map(value => this._mapRequestedQuality(value ?? ''))
+      .find((value): value is string => value !== null)
+      ?? this._mapRequestedQuality(
+        [
+          descriptor.label,
+          descriptor.displayName,
+          descriptor.display_name,
+          descriptor.localizedName,
+          descriptor.localized_name,
+          descriptor.title,
+        ].find((value): value is string => typeof value === 'string' && value.trim().length > 0) ?? '',
+      );
+
+    if (!normalizedValue) {
+      return null;
+    }
+
+    const rawLabel = [
+      descriptor.label,
+      descriptor.displayName,
+      descriptor.display_name,
+      descriptor.localizedName,
+      descriptor.localized_name,
+      descriptor.title,
+    ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+    return {
+      value: normalizedValue,
+      label: this._normalizeQualityLabel(normalizedValue, rawLabel),
+    };
+  }
+
+  private _normalizeQualityLabel(value: StreamQuality, rawLabel?: string): string {
+    const normalizedLabel = rawLabel?.trim().replace(/\s+/g, ' ');
+
+    if (!normalizedLabel) {
+      return this._getDefaultQualityLabel(value);
+    }
+
+    if (value === 'chunked') {
+      if (/^source$/i.test(normalizedLabel)) {
+        return 'Quelle';
+      }
+
+      if (/^\d+p(?:\d+(?:-\d+)?)?$/i.test(normalizedLabel)) {
+        return `${normalizedLabel} (Quelle)`;
+      }
+
+      return normalizedLabel.replace(/\(Source\)/gi, '(Quelle)');
+    }
+
+    if (value === 'audio_only' && /^audio only$/i.test(normalizedLabel)) {
+      return 'Nur Audio';
+    }
+
+    return normalizedLabel;
+  }
+
+  private _getDefaultQualityLabel(value: StreamQuality): string {
+    switch (value) {
+      case 'chunked':
+        return 'Quelle';
+      case 'audio_only':
+        return 'Nur Audio';
+      default:
+        return value;
+    }
+  }
+
+  private _getQualityLabelScore(option: StreamQualityOption): number {
+    if (option.value === 'chunked' && /^\d+p/i.test(option.label)) {
+      return 3;
+    }
+
+    return option.label === this._getDefaultQualityLabel(option.value) ? 1 : 2;
+  }
+
+  private _createHandle(elementId: string): TwitchEmbedHandle & { isDestroyed(): boolean } {
     let destroyed = false;
 
     return {

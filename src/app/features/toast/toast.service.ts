@@ -11,15 +11,15 @@ export interface ToastMessage {
 
 @Injectable({ providedIn: 'root' })
 export class ToastService {
-  private readonly toastLifetimeMs = 3000;
-  private readonly maxVisibleToasts = 4;
-  private nextId = 1;
+  private readonly _toastLifetimeMs = 3000;
+  private readonly _maxVisibleToasts = 4;
+  private _nextId = 1;
   private readonly _messages = signal<ToastMessage[]>([]);
-  private readonly removalTimers = new Map<number, number>();
+  private readonly _removalTimers = new Map<number, ReturnType<typeof globalThis.setTimeout>>();
 
-  readonly messages = this._messages.asReadonly();
+  public readonly messages = this._messages.asReadonly();
 
-  show(text: string, type: ToastType = 'success'): void {
+  public show(text: string, type: ToastType = 'success'): void {
     const duplicate = this._messages().find(message => message.text === text && message.type === type);
 
     if (duplicate) {
@@ -28,12 +28,12 @@ export class ToastService {
           ? { ...item, count: item.count + 1 }
           : item),
       );
-      this.scheduleRemoval(duplicate.id);
+      this._scheduleRemoval(duplicate.id);
       return;
     }
 
     const message: ToastMessage = {
-      id: this.nextId++,
+      id: this._nextId++,
       text,
       type,
       count: 1,
@@ -42,43 +42,43 @@ export class ToastService {
     this._messages.update(items => {
       const nextItems = [...items, message];
 
-      if (nextItems.length <= this.maxVisibleToasts) {
+      if (nextItems.length <= this._maxVisibleToasts) {
         return nextItems;
       }
 
       const removedMessage = nextItems[0];
-      this.clearRemovalTimer(removedMessage.id);
+      this._clearRemovalTimer(removedMessage.id);
 
       return nextItems.slice(1);
     });
 
-    this.scheduleRemoval(message.id);
+    this._scheduleRemoval(message.id);
   }
 
-  remove(id: number): void {
-    this.clearRemovalTimer(id);
+  public remove(id: number): void {
+    this._clearRemovalTimer(id);
     this._messages.update(items => items.filter(item => item.id !== id));
   }
 
-  private scheduleRemoval(id: number): void {
-    this.clearRemovalTimer(id);
+  private _scheduleRemoval(id: number): void {
+    this._clearRemovalTimer(id);
 
-    const timeoutId = window.setTimeout(() => {
-      this.removalTimers.delete(id);
+    const timeoutId = globalThis.setTimeout(() => {
+      this._removalTimers.delete(id);
       this.remove(id);
-    }, this.toastLifetimeMs);
+    }, this._toastLifetimeMs);
 
-    this.removalTimers.set(id, timeoutId);
+    this._removalTimers.set(id, timeoutId);
   }
 
-  private clearRemovalTimer(id: number): void {
-    const timeoutId = this.removalTimers.get(id);
+  private _clearRemovalTimer(id: number): void {
+    const timeoutId = this._removalTimers.get(id);
 
     if (timeoutId === undefined) {
       return;
     }
 
-    window.clearTimeout(timeoutId);
-    this.removalTimers.delete(id);
+    globalThis.clearTimeout(timeoutId);
+    this._removalTimers.delete(id);
   }
 }

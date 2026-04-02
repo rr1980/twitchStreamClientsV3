@@ -1,3 +1,4 @@
+import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { TwitchEmbedService } from './twitch-embed.service';
@@ -6,19 +7,43 @@ describe('TwitchEmbedService', () => {
   let service: TwitchEmbedService;
 
   beforeEach(() => {
-    document.head.querySelectorAll('script[data-twitch-embed="true"]').forEach(script => script.remove());
+    document.head?.querySelectorAll('script[data-twitch-embed="true"]').forEach(script => script.remove());
     delete window.Twitch;
 
     TestBed.configureTestingModule({});
     service = TestBed.inject(TwitchEmbedService);
   });
 
+  function setWindowTwitchEmbed(embed: ReturnType<typeof vi.fn>): void {
+    const twitchApi = {} as NonNullable<Window['Twitch']>;
+    twitchApi.Embed = embed as never;
+    window.Twitch = twitchApi;
+  }
+
+  function getServiceMethod<T extends (...args: never[]) => unknown>(propertyName: string): T {
+    return ((service as unknown as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(service) as T;
+  }
+
+  function setServiceMember<T>(propertyName: string, value: T): void {
+    (service as unknown as Record<string, unknown>)[propertyName] = value;
+  }
+
   it('reuses the already loaded Twitch API', async () => {
-    window.Twitch = {
-      Embed: vi.fn() as never,
-    };
+    setWindowTwitchEmbed(vi.fn());
 
     await expect(service.loadScript()).resolves.toBeUndefined();
+    expect(document.head.querySelector('script[data-twitch-embed="true"]')).toBeNull();
+  });
+
+  it('short-circuits script loading on the server platform', async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [{ provide: PLATFORM_ID, useValue: 'server' }],
+    });
+
+    const serverService = TestBed.inject(TwitchEmbedService);
+
+    await expect(serverService.loadScript()).resolves.toBeUndefined();
     expect(document.head.querySelector('script[data-twitch-embed="true"]')).toBeNull();
   });
 
@@ -42,9 +67,7 @@ describe('TwitchEmbedService', () => {
 
     expect(secondScript).not.toBe(firstScript);
 
-    window.Twitch = {
-      Embed: vi.fn() as never,
-    };
+    setWindowTwitchEmbed(vi.fn());
 
     secondScript.dispatchEvent(new Event('load'));
     await expect(secondAttempt).resolves.toBeUndefined();
@@ -57,9 +80,7 @@ describe('TwitchEmbedService', () => {
 
     const attempt = service.loadScript();
 
-    window.Twitch = {
-      Embed: vi.fn() as never,
-    };
+    setWindowTwitchEmbed(vi.fn());
 
     existingScript.dispatchEvent(new Event('load'));
 
@@ -71,9 +92,7 @@ describe('TwitchEmbedService', () => {
     const existingScript = document.createElement('script');
     existingScript.dataset['twitchEmbed'] = 'true';
     document.head.appendChild(existingScript);
-    window.Twitch = {
-      Embed: vi.fn() as never,
-    };
+    setWindowTwitchEmbed(vi.fn());
 
     await expect(service.loadScript()).resolves.toBeUndefined();
     expect(document.head.querySelectorAll('script[data-twitch-embed="true"]')).toHaveLength(1);
@@ -101,9 +120,7 @@ describe('TwitchEmbedService', () => {
     expect(replacementScript).not.toBe(existingScript);
     expect(document.head.contains(existingScript)).toBe(false);
 
-    window.Twitch = {
-      Embed: vi.fn() as never,
-    };
+    setWindowTwitchEmbed(vi.fn());
 
     replacementScript.dispatchEvent(new Event('load'));
 
@@ -114,13 +131,32 @@ describe('TwitchEmbedService', () => {
     const existingScript = document.createElement('script');
     existingScript.dataset['twitchEmbed'] = 'true';
     document.head.appendChild(existingScript);
-    window.Twitch = {
-      Embed: vi.fn() as never,
-    };
+    setWindowTwitchEmbed(vi.fn());
 
-    await expect((service as unknown as {
-      createScriptPromise(): Promise<void>;
-    }).createScriptPromise()).resolves.toBeUndefined();
+    await expect((service as unknown as Record<string, () => Promise<void>>)['_createScriptPromise']()).resolves.toBeUndefined();
+  });
+
+  it('resolves createScriptPromise immediately when no browser window is available', async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [{ provide: PLATFORM_ID, useValue: 'server' }],
+    });
+
+    const serverService = TestBed.inject(TwitchEmbedService);
+    const createScriptPromise = ((serverService as unknown as Record<string, unknown>)['_createScriptPromise'] as () => Promise<void>)
+      .bind(serverService);
+
+    await expect(createScriptPromise()).resolves.toBeUndefined();
+  });
+
+  it('fails cleanly when the document head is unavailable during script creation', async () => {
+    const headSpy = vi.spyOn(document, 'head', 'get').mockReturnValue(null as never);
+
+    try {
+      await expect(service.loadScript()).rejects.toThrow('Document head is unavailable.');
+    } finally {
+      headSpy.mockRestore();
+    }
   });
 
   it('returns a destroyable handle for created embeds', () => {
@@ -134,9 +170,7 @@ describe('TwitchEmbedService', () => {
       return { addEventListener, getPlayer };
     });
 
-    window.Twitch = {
-      Embed: EmbedMock as never,
-    };
+    setWindowTwitchEmbed(EmbedMock);
 
     const host = document.createElement('div');
     host.id = 'twitch-embed-shroud';
@@ -182,6 +216,87 @@ describe('TwitchEmbedService', () => {
     host.remove();
   });
 
+  it('reports available qualities when the embed becomes ready', async () => {
+    const onAvailableQualities = vi.fn();
+    const player = {
+      getQualities: vi.fn(() => [
+        { name: 'chunked', label: '1080p60 (Quelle)' },
+        { name: '1080p60' },
+        { name: '' },
+        'audio_only',
+      ]),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbed(EmbedMock);
+
+    service.createEmbed({
+      elementId: 'twitch-embed-reported-qualities',
+      channel: 'reported-qualities',
+      quality: '720p60',
+      showChat: false,
+      muted: false,
+      onAvailableQualities,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+
+    expect(onAvailableQualities).toHaveBeenCalledWith([
+      { value: 'chunked', label: '1080p60 (Quelle)' },
+      { value: '1080p60', label: '1080p60' },
+      { value: 'audio_only', label: 'Nur Audio' },
+    ]);
+  });
+
+  it('normalizes Twitch quality descriptors from labels and prefers the richest source label', () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const readAvailableQualities = getServiceMethod<(player: { getQualities(): unknown[] }) => { value: string; label: string }[]>('_readAvailableQualities');
+
+    try {
+      expect(readAvailableQualities({
+        getQualities: () => [
+          'chunked',
+          { name: 'chunked', label: '1080p60 (Source)' },
+          { label: '720p60' },
+          { quality: 'audio_only', label: 'Audio Only' },
+          { title: 'unsupported' },
+        ],
+      })).toEqual([
+        { value: 'chunked', label: '1080p60 (Quelle)' },
+        { value: '720p60', label: '720p60' },
+        { value: 'audio_only', label: 'Nur Audio' },
+      ]);
+
+      expect(infoSpy).toHaveBeenCalledWith('[Twitch] Raw quality descriptors:', expect.any(Array));
+    } finally {
+      infoSpy.mockRestore();
+    }
+  });
+
+  it('maps source-style labels and localized quality labels correctly', () => {
+    const mapRequestedQuality = getServiceMethod<(value: string) => string | null>('_mapRequestedQuality');
+    const normalizeQualityDescriptor = getServiceMethod<(descriptor: unknown) => { value: string; label: string } | null>('_normalizeQualityDescriptor');
+
+    expect(mapRequestedQuality('1080p60 (Quelle)')).toBe('chunked');
+    expect(normalizeQualityDescriptor({ name: 'chunked', label: 'Source' })).toEqual({ value: 'chunked', label: 'Quelle' });
+    expect(normalizeQualityDescriptor({ name: 'chunked', label: '1080p60' })).toEqual({ value: 'chunked', label: '1080p60 (Quelle)' });
+    expect(normalizeQualityDescriptor({ value: 'audio_only', label: 'Audio Only' })).toEqual({ value: 'audio_only', label: 'Nur Audio' });
+    expect(normalizeQualityDescriptor({ title: 'unsupported' })).toBeNull();
+  });
+
   it('sets the requested quality when it becomes available on ready', async () => {
     const player = {
       getQualities: vi.fn()
@@ -207,9 +322,7 @@ describe('TwitchEmbedService', () => {
       return 1;
     });
 
-    window.Twitch = {
-      Embed: EmbedMock as never,
-    };
+    setWindowTwitchEmbed(EmbedMock);
 
     service.createEmbed({
       elementId: 'twitch-embed-quality',
@@ -229,7 +342,14 @@ describe('TwitchEmbedService', () => {
   });
 
   it('supports 480p and chunked quality mappings', async () => {
-    const createReadyHarness = () => {
+    const createReadyHarness = (): {
+      player: {
+        getQualities: ReturnType<typeof vi.fn>;
+        getQuality: ReturnType<typeof vi.fn>;
+        setQuality: ReturnType<typeof vi.fn>;
+      };
+      triggerReady: () => void;
+    } => {
       const player = {
         getQualities: vi.fn(() => ['480p', 'chunked']),
         getQuality: vi.fn(() => 'auto'),
@@ -247,7 +367,7 @@ describe('TwitchEmbedService', () => {
         };
       });
 
-      window.Twitch = { Embed: EmbedMock as never };
+      setWindowTwitchEmbed(EmbedMock);
 
       return { player, triggerReady: () => readyCallback?.() };
     };
@@ -291,7 +411,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    window.Twitch = { Embed: EmbedMock as never };
+    setWindowTwitchEmbed(EmbedMock);
 
     service.createEmbed({
       elementId: 'fallback-720',
@@ -325,7 +445,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    window.Twitch = { Embed: EmbedMock as never };
+    setWindowTwitchEmbed(EmbedMock);
 
     service.createEmbed({
       elementId: 'fallback-480',
@@ -359,7 +479,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    window.Twitch = { Embed: EmbedMock as never };
+    setWindowTwitchEmbed(EmbedMock);
 
     service.createEmbed({ elementId: 'auto', channel: 'auto', quality: 'auto', showChat: false, muted: false });
     readyCallback?.();
@@ -370,6 +490,56 @@ describe('TwitchEmbedService', () => {
     await Promise.resolve();
 
     expect(player.setQuality).not.toHaveBeenCalled();
+  });
+
+  it('keeps polling qualities in auto mode until Twitch reports them', async () => {
+    const onAvailableQualities = vi.fn();
+    const player = {
+      getQualities: vi.fn()
+        .mockReturnValueOnce([])
+        .mockReturnValueOnce(['1080p60', 'chunked'])
+        .mockReturnValue(['1080p60', 'chunked']),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      callback(0);
+      return 1;
+    });
+
+    setWindowTwitchEmbed(EmbedMock);
+
+    service.createEmbed({
+      elementId: 'auto-reported-qualities',
+      channel: 'auto-reported-qualities',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+      onAvailableQualities,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onAvailableQualities).toHaveBeenLastCalledWith([
+      { value: '1080p60', label: '1080p60' },
+      { value: 'chunked', label: 'Quelle' },
+    ]);
+    expect(player.setQuality).not.toHaveBeenCalled();
+
+    rafSpy.mockRestore();
   });
 
   it('stops quality syncing when the embed is destroyed before ready completes', async () => {
@@ -390,9 +560,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    window.Twitch = {
-      Embed: EmbedMock as never,
-    };
+    setWindowTwitchEmbed(EmbedMock);
 
     const handle = service.createEmbed({
       elementId: 'twitch-embed-destroyed',
@@ -432,9 +600,7 @@ describe('TwitchEmbedService', () => {
       return rafCallbacks.length;
     });
 
-    window.Twitch = {
-      Embed: EmbedMock as never,
-    };
+    setWindowTwitchEmbed(EmbedMock);
 
     const handle = service.createEmbed({
       elementId: 'twitch-embed-frame-destroyed',
@@ -481,11 +647,9 @@ describe('TwitchEmbedService', () => {
       return 1;
     });
 
-    window.Twitch = {
-      Embed: EmbedMock as never,
-    };
+    setWindowTwitchEmbed(EmbedMock);
 
-    (service as unknown as { maxQualitySyncFrames: number }).maxQualitySyncFrames = 2;
+    (service as unknown as Record<string, number>)['_maxQualitySyncFrames'] = 2;
 
     service.createEmbed({
       elementId: 'twitch-embed-unavailable',
@@ -530,7 +694,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    window.Twitch = { Embed: EmbedMock as never };
+    setWindowTwitchEmbed(EmbedMock);
 
     service.createEmbed({
       elementId: 'throwing-quality',
@@ -546,5 +710,53 @@ describe('TwitchEmbedService', () => {
     expect(warnSpy).toHaveBeenCalledWith('[Twitch] Quality Set Error:', expect.any(Error));
 
     warnSpy.mockRestore();
+  });
+
+  it('falls back to setTimeout when requestAnimationFrame is unavailable', async () => {
+    const waitForNextFrame = getServiceMethod<() => Promise<void>>('_waitForNextFrame');
+    const timeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    const originalDocument = (service as unknown as Record<string, unknown>)['_document'];
+
+    try {
+      setServiceMember('_document', { defaultView: {} } as Document);
+
+      await waitForNextFrame();
+
+      expect(timeoutSpy).toHaveBeenCalled();
+    } finally {
+      setServiceMember('_document', originalDocument);
+      timeoutSpy.mockRestore();
+    }
+  });
+
+  it('returns null when a requested quality has no family match', () => {
+    const resolveRequestedQuality = getServiceMethod<(requestedQuality: string, availableQualities: string[]) => string | null>('_resolveRequestedQuality');
+
+    expect(resolveRequestedQuality('audio_only', ['chunked', '480p'])).toBeNull();
+    expect(resolveRequestedQuality('720p60', ['480p', '360p'])).toBeNull();
+  });
+
+  it('scores and ranks quality candidates in the expected order', () => {
+    const getQualityMatchScore = getServiceMethod<(
+      candidate: string,
+      requestedQuality: string,
+      qualityFamily: string,
+    ) => number>('_getQualityMatchScore');
+    const rankQualityMatches = getServiceMethod<(
+      requestedQuality: string,
+      qualityFamily: string,
+      matches: string[],
+    ) => string[]>('_rankQualityMatches');
+
+    expect(getQualityMatchScore('720p60', '720p60', '720p')).toBe(0);
+    expect(getQualityMatchScore('720p', '720p60', '720p')).toBe(1);
+    expect(getQualityMatchScore('720p30-60', '720p60', '720p')).toBe(2);
+    expect(getQualityMatchScore('720p30', '720p60', '720p')).toBe(3);
+    expect(rankQualityMatches('720p60', '720p', ['720p30', '720p', '720p30-60', '720p60'])).toEqual([
+      '720p60',
+      '720p',
+      '720p30-60',
+      '720p30',
+    ]);
   });
 });

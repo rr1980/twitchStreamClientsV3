@@ -52,6 +52,18 @@ describe('ToastService', () => {
     expect(service.messages()).toHaveLength(0);
   });
 
+  it('increments only the matching duplicate toast when other messages are present', () => {
+    service.show('Erste Meldung', 'error');
+    service.show('Zweite Meldung', 'info');
+
+    service.show('Erste Meldung', 'error');
+
+    expect(service.messages()).toEqual([
+      { id: 1, text: 'Erste Meldung', type: 'error', count: 2 },
+      { id: 2, text: 'Zweite Meldung', type: 'info', count: 1 },
+    ]);
+  });
+
   it('limits the number of visible toasts to the newest four', () => {
     service.show('Toast 1');
     service.show('Toast 2');
