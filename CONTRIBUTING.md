@@ -33,6 +33,7 @@ npm run test:coverage:ci
 - Mention any behavior changes that affect users
 - Call out follow-up work if something is intentionally left out
 - Include screenshots or short recordings for visible UI changes when helpful
+- Use the repository's issue and pull request templates when applicable
 
 ## Scope Notes
 
