@@ -152,7 +152,7 @@ export class TwitchEmbedService {
         }
       }
 
-      const script = document.createElement('script');
+      const script = this._document.createElement('script');
       script.src = 'https://embed.twitch.tv/embed/v1.js';
       script.async = true;
       script.dataset['twitchEmbed'] = 'true';

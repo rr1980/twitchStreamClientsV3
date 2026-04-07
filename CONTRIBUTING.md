@@ -6,6 +6,7 @@ Thanks for contributing to Twitch Stream Clients V3.
 
 - Use a current Node.js 22+ and npm 11+ setup
 - Install dependencies with `npm install`
+- If `npm install` reports a TypeScript peer dependency conflict, remove `node_modules` and `package-lock.json` and retry with the repository's pinned versions
 - Prefer small, focused changes instead of broad refactors
 - Keep the existing Angular 21 standalone and signals-based architecture intact
 
