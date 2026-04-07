@@ -534,8 +534,8 @@ describe('TwitchEmbedService', () => {
     await Promise.resolve();
 
     expect(onAvailableQualities).toHaveBeenLastCalledWith([
-      { value: '1080p60', label: '1080p60' },
       { value: 'chunked', label: 'Quelle' },
+      { value: '1080p60', label: '1080p60' },
     ]);
     expect(player.setQuality).not.toHaveBeenCalled();
 

@@ -1,0 +1,55 @@
+import type { StreamQualityOption } from '../../core/models/app-settings.model';
+import {
+  areStreamQualityOptionsEqual,
+  buildAvailableStreamQualityOptions,
+  normalizeAvailableStreamQualities,
+  normalizeStreamQuality,
+} from './stream-quality.util';
+
+describe('stream-quality.util', () => {
+  it('normalizes supported and localized quality values', () => {
+    expect(normalizeStreamQuality('1080p60 (Quelle)')).toBe('chunked');
+    expect(normalizeStreamQuality('1080p60 (Source)')).toBe('chunked');
+    expect(normalizeStreamQuality('720p60')).toBe('720p60');
+    expect(normalizeStreamQuality('invalid')).toBe('auto');
+  });
+
+  it('deduplicates and sorts available qualities with normalized labels', () => {
+    expect(normalizeAvailableStreamQualities([
+      quality('chunked', 'Source'),
+      quality('chunked', '1080p60'),
+      quality('720p60', '   '),
+      quality('audio_only', 'Audio Only'),
+      quality('auto', 'Auto'),
+    ])).toEqual([
+      quality('chunked', '1080p60 (Quelle)'),
+      quality('720p60'),
+      quality('audio_only', 'Nur Audio'),
+    ]);
+  });
+
+  it('keeps the selected quality visible in the built option list', () => {
+    expect(buildAvailableStreamQualityOptions([
+      quality('1080p60'),
+      quality('chunked', '1080p60 (Quelle)'),
+    ], '936p60')).toEqual([
+      quality('auto', 'Auto'),
+      quality('chunked', '1080p60 (Quelle)'),
+      quality('1080p60'),
+      quality('936p60'),
+    ]);
+  });
+
+  it('compares quality lists by normalized order and content', () => {
+    const left = [quality('chunked', 'Quelle'), quality('720p60')];
+    const right = [quality('chunked', 'Quelle'), quality('720p60')];
+    const changed = [quality('chunked', '1080p60 (Quelle)'), quality('720p60')];
+
+    expect(areStreamQualityOptionsEqual(left, right)).toBe(true);
+    expect(areStreamQualityOptionsEqual(left, changed)).toBe(false);
+  });
+
+  function quality(value: string, label = value): StreamQualityOption {
+    return { value, label };
+  }
+});

@@ -15,6 +15,7 @@ import { StreamStateService } from '../../core/services/stream-state.service';
 import { TwitchEmbedService } from '../../core/services/twitch-embed.service';
 import type { TwitchEmbedHandle } from '../../core/services/twitch-embed.service';
 import { calculateOptimalGrid } from '../../shared/utils/grid.util';
+import { areStreamQualityOptionsEqual } from '../../shared/utils/stream-quality.util';
 import { ToastService } from '../toast/toast.service';
 
 interface RenderedEmbedState {
@@ -154,14 +155,15 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
         return;
       }
 
-      const wrapper = host.querySelector<HTMLElement>(`.twitch-embed-wrapper[data-channel="${stream.name}"]`);
+      const wrapperId = this._getEmbedElementId(stream.name);
+      const wrapper = host.ownerDocument.getElementById(wrapperId);
 
-      if (!wrapper) {
+      if (!(wrapper instanceof HTMLElement) || !host.contains(wrapper)) {
         return;
       }
 
       const nextState: RenderedEmbedSnapshot = {
-        elementId: wrapper.id,
+        elementId: wrapperId,
         quality,
         showChat: stream.showChat,
         muted: index !== 0,
@@ -174,7 +176,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
       this._renderedEmbeds.get(stream.name)?.handle.destroy();
 
       const handle = this._twitch.createEmbed({
-        elementId: wrapper.id,
+        elementId: wrapperId,
         channel: stream.name,
         quality,
         showChat: stream.showChat,
@@ -228,10 +230,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
       .filter((quality, index, items) => items.findIndex(candidate => candidate.value === quality.value) === index);
     const currentQualities = this._availableQualitiesByStream.get(stream) ?? [];
 
-    if (
-      currentQualities.length === normalizedQualities.length
-      && currentQualities.every((quality, index) => quality.value === normalizedQualities[index]?.value && quality.label === normalizedQualities[index]?.label)
-    ) {
+    if (areStreamQualityOptionsEqual(currentQualities, normalizedQualities)) {
       return;
     }
 
@@ -246,6 +245,10 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
   private _syncAvailableQualities(): void {
     this._state.setAvailableQualities([...this._availableQualitiesByStream.values()].flat());
+  }
+
+  private _getEmbedElementId(channel: string): string {
+    return `twitch-embed-${channel}`;
   }
 
   private _isRenderedStateCurrent(stream: string, nextState: RenderedEmbedSnapshot): boolean {

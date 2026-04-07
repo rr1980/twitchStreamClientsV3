@@ -2,6 +2,11 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import type { AppSettings, StreamChannel, StreamList, StreamQuality, StreamQualityOption, StreamStatistic } from '../models/app-settings.model';
 import { StorageService } from './storage.service';
 import { ToastService } from '../../features/toast/toast.service';
+import {
+  buildAvailableStreamQualityOptions,
+  normalizeAvailableStreamQualities,
+  normalizeStreamQuality,
+} from '../../shared/utils/stream-quality.util';
 
 type PersistedStreamState = AppSettings;
 type StoredState = PersistedStreamState & { showChat?: unknown };
@@ -37,7 +42,7 @@ export class StreamStateService {
   public readonly activeList = computed(() => this._lists().find(list => list.id === this._activeListId()) ?? null);
   public readonly streams = computed(() => this.activeList()?.streams ?? []);
   public readonly quality = computed(() => this._quality());
-  public readonly availableQualities = computed(() => this._buildAvailableQualityOptions(
+  public readonly availableQualities = computed(() => buildAvailableStreamQualityOptions(
     this._reportedAvailableQualities(),
     this._quality(),
   ));
@@ -234,11 +239,11 @@ export class StreamStateService {
   }
 
   public setQuality(value: StreamQuality): void {
-    this._quality.set(this._normalizeStoredQuality(value));
+    this._quality.set(normalizeStreamQuality(value));
   }
 
   public setAvailableQualities(values: StreamQualityOption[]): void {
-    this._reportedAvailableQualities.set(this._normalizeAvailableQualities(values));
+    this._reportedAvailableQualities.set(normalizeAvailableStreamQualities(values));
   }
 
   public setStreamShowChat(index: number, value: boolean): void {
@@ -273,7 +278,7 @@ export class StreamStateService {
     const legacyShowChat = Boolean(persistedState.showChat);
 
     this._lists.set(this._normalizeStoredLists(persistedState.lists, legacyShowChat));
-    this._quality.set(this._normalizeStoredQuality(persistedState.quality));
+    this._quality.set(normalizeStreamQuality(persistedState.quality));
     this._statistics.set(this._normalizeStoredStatistics(persistedState.statistics));
   }
 
@@ -298,7 +303,7 @@ export class StreamStateService {
           streams: migratedStreams.map(stream => ({ ...stream, showChat })),
         }]
         : [],
-      quality: this._normalizeStoredQuality(
+      quality: normalizeStreamQuality(
         this._storage.getItem('quality_v2') ||
         this._storage.getItem('streams_qualities') ||
         this._storage.getItem('streams_qualies') ||
@@ -310,157 +315,6 @@ export class StreamStateService {
     this._storage.setJson(this._stateKey, migratedState);
 
     return migratedState;
-  }
-
-  private _normalizeStoredQuality(value: unknown): StreamQuality {
-    const storedQuality = typeof value === 'string' ? value.trim() : 'auto';
-    const sourceQualityMatch = storedQuality.match(/^(\d+p(?:\d+(?:-\d+)?)?)\s*\((?:source|quelle)\)$/i);
-
-    if (sourceQualityMatch) {
-      return 'chunked';
-    }
-
-    return this._isSupportedQuality(storedQuality) ? storedQuality : 'auto';
-  }
-
-  private _normalizeAvailableQualities(values: StreamQualityOption[]): StreamQualityOption[] {
-    const uniqueQualities = new Map<string, StreamQualityOption>();
-
-    values.forEach(value => {
-      const normalizedValue = this._normalizeStoredQuality(value.value);
-
-      if (normalizedValue === 'auto') {
-        return;
-      }
-
-      const normalizedOption: StreamQualityOption = {
-        value: normalizedValue,
-        label: this._normalizeQualityLabel(normalizedValue, value.label),
-      };
-      const existingOption = uniqueQualities.get(normalizedValue.toLowerCase());
-
-      if (!existingOption || this._getQualityLabelScore(normalizedOption) > this._getQualityLabelScore(existingOption)) {
-        uniqueQualities.set(normalizedValue.toLowerCase(), normalizedOption);
-      }
-    });
-
-    return [...uniqueQualities.values()].sort((left, right) => this._compareQualityOptions(left.value, right.value));
-  }
-
-  private _buildAvailableQualityOptions(reportedQualities: StreamQualityOption[], selectedQuality: StreamQuality): StreamQualityOption[] {
-    const qualityOptions = new Map<string, StreamQualityOption>();
-    const normalizedSelectedQuality = this._normalizeStoredQuality(selectedQuality);
-
-    qualityOptions.set('auto', { value: 'auto', label: this._getDefaultQualityLabel('auto') });
-
-    if (normalizedSelectedQuality !== 'auto') {
-      qualityOptions.set(normalizedSelectedQuality.toLowerCase(), {
-        value: normalizedSelectedQuality,
-        label: this._getDefaultQualityLabel(normalizedSelectedQuality),
-      });
-    }
-
-    this._normalizeAvailableQualities(reportedQualities).forEach(quality => {
-      qualityOptions.set(quality.value.toLowerCase(), quality);
-    });
-
-    return [
-      { value: 'auto', label: this._getDefaultQualityLabel('auto') },
-      ...[...qualityOptions.values()]
-        .filter(quality => quality.value !== 'auto')
-        .sort((left, right) => this._compareQualityOptions(left.value, right.value)),
-    ];
-  }
-
-  private _normalizeQualityLabel(value: StreamQuality, label: string): string {
-    const normalizedLabel = label.trim().replace(/\s+/g, ' ');
-
-    if (normalizedLabel.length === 0) {
-      return this._getDefaultQualityLabel(value);
-    }
-
-    if (value === 'chunked') {
-      if (/^source$/i.test(normalizedLabel)) {
-        return 'Quelle';
-      }
-
-      if (/^\d+p(?:\d+(?:-\d+)?)?$/i.test(normalizedLabel)) {
-        return `${normalizedLabel} (Quelle)`;
-      }
-
-      return normalizedLabel.replace(/\(Source\)/gi, '(Quelle)');
-    }
-
-    if (value === 'audio_only' && /^audio only$/i.test(normalizedLabel)) {
-      return 'Nur Audio';
-    }
-
-    return normalizedLabel;
-  }
-
-  private _getDefaultQualityLabel(value: StreamQuality): string {
-    switch (value) {
-      case 'auto':
-        return 'Auto';
-      case 'chunked':
-        return 'Quelle';
-      case 'audio_only':
-        return 'Nur Audio';
-      default:
-        return value.replace(/_/g, ' ');
-    }
-  }
-
-  private _getQualityLabelScore(option: StreamQualityOption): number {
-    if (option.value === 'chunked' && /^\d+p/i.test(option.label)) {
-      return 3;
-    }
-
-    return option.label === this._getDefaultQualityLabel(option.value) ? 1 : 2;
-  }
-
-  private _compareQualityOptions(left: StreamQuality, right: StreamQuality): number {
-    const leftToken = this._getQualitySortToken(left);
-    const rightToken = this._getQualitySortToken(right);
-
-    if (leftToken.group !== rightToken.group) {
-      return leftToken.group - rightToken.group;
-    }
-
-    if (leftToken.resolution !== rightToken.resolution) {
-      return rightToken.resolution - leftToken.resolution;
-    }
-
-    if (leftToken.frameRate !== rightToken.frameRate) {
-      return rightToken.frameRate - leftToken.frameRate;
-    }
-
-    return left.localeCompare(right);
-  }
-
-  private _getQualitySortToken(value: StreamQuality): { group: number; resolution: number; frameRate: number } {
-    if (value === 'chunked') {
-      return { group: 0, resolution: Number.MAX_SAFE_INTEGER, frameRate: Number.MAX_SAFE_INTEGER };
-    }
-
-    if (value === 'audio_only') {
-      return { group: 2, resolution: -1, frameRate: -1 };
-    }
-
-    const qualityMatch = value.match(/^(\d+)p(?:.*?(\d+))?$/i);
-
-    return {
-      group: 1,
-      resolution: qualityMatch ? Number(qualityMatch[1]) : -1,
-      frameRate: value.includes('60') ? 60 : qualityMatch?.[2] ? Number(qualityMatch[2]) : 0,
-    };
-  }
-
-  private _isSupportedQuality(value: string): boolean {
-    return value === 'auto'
-      || value === 'chunked'
-      || value === 'audio_only'
-      || /^\d+p(?:\d+(?:-\d+)?)?$/i.test(value);
   }
 
   private _normalizeStoredStatistics(value: unknown): StreamStatistic[] {

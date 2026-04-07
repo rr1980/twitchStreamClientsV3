@@ -1,6 +1,13 @@
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { Injectable, PLATFORM_ID, inject, isDevMode } from '@angular/core';
 import type { StreamQuality, StreamQualityOption } from '../models/app-settings.model';
+import {
+  areStreamQualityOptionsEqual,
+  getDefaultStreamQualityLabel,
+  normalizeAvailableStreamQualities,
+  normalizeStreamQuality,
+  normalizeStreamQualityLabel,
+} from '../../shared/utils/stream-quality.util';
 
 declare global {
   interface Window {
@@ -62,6 +69,7 @@ interface CreateEmbedOptions {
 @Injectable({ providedIn: 'root' })
 export class TwitchEmbedService {
   private readonly _maxQualitySyncFrames = 120;
+  private readonly _maxQualitySyncDurationMs = 2000;
   private readonly _document = inject(DOCUMENT);
   private readonly _platformId = inject(PLATFORM_ID);
   private _scriptPromise?: Promise<void>;
@@ -207,9 +215,11 @@ export class TwitchEmbedService {
     onAvailableQualities?: (qualities: StreamQualityOption[]) => void,
   ): Promise<void> {
     const requestedQuality = this._mapRequestedQuality(quality);
+    const syncDeadline = Date.now() + this._maxQualitySyncDurationMs;
+    let lastPublishedQualities: StreamQualityOption[] = [];
 
     try {
-      for (let frame = 0; frame < this._maxQualitySyncFrames; frame++) {
+      for (let frame = 0; frame < this._maxQualitySyncFrames && Date.now() < syncDeadline; frame++) {
         if (isDestroyed()) {
           return;
         }
@@ -217,7 +227,8 @@ export class TwitchEmbedService {
         const availableQualityOptions = this._readAvailableQualities(player);
         const availableQualities = availableQualityOptions.map(option => option.value);
 
-        if (availableQualityOptions.length > 0) {
+        if (availableQualityOptions.length > 0 && !areStreamQualityOptionsEqual(availableQualityOptions, lastPublishedQualities)) {
+          lastPublishedQualities = availableQualityOptions;
           onAvailableQualities?.(availableQualityOptions);
         }
 
@@ -261,20 +272,11 @@ export class TwitchEmbedService {
       console.info('[Twitch] Raw quality descriptors:', rawQualities);
     }
 
-    const qualities = new Map<string, StreamQualityOption>();
-
-    rawQualities
-      .map(quality => this._normalizeQualityDescriptor(quality))
-      .filter((quality): quality is StreamQualityOption => quality !== null)
-      .forEach(quality => {
-        const existingQuality = qualities.get(quality.value.toLowerCase());
-
-        if (!existingQuality || this._getQualityLabelScore(quality) > this._getQualityLabelScore(existingQuality)) {
-          qualities.set(quality.value.toLowerCase(), quality);
-        }
-      });
-
-    return [...qualities.values()];
+    return normalizeAvailableStreamQualities(
+      rawQualities
+        .map(quality => this._normalizeQualityDescriptor(quality))
+        .filter((quality): quality is StreamQualityOption => quality !== null),
+    );
   }
 
   private _waitForNextFrame(): Promise<void> {
@@ -299,20 +301,13 @@ export class TwitchEmbedService {
   }
 
   private _mapRequestedQuality(value: StreamQuality): string | null {
-    const normalizedValue = typeof value === 'string' ? value.trim() : 'auto';
-    const sourceQualityMatch = normalizedValue.match(/^(\d+p(?:\d+(?:-\d+)?)?)\s*\((?:source|quelle)\)$/i);
+    const normalizedValue = normalizeStreamQuality(value);
 
     if (normalizedValue === 'auto') {
       return null;
     }
 
-    if (sourceQualityMatch) {
-      return 'chunked';
-    }
-
-    return /^(chunked|audio_only|\d+p(?:\d+(?:-\d+)?)?)$/i.test(normalizedValue)
-      ? normalizedValue
-      : null;
+    return normalizedValue;
   }
 
   private _resolveRequestedQuality(requestedQuality: string, availableQualities: string[]): string | null {
@@ -373,7 +368,7 @@ export class TwitchEmbedService {
       const normalizedValue = this._mapRequestedQuality(descriptor);
 
       return normalizedValue
-        ? { value: normalizedValue, label: this._getDefaultQualityLabel(normalizedValue) }
+        ? { value: normalizedValue, label: getDefaultStreamQualityLabel(normalizedValue) }
         : null;
     }
 
@@ -406,53 +401,8 @@ export class TwitchEmbedService {
 
     return {
       value: normalizedValue,
-      label: this._normalizeQualityLabel(normalizedValue, rawLabel),
+      label: normalizeStreamQualityLabel(normalizedValue, rawLabel),
     };
-  }
-
-  private _normalizeQualityLabel(value: StreamQuality, rawLabel?: string): string {
-    const normalizedLabel = rawLabel?.trim().replace(/\s+/g, ' ');
-
-    if (!normalizedLabel) {
-      return this._getDefaultQualityLabel(value);
-    }
-
-    if (value === 'chunked') {
-      if (/^source$/i.test(normalizedLabel)) {
-        return 'Quelle';
-      }
-
-      if (/^\d+p(?:\d+(?:-\d+)?)?$/i.test(normalizedLabel)) {
-        return `${normalizedLabel} (Quelle)`;
-      }
-
-      return normalizedLabel.replace(/\(Source\)/gi, '(Quelle)');
-    }
-
-    if (value === 'audio_only' && /^audio only$/i.test(normalizedLabel)) {
-      return 'Nur Audio';
-    }
-
-    return normalizedLabel;
-  }
-
-  private _getDefaultQualityLabel(value: StreamQuality): string {
-    switch (value) {
-      case 'chunked':
-        return 'Quelle';
-      case 'audio_only':
-        return 'Nur Audio';
-      default:
-        return value;
-    }
-  }
-
-  private _getQualityLabelScore(option: StreamQualityOption): number {
-    if (option.value === 'chunked' && /^\d+p/i.test(option.label)) {
-      return 3;
-    }
-
-    return option.label === this._getDefaultQualityLabel(option.value) ? 1 : 2;
   }
 
   private _createHandle(elementId: string): TwitchEmbedHandle & { isDestroyed(): boolean } {

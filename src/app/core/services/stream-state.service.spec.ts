@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import type { StreamChannel, StreamQualityOption } from '../models/app-settings.model';
 import { ToastService } from '../../features/toast/toast.service';
+import { normalizeStreamQuality } from '../../shared/utils/stream-quality.util';
 import { StreamStateService } from './stream-state.service';
 import { StorageService } from './storage.service';
 
@@ -480,7 +481,7 @@ describe('StreamStateService', () => {
       service,
       '_normalizeStoredStreams',
     );
-    const normalizeStoredQuality = getServiceMethod<(value: unknown) => string>(service, '_normalizeStoredQuality');
+    const normalizeStoredQuality = normalizeStreamQuality;
 
     expect(normalizeStoredStatistics(null)).toEqual([]);
     expect(normalizeStoredStatistics([
@@ -537,7 +538,7 @@ describe('StreamStateService', () => {
       service,
       '_normalizeStoredStreams',
     );
-    const normalizeStoredQuality = getServiceMethod<(value: unknown) => string>(service, '_normalizeStoredQuality');
+    const normalizeStoredQuality = normalizeStreamQuality;
 
     expect(normalizeStoredQuality(720)).toBe('auto');
     expect(normalizeStoredStatistics([{ name: 'Shroud' }])).toEqual([{ name: 'shroud', value: 1 }]);
