@@ -52,7 +52,6 @@ export class SettingsModalComponent {
   protected readonly _selectedQuality = this._state.quality;
   protected readonly _selectedLayoutPreset = this._state.layoutPreset;
   protected readonly _favoriteChannels = this._state.favoriteChannels;
-  protected readonly _topStatistics = computed(() => this._state.getTopStatistics(10));
   protected readonly _hasActiveList = computed(() => this._activeList() !== null);
   protected readonly _favoriteChannelSet = computed(() => new Set(this._favoriteChannels()));
   protected readonly _favoriteSuggestions = computed(() => {
@@ -69,23 +68,6 @@ export class SettingsModalComponent {
     return this._state.recentChannels()
       .filter(channel => !activeChannels.has(channel) && !favoriteChannels.has(channel))
       .slice(0, 8);
-  });
-  protected readonly _historySuggestions = computed(() => {
-    const activeChannels = new Set(this._streams().map(stream => stream.name));
-    const uniqueChannels = new Set<string>();
-
-    return [
-      ...this._favoriteChannels(),
-      ...this._state.recentChannels(),
-      ...this._topStatistics().map(item => item.name),
-    ].filter(channel => {
-      if (activeChannels.has(channel) || uniqueChannels.has(channel)) {
-        return false;
-      }
-
-      uniqueChannels.add(channel);
-      return true;
-    }).slice(0, 12);
   });
   protected readonly _layoutOptions: StreamLayoutPresetOption[] = [
     { value: 'auto', label: 'Auto' },

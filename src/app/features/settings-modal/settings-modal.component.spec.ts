@@ -62,7 +62,7 @@ describe('SettingsModalComponent', () => {
     opener.remove();
   });
 
-  it('renders history suggestions, lists, correct stream count labels and quality options', async () => {
+  it('renders suggestion chips, lists, correct stream count labels and quality options', async () => {
     state.menuOpen.set(true);
     state.setLists([
       { id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] },
@@ -86,17 +86,16 @@ describe('SettingsModalComponent', () => {
     ];
     await syncComponent();
 
-    const datalist = fixture.nativeElement.querySelector('#history-datalist') as HTMLDataListElement | null;
-    const options = Array.from(datalist?.querySelectorAll('option') ?? []).map(option => option.value);
     const countLabel = fixture.nativeElement.querySelector('.list-block__header span')?.textContent?.trim();
     const checkedRadio = fixture.nativeElement.querySelector('input[name="stream-quality"]:checked') as HTMLInputElement | null;
     const qualityButtons = fixture.nativeElement.querySelectorAll('.quality-btn') as NodeListOf<HTMLElement>;
     const qualityLabels = Array.from(qualityButtons, element => element.textContent?.trim());
     const listNames = Array.from(fixture.nativeElement.querySelectorAll('.list-item__name'), (element: Element) => element.textContent?.trim());
     const suggestionChips = Array.from(fixture.nativeElement.querySelectorAll('.suggestion-chip'), (element: Element) => element.textContent?.trim());
+    const datalist = fixture.nativeElement.querySelector('#history-datalist') as HTMLDataListElement | null;
 
-    expect(options).toEqual(['gronkh', 'papaplatte', 'bonjwa']);
     expect(suggestionChips).toEqual(['gronkh', 'papaplatte']);
+    expect(datalist).toBeNull();
     expect(countLabel).toBe('2 Listen');
     expect(checkedRadio).not.toBeNull();
     expect(qualityLabels).toContain('Auto');
