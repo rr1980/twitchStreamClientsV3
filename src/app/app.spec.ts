@@ -15,6 +15,7 @@ describe('App', () => {
 
   beforeEach(async () => {
     document.title = 'Test';
+    localStorage.clear();
 
     await TestBed.configureTestingModule({
       imports: [App],
@@ -107,6 +108,23 @@ describe('App', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
+  it('renders and dismisses the startup hint on first load', async () => {
+    const fixture = TestBed.createComponent(App);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const notice = fixture.nativeElement.querySelector('.app-notice') as HTMLElement;
+    const dismissButton = fixture.nativeElement.querySelector('[aria-label="Hinweis schließen"]') as HTMLButtonElement;
+
+    expect(notice?.textContent).toContain('Schneller starten');
+
+    dismissButton.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[aria-label="Hinweis schließen"]')).toBeNull();
+  });
+
   it('normalizes list routes to the canonical #/List/<id> format', async () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
@@ -176,5 +194,29 @@ describe('App', () => {
     TestBed.tick();
 
     expect(document.title).toBe('Twitch Multi-Viewer');
+  });
+
+  it('restores the last active list on the initial null route', async () => {
+    localStorage.setItem('app_state_v3', JSON.stringify({
+      lists: [{ id: 2, name: 'Esports', streams: [] }],
+      quality: 'auto',
+      statistics: [],
+      favoriteChannels: [],
+      recentChannels: [],
+      layoutPreset: 'auto',
+      focusedChannel: null,
+      lastActiveListId: 2,
+    }));
+
+    const state = TestBed.inject(StreamStateService);
+    state.initialize();
+    const fixture = TestBed.createComponent(App);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    TestBed.tick();
+    await fixture.whenStable();
+
+    expect(router.url).toBe('/List/2');
   });
 });

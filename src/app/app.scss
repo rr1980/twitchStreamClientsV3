@@ -2,6 +2,76 @@
   display: block;
 }
 
+.app-notice-stack {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 55;
+  display: grid;
+  gap: 10px;
+  width: min(420px, calc(100vw - 96px));
+}
+
+.app-notice {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: rgba(24, 24, 27, 0.9);
+  color: var(--color-text);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-lg);
+}
+
+.app-notice--update {
+  border-color: rgba(145, 70, 255, 0.38);
+  background: linear-gradient(135deg, rgba(145, 70, 255, 0.22), rgba(24, 24, 27, 0.92));
+}
+
+.app-notice strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.app-notice p {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+
+.app-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-notice__btn {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.app-notice__btn--accent {
+  border-color: rgba(145, 70, 255, 0.44);
+  background: rgba(145, 70, 255, 0.18);
+}
+
+.app-notice__btn:hover,
+.app-notice__btn--accent:hover {
+  border-color: var(--color-twitch);
+  color: #fff;
+}
+
+.app-notice__btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
 .menu-trigger {
   position: fixed;
   top: 20px;
@@ -23,4 +93,17 @@
   transform: scale(1.05);
   background: var(--color-twitch);
   border-color: var(--color-twitch);
+}
+
+@media (max-width: 720px) {
+  .app-notice-stack {
+    top: 16px;
+    left: 16px;
+    width: calc(100vw - 88px);
+  }
+
+  .menu-trigger {
+    top: 16px;
+    right: 16px;
+  }
 }

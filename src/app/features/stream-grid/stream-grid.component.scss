@@ -15,6 +15,62 @@
   height: 100%;
   background: var(--color-surface-3);
   position: relative;
+  overflow: hidden;
+}
+
+.twitch-embed-wrapper--focused {
+  box-shadow: inset 0 0 0 2px rgba(145, 70, 255, 0.55);
+}
+
+.twitch-embed-slot {
+  width: 100%;
+  height: 100%;
+}
+
+.stream-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.stream-overlay__name {
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stream-overlay__action {
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  pointer-events: auto;
+}
+
+.stream-overlay__action:hover {
+  border-color: var(--color-twitch);
+  background: rgba(145, 70, 255, 0.4);
+}
+
+.stream-overlay__action:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
 .empty-state {
@@ -37,4 +93,16 @@
 .empty-state p {
   margin: 0;
   color: var(--color-muted);
+}
+
+@media (max-width: 720px) {
+  .stream-overlay {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+  }
+
+  .stream-overlay__name {
+    max-width: 60%;
+  }
 }

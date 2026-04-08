@@ -2,7 +2,7 @@ import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
 import { vi } from 'vitest';
-import type { StreamChannel, StreamList, StreamQuality, StreamQualityOption } from '../../core/models/app-settings.model';
+import type { StreamChannel, StreamLayoutPreset, StreamList, StreamQuality, StreamQualityOption } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { TwitchEmbedService } from '../../core/services/twitch-embed.service';
 import type { TwitchEmbedHandle } from '../../core/services/twitch-embed.service';
@@ -371,6 +371,22 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).toHaveBeenCalledTimes(1);
   });
 
+  it('renders featured placements and toggles the focused channel through the overlay action', async () => {
+    state.layoutPreset.set('stage');
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv'), channel('gronkh')] });
+    await syncComponent();
+
+    const wrappers = fixture.nativeElement.querySelectorAll('.twitch-embed-wrapper') as NodeListOf<HTMLElement>;
+    const focusButton = fixture.nativeElement.querySelector('[aria-label="shroud fokussieren"]') as HTMLButtonElement;
+
+    expect(wrappers[0].style.gridColumn).toBe('span 2');
+    expect(wrappers[0].style.gridRow).toBe('span 2');
+
+    focusButton.click();
+
+    expect(state.setFocusedChannel).toHaveBeenCalledWith('shroud');
+  });
+
   it('updates the viewport signals on resize', () => {
     const component = fixture.componentInstance;
 
@@ -415,9 +431,14 @@ class MockStreamStateService {
   public readonly listCount = computed(() => this._activeList() ? 1 : 0);
   public readonly streams = computed(() => this._activeList()?.streams ?? []);
   public readonly quality = signal<StreamQuality>('auto');
+  public readonly layoutPreset = signal<StreamLayoutPreset>('auto');
+  public readonly focusedChannel = signal<string | null>(null);
   public readonly availableQualities = signal<StreamQualityOption[]>([{ value: 'auto', label: 'Auto' }]);
   public readonly setAvailableQualities = vi.fn((values: StreamQualityOption[]) => {
     this.availableQualities.set([{ value: 'auto', label: 'Auto' }, ...values]);
+  });
+  public readonly setFocusedChannel = vi.fn((channelName: string | null) => {
+    this.focusedChannel.set(channelName);
   });
   private readonly _activeList = signal<StreamList | null>(null);
 

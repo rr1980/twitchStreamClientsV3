@@ -10,11 +10,12 @@ import {
   viewChild,
 } from '@angular/core';
 import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
+import type { GridItemPlacement } from '../../shared/utils/grid.util';
 import type { StreamQuality, StreamQualityOption } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { TwitchEmbedService } from '../../core/services/twitch-embed.service';
 import type { TwitchEmbedHandle } from '../../core/services/twitch-embed.service';
-import { calculateOptimalGrid } from '../../shared/utils/grid.util';
+import { calculateStreamGridLayout } from '../../shared/utils/grid.util';
 import { areStreamQualityOptionsEqual } from '../../shared/utils/stream-quality.util';
 import { ToastService } from '../toast/toast.service';
 
@@ -52,19 +53,42 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   protected readonly _activeList = this._state.activeList;
   protected readonly _listCount = this._state.listCount;
   protected readonly _streams = this._state.streams;
+  protected readonly _focusedChannel = this._state.focusedChannel;
+  protected readonly _displayedStreams = computed(() => {
+    const focusedChannel = this._state.focusedChannel();
+    const streams = this._state.streams();
+
+    if (!focusedChannel) {
+      return streams;
+    }
+
+    const focusedStream = streams.find(stream => stream.name === focusedChannel);
+
+    if (!focusedStream) {
+      return streams;
+    }
+
+    return [focusedStream, ...streams.filter(stream => stream.name !== focusedChannel)];
+  });
 
   private _viewReady = false;
   private _syncRunId = 0;
   private _loadScriptErrorVisible = false;
 
-  private readonly _grid = computed(() => calculateOptimalGrid(this._streams(), this._viewportWidth(), this._viewportHeight()));
+  private readonly _grid = computed(() => calculateStreamGridLayout(
+    this._displayedStreams(),
+    this._viewportWidth(),
+    this._viewportHeight(),
+    this._state.layoutPreset(),
+    this._state.focusedChannel() !== null,
+  ));
 
   protected readonly _gridTemplateColumns = computed(() => `repeat(${this._grid().cols}, 1fr)`);
   protected readonly _gridTemplateRows = computed(() => `repeat(${this._grid().rows}, 1fr)`);
 
   constructor() {
     effect(() => {
-      this._state.streams();
+      this._displayedStreams();
       this._state.quality();
 
       if (!this._viewReady) {
@@ -118,7 +142,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const streams = this._state.streams();
+    const streams = this._displayedStreams();
     const quality = this._state.quality();
 
     const activeChannels = new Set(streams.map(stream => stream.name));
@@ -249,6 +273,18 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
   private _getEmbedElementId(channel: string): string {
     return `twitch-embed-${channel}`;
+  }
+
+  protected _toggleFocusedChannel(channelName: string): void {
+    this._state.setFocusedChannel(this._focusedChannel() === channelName ? null : channelName);
+  }
+
+  protected _isFocusedChannel(channelName: string): boolean {
+    return this._focusedChannel() === channelName;
+  }
+
+  protected _getPlacement(index: number): GridItemPlacement {
+    return this._grid().placements[index] ?? {};
   }
 
   private _isRenderedStateCurrent(stream: string, nextState: RenderedEmbedSnapshot): boolean {

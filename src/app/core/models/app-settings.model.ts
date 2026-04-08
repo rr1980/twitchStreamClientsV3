@@ -1,4 +1,5 @@
 export type StreamQuality = string;
+export type StreamLayoutPreset = 'auto' | 'balanced' | 'stage' | 'chat';
 
 export interface StreamQualityOption {
   value: StreamQuality;
@@ -25,4 +26,9 @@ export interface AppSettings {
   lists: StreamList[];
   quality: StreamQuality;
   statistics: StreamStatistic[];
+  favoriteChannels: string[];
+  recentChannels: string[];
+  layoutPreset: StreamLayoutPreset;
+  focusedChannel: string | null;
+  lastActiveListId: number | null;
 }

@@ -1,11 +1,22 @@
 import { DOCUMENT } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import type { ElementRef } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import type { StreamChannel, StreamList, StreamQuality, StreamQualityOption, StreamStatistic } from '../../core/models/app-settings.model';
+import type {
+  StreamChannel,
+  StreamLayoutPreset,
+  StreamList,
+  StreamQuality,
+  StreamQualityOption,
+} from '../../core/models/app-settings.model';
 import { ListNavigationService } from '../../core/services/list-navigation.service';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { ToastService } from '../toast/toast.service';
+
+interface StreamLayoutPresetOption {
+  value: StreamLayoutPreset;
+  label: string;
+}
 
 @Component({
   selector: 'app-settings-modal',
@@ -21,6 +32,8 @@ export class SettingsModalComponent {
   private readonly _toast = inject(ToastService);
   private _previouslyFocusedElement: HTMLElement | null = null;
   private _wasOpen = false;
+  private readonly _draggedStreamIndex = signal<number | null>(null);
+  private readonly _dropTargetStreamIndex = signal<number | null>(null);
 
   private readonly _listInputRef = viewChild<ElementRef<HTMLInputElement>>('listInput');
   private readonly _streamInputRef = viewChild<ElementRef<HTMLInputElement>>('streamInput');
@@ -37,8 +50,49 @@ export class SettingsModalComponent {
   protected readonly _activeList = this._state.activeList;
   protected readonly _streams = this._state.streams;
   protected readonly _selectedQuality = this._state.quality;
+  protected readonly _selectedLayoutPreset = this._state.layoutPreset;
+  protected readonly _favoriteChannels = this._state.favoriteChannels;
   protected readonly _topStatistics = computed(() => this._state.getTopStatistics(10));
   protected readonly _hasActiveList = computed(() => this._activeList() !== null);
+  protected readonly _favoriteChannelSet = computed(() => new Set(this._favoriteChannels()));
+  protected readonly _favoriteSuggestions = computed(() => {
+    const activeChannels = new Set(this._streams().map(stream => stream.name));
+
+    return this._favoriteChannels()
+      .filter(channel => !activeChannels.has(channel))
+      .slice(0, 8);
+  });
+  protected readonly _recentSuggestions = computed(() => {
+    const activeChannels = new Set(this._streams().map(stream => stream.name));
+    const favoriteChannels = new Set(this._favoriteChannels());
+
+    return this._state.recentChannels()
+      .filter(channel => !activeChannels.has(channel) && !favoriteChannels.has(channel))
+      .slice(0, 8);
+  });
+  protected readonly _historySuggestions = computed(() => {
+    const activeChannels = new Set(this._streams().map(stream => stream.name));
+    const uniqueChannels = new Set<string>();
+
+    return [
+      ...this._favoriteChannels(),
+      ...this._state.recentChannels(),
+      ...this._topStatistics().map(item => item.name),
+    ].filter(channel => {
+      if (activeChannels.has(channel) || uniqueChannels.has(channel)) {
+        return false;
+      }
+
+      uniqueChannels.add(channel);
+      return true;
+    }).slice(0, 12);
+  });
+  protected readonly _layoutOptions: StreamLayoutPresetOption[] = [
+    { value: 'auto', label: 'Auto' },
+    { value: 'balanced', label: 'Grid' },
+    { value: 'stage', label: 'Bühne' },
+    { value: 'chat', label: 'Chat' },
+  ];
 
   constructor() {
     effect(() => {
@@ -133,6 +187,18 @@ export class SettingsModalComponent {
 
   protected _selectList(listId: number): void {
     this._navigateToList(listId);
+  }
+
+  protected _duplicateList(list: StreamList): void {
+    const result = this._state.duplicateList(list.id);
+
+    if (!result.ok || !result.list) {
+      this._toast.show('Die Liste konnte nicht dupliziert werden.', 'error');
+      return;
+    }
+
+    this._navigateToList(result.list.id);
+    this._toast.show(`${result.list.name} angelegt.`);
   }
 
   protected _deleteList(list: StreamList): void {
@@ -254,8 +320,84 @@ export class SettingsModalComponent {
     this._state.setQuality(value);
   }
 
+  protected _setLayoutPreset(value: StreamLayoutPreset): void {
+    this._state.setLayoutPreset(value);
+  }
+
+  protected _applySuggestedChannel(channelName: string): void {
+    this._channelNameControl.setValue(channelName);
+    this._focusInput(this._streamInputRef);
+  }
+
+  protected _toggleFavoriteChannel(channelName: string): void {
+    const isFavorite = this._state.toggleFavoriteChannel(channelName);
+
+    this._toast.show(
+      isFavorite
+        ? `${channelName} als Favorit gespeichert.`
+        : `${channelName} aus den Favoriten entfernt.`,
+      'info',
+    );
+  }
+
+  protected _onStreamDragStart(index: number, event: DragEvent): void {
+    this._draggedStreamIndex.set(index);
+    this._dropTargetStreamIndex.set(index);
+
+    if (!event.dataTransfer) {
+      return;
+    }
+
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(index));
+  }
+
+  protected _onStreamDragEnter(index: number): void {
+    if (this._draggedStreamIndex() === null || this._draggedStreamIndex() === index) {
+      return;
+    }
+
+    this._dropTargetStreamIndex.set(index);
+  }
+
+  protected _onStreamDragOver(index: number, event: DragEvent): void {
+    if (this._draggedStreamIndex() === null) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+
+    if (this._draggedStreamIndex() !== index) {
+      this._dropTargetStreamIndex.set(index);
+    }
+  }
+
+  protected _onStreamDrop(index: number, event: DragEvent): void {
+    event.preventDefault();
+
+    const draggedIndex = this._draggedStreamIndex();
+
+    if (draggedIndex !== null && draggedIndex !== index) {
+      this._state.reorderStreams(draggedIndex, index);
+    }
+
+    this._resetDragState();
+  }
+
+  protected _onStreamDragEnd(): void {
+    this._resetDragState();
+  }
+
   protected _trackQuality(_: number, quality: StreamQualityOption): string {
     return quality.value;
+  }
+
+  protected _trackLayoutOption(_: number, option: StreamLayoutPresetOption): StreamLayoutPreset {
+    return option.value;
   }
 
   protected _setStreamShowChat(index: number, value: boolean): void {
@@ -270,16 +412,20 @@ export class SettingsModalComponent {
     }
   }
 
-  protected _formatStatisticLabel(item: StreamStatistic): string {
-    return `${item.name} (${item.value})`;
-  }
-
   protected _trackList(_: number, list: StreamList): number {
     return list.id;
   }
 
   protected _trackStream(_: number, stream: StreamChannel): string {
     return stream.name;
+  }
+
+  protected _isDraggedStream(index: number): boolean {
+    return this._draggedStreamIndex() === index;
+  }
+
+  protected _isDropTarget(index: number): boolean {
+    return this._dropTargetStreamIndex() === index && this._draggedStreamIndex() !== index;
   }
 
   private _extractChannelName(value: string): string {
@@ -316,6 +462,11 @@ export class SettingsModalComponent {
         input.select();
       }
     });
+  }
+
+  private _resetDragState(): void {
+    this._draggedStreamIndex.set(null);
+    this._dropTargetStreamIndex.set(null);
   }
 
   private _getFocusableElements(container: HTMLElement): HTMLElement[] {

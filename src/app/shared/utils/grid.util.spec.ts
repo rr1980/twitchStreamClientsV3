@@ -1,5 +1,5 @@
 import type { StreamChannel } from '../../core/models/app-settings.model';
-import { calculateOptimalGrid } from './grid.util';
+import { calculateOptimalGrid, calculateStreamGridLayout } from './grid.util';
 
 describe('calculateOptimalGrid', () => {
   it('returns a 1x1 layout for empty stream sets', () => {
@@ -42,6 +42,30 @@ describe('calculateOptimalGrid', () => {
     expect(layout.cols * layout.rows).toBeGreaterThanOrEqual(7);
     expect(layout.cols).toBeLessThanOrEqual(7);
     expect(layout.rows).toBeGreaterThanOrEqual(1);
+  });
+
+  it('builds a featured layout for stage presets', () => {
+    const layout = calculateStreamGridLayout([
+      channel('one'),
+      channel('two'),
+      channel('three'),
+    ], 1920, 1080, 'stage', false);
+
+    expect(layout.cols).toBe(3);
+    expect(layout.rows).toBe(2);
+    expect(layout.placements[0]).toEqual({ column: 'span 2', row: 'span 2' });
+  });
+
+  it('builds a chat-friendly layout with fewer columns', () => {
+    expect(calculateStreamGridLayout([
+      channel('one'),
+      channel('two'),
+      channel('three'),
+    ], 1400, 900, 'chat', false)).toMatchObject({ cols: 2, rows: 2 });
+    expect(calculateStreamGridLayout([
+      channel('one'),
+      channel('two'),
+    ], 700, 1200, 'chat', false)).toMatchObject({ cols: 1, rows: 2 });
   });
 
   function channel(name: string, showChat = false): StreamChannel {

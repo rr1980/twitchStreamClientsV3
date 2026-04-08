@@ -14,12 +14,15 @@ The app is optimized for a compact codebase, predictable state handling, and str
 
 - Adaptive multi-stream grid driven by viewport size and chat layout
 - Named stream lists with canonical hash URLs such as `#/List/1`
+- List duplication for quickly branching an existing setup
 - Global quality selection with Twitch quality fallback handling
-- Per-stream chat toggle and list-local ordering
+- Layout presets with `Auto`, balanced grid, stage, and chat-focused modes
+- Per-stream chat toggle, drag-and-drop ordering, favorites, and focus mode
 - Local persistence for lists, quality, and usage statistics
+- Local persistence for favorites, recent channels, layout, focus state, and the last active list
 - Legacy storage migration into the current list-based state model
 - Keyboard shortcuts, modal focus handling, and toast-based feedback
-- Production service worker support for static hosting
+- Production service worker support with startup and update hints
 
 ## Runtime Behavior
 
@@ -35,6 +38,7 @@ Canonical route examples:
 Persistence details:
 
 - Current application state is stored in `localStorage` under `app_state_v3`
+- On startup the app restores the last active list when opening on the default null route
 - Legacy keys such as `streams_v2`, `streams`, `quality_v2`, `streams_qualities`, `streams_qualies`, and `stats_v2` are migrated on first load
 - Failed persistence writes are surfaced to the user instead of failing silently
 
@@ -43,6 +47,7 @@ Persistence details:
 ### Stream Lists
 
 - Create, rename, select, and delete named lists
+- Duplicate an existing list as a starting point for a new setup
 - Keep independent channel collections per list
 - Navigate directly to a list through the URL
 - Automatically choose the next sensible list after deletion
@@ -51,14 +56,16 @@ Persistence details:
 
 - Add Twitch channels with normalization and duplicate protection
 - Accept channel names containing `a-z`, `äöü`, `0-9`, and `_` with a maximum of 25 characters
-- Reorder streams inside the active list
+- Reorder streams inside the active list through buttons or drag and drop
 - Remove individual streams without affecting other lists
-- Reuse recent stream statistics as datalist suggestions
+- Mark channels as favorites and reuse favorites, recents, and statistics as suggestions
 
 ### Viewing Experience
 
 - Calculate an efficient grid layout based on the current viewport
+- Switch between automatic, balanced, stage, and chat-friendly layouts
 - Render Twitch embeds lazily for the active list only
+- Focus a single stream temporarily without losing the rest of the setup
 - Support dynamic quality options reported by the Twitch player
 - Preserve the selected quality even when Twitch reports a different option set
 - Mute all but the first rendered stream on initial sync
@@ -180,7 +187,7 @@ The result is a small application where routing, persistence, and embed concerns
 ## PWA Support
 
 Production builds register Angular's service worker and include a web app manifest.
-That makes the app suitable for static hosting with installable web app behavior in supported browsers.
+That makes the app suitable for static hosting with installable web app behavior in supported browsers, including a first-run install hint and an update notice when a new build is ready.
 
 ## Notes
 

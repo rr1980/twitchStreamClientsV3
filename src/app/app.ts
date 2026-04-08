@@ -9,6 +9,7 @@ import { ListNavigationService } from './core/services/list-navigation.service';
 import { SettingsModalComponent } from './features/settings-modal/settings-modal.component';
 import { ToastContainerComponent } from './features/toast/toast-container.component';
 import { StreamStateService } from './core/services/stream-state.service';
+import { PwaService } from './core/services/pwa.service';
 
 @Component({
   selector: 'app-root',
@@ -23,11 +24,13 @@ import { StreamStateService } from './core/services/stream-state.service';
 })
 export class App {
   protected readonly _state = inject(StreamStateService);
+  protected readonly _pwa = inject(PwaService);
   private readonly _document = inject(DOCUMENT);
   private readonly _hotkeys = inject(HotkeyService);
   private readonly _listNavigation = inject(ListNavigationService);
   private readonly _title = inject(Title);
   private readonly _router = inject(Router);
+  private _didAttemptInitialRestore = false;
   private readonly _activeListIdFromRoute = toSignal(
     this._router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -39,7 +42,14 @@ export class App {
 
   constructor() {
     effect(() => {
-      this._state.setActiveListId(this._activeListIdFromRoute());
+      const activeListId = this._activeListIdFromRoute();
+
+      this._state.setActiveListId(activeListId);
+
+      if (!this._didAttemptInitialRestore) {
+        this._didAttemptInitialRestore = true;
+        this._restoreInitialView(activeListId);
+      }
     });
 
     effect(() => {
@@ -57,6 +67,22 @@ export class App {
     this._state.openMenu();
   }
 
+  protected _installApp(): void {
+    void this._pwa.install();
+  }
+
+  protected _dismissStartupHint(): void {
+    this._pwa.dismissStartupHint();
+  }
+
+  protected _reloadForUpdate(): void {
+    this._pwa.reloadForUpdate();
+  }
+
+  protected _dismissUpdateNotice(): void {
+    this._pwa.dismissUpdateNotice();
+  }
+
   private _buildDocumentTitle(): string {
     const activeList = this._state.activeList();
     const activeListId = this._state.activeListId();
@@ -70,5 +96,21 @@ export class App {
     }
 
     return 'Twitch Multi-Viewer';
+  }
+
+  private _restoreInitialView(activeListId: number | null): void {
+    const lastActiveListId = this._state.lastActiveListId();
+
+    if (activeListId !== null || lastActiveListId === null) {
+      return;
+    }
+
+    if (!this._state.lists().some(list => list.id === lastActiveListId)) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      this._listNavigation.navigateToList(lastActiveListId);
+    });
   }
 }

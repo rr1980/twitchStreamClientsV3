@@ -1,3 +1,33 @@
+<div class="app-notice-stack" aria-live="polite">
+  @if (_pwa.updateAvailable()) {
+    <section class="app-notice app-notice--update" aria-label="Update verfügbar">
+      <div>
+        <strong>Update verfügbar</strong>
+        <p>Eine neue Version wurde geladen und kann mit einem Reload aktiviert werden.</p>
+      </div>
+      <div class="app-notice__actions">
+        <button type="button" class="app-notice__btn app-notice__btn--accent" (click)="_reloadForUpdate()">Neu laden</button>
+        <button type="button" class="app-notice__btn" aria-label="Update-Hinweis schließen" (click)="_dismissUpdateNotice()">Später</button>
+      </div>
+    </section>
+  }
+
+  @if (_pwa.startupHintVisible()) {
+    <section class="app-notice" aria-label="App-Hinweis">
+      <div>
+        <strong>Schneller starten</strong>
+        <p>Das Menü öffnest du jederzeit mit M. Als installierte Web-App startet das Setup direkter und bleibt leichter griffbereit.</p>
+      </div>
+      <div class="app-notice__actions">
+        @if (_pwa.canInstall()) {
+          <button type="button" class="app-notice__btn app-notice__btn--accent" (click)="_installApp()">Installieren</button>
+        }
+        <button type="button" class="app-notice__btn" aria-label="Hinweis schließen" (click)="_dismissStartupHint()">Verstanden</button>
+      </div>
+    </section>
+  }
+</div>
+
 <button
   class="menu-trigger"
   type="button"

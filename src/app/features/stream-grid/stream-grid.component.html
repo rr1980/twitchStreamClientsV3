@@ -17,8 +17,25 @@
       }
     </div>
   } @else {
-    @for (stream of _streams(); track stream.name) {
-      <div class="twitch-embed-wrapper" [attr.data-channel]="stream.name" [id]="'twitch-embed-' + stream.name"></div>
+    @for (stream of _displayedStreams(); track stream.name; let i = $index) {
+      <div
+        class="twitch-embed-wrapper"
+        [class.twitch-embed-wrapper--focused]="_isFocusedChannel(stream.name)"
+        [attr.data-channel]="stream.name"
+        [style.gridColumn]="_getPlacement(i).column ?? null"
+        [style.gridRow]="_getPlacement(i).row ?? null">
+        <div class="stream-overlay">
+          <span class="stream-overlay__name">{{ stream.name }}</span>
+          <button
+            type="button"
+            class="stream-overlay__action"
+            [attr.aria-label]="_isFocusedChannel(stream.name) ? stream.name + ' aus Fokusmodus lösen' : stream.name + ' fokussieren'"
+            (click)="_toggleFocusedChannel(stream.name)">
+            {{ _isFocusedChannel(stream.name) ? 'Raster' : 'Fokus' }}
+          </button>
+        </div>
+        <div class="twitch-embed-slot" [id]="'twitch-embed-' + stream.name"></div>
+      </div>
     }
   }
 </main>

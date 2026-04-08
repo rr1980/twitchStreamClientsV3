@@ -1,5 +1,13 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
-import type { AppSettings, StreamChannel, StreamList, StreamQuality, StreamQualityOption, StreamStatistic } from '../models/app-settings.model';
+import type {
+  AppSettings,
+  StreamChannel,
+  StreamLayoutPreset,
+  StreamList,
+  StreamQuality,
+  StreamQualityOption,
+  StreamStatistic,
+} from '../models/app-settings.model';
 import { StorageService } from './storage.service';
 import { ToastService } from '../../features/toast/toast.service';
 import {
@@ -9,7 +17,7 @@ import {
 } from '../../shared/utils/stream-quality.util';
 
 type PersistedStreamState = AppSettings;
-type StoredState = PersistedStreamState & { showChat?: unknown };
+type StoredState = Partial<PersistedStreamState> & { showChat?: unknown };
 
 type StreamMutationResultReason = 'empty' | 'invalid' | 'duplicate' | 'no-list';
 type ListMutationResultReason = 'empty' | 'duplicate' | 'not-found';
@@ -29,12 +37,18 @@ interface ListMutationResult {
 @Injectable({ providedIn: 'root' })
 export class StreamStateService {
   private readonly _stateKey = 'app_state_v3';
+  private readonly _maxRecentChannels = 24;
 
   private readonly _lists = signal<StreamList[]>([]);
   private readonly _activeListId = signal<number | null>(null);
   private readonly _quality = signal<StreamQuality>('auto');
   private readonly _reportedAvailableQualities = signal<StreamQualityOption[]>([]);
   private readonly _statistics = signal<StreamStatistic[]>([]);
+  private readonly _favoriteChannels = signal<string[]>([]);
+  private readonly _recentChannels = signal<string[]>([]);
+  private readonly _layoutPreset = signal<StreamLayoutPreset>('auto');
+  private readonly _focusedChannel = signal<string | null>(null);
+  private readonly _lastActiveListId = signal<number | null>(null);
   private readonly _menuOpen = signal(false);
 
   public readonly lists = computed(() => this._lists());
@@ -47,6 +61,11 @@ export class StreamStateService {
     this._quality(),
   ));
   public readonly statistics = computed(() => this._statistics());
+  public readonly favoriteChannels = computed(() => this._favoriteChannels());
+  public readonly recentChannels = computed(() => this._recentChannels());
+  public readonly layoutPreset = computed(() => this._layoutPreset());
+  public readonly focusedChannel = computed(() => this._focusedChannel());
+  public readonly lastActiveListId = computed(() => this._lastActiveListId());
   public readonly menuOpen = computed(() => this._menuOpen());
   public readonly streamCount = computed(() => this.streams().length);
   public readonly listCount = computed(() => this._lists().length);
@@ -68,6 +87,11 @@ export class StreamStateService {
         lists: this._lists(),
         quality: this._quality(),
         statistics: this._statistics(),
+        favoriteChannels: this._favoriteChannels(),
+        recentChannels: this._recentChannels(),
+        layoutPreset: this._layoutPreset(),
+        focusedChannel: this._focusedChannel(),
+        lastActiveListId: this._lastActiveListId(),
       });
     });
   }
@@ -95,6 +119,11 @@ export class StreamStateService {
 
   public setActiveListId(listId: number | null): void {
     this._activeListId.set(listId);
+
+    if (listId !== null && this._isKnownListId(listId)) {
+      this._lastActiveListId.set(listId);
+      this._clearFocusedChannelIfMissing();
+    }
   }
 
   public createList(rawName: string): ListMutationResult {
@@ -146,6 +175,24 @@ export class StreamStateService {
     return { ok: true, list };
   }
 
+  public duplicateList(listId: number): ListMutationResult {
+    const sourceList = this._lists().find(list => list.id === listId);
+
+    if (!sourceList) {
+      return { ok: false, reason: 'not-found' };
+    }
+
+    const list: StreamList = {
+      id: this._getNextListId(),
+      name: this._buildDuplicateListName(sourceList.name),
+      streams: sourceList.streams.map(stream => ({ ...stream })),
+    };
+
+    this._lists.update(values => [...values, list]);
+
+    return { ok: true, list };
+  }
+
   public deleteList(listId: number): StreamList | null {
     const current = this._lists();
     const removed = current.find(list => list.id === listId) ?? null;
@@ -158,6 +205,11 @@ export class StreamStateService {
 
     if (this._activeListId() === listId) {
       this._activeListId.set(null);
+      this._focusedChannel.set(null);
+    }
+
+    if (this._lastActiveListId() === listId) {
+      this._lastActiveListId.set(this._lists()[0]?.id ?? null);
     }
 
     return removed;
@@ -189,6 +241,7 @@ export class StreamStateService {
       streams: [...list.streams, { name, showChat: false }],
     }));
     this._bumpStatistic(name);
+    this._touchRecentChannel(name);
 
     return { ok: true, name };
   }
@@ -213,10 +266,18 @@ export class StreamStateService {
       streams: current,
     }));
 
+    if (this._focusedChannel() === removed.name) {
+      this._focusedChannel.set(null);
+    }
+
     return removed.name;
   }
 
   public moveStream(index: number, direction: -1 | 1): void {
+    this.reorderStreams(index, index + direction);
+  }
+
+  public reorderStreams(fromIndex: number, toIndex: number): void {
     const activeList = this.activeList();
 
     if (!activeList) {
@@ -224,13 +285,18 @@ export class StreamStateService {
     }
 
     const current = [...activeList.streams];
-    const newIndex = index + direction;
 
-    if (newIndex < 0 || newIndex >= current.length) {
+    if (fromIndex < 0 || fromIndex >= current.length || toIndex < 0 || toIndex >= current.length || fromIndex === toIndex) {
       return;
     }
 
-    [current[index], current[newIndex]] = [current[newIndex], current[index]];
+    const [movedStream] = current.splice(fromIndex, 1);
+
+    if (!movedStream) {
+      return;
+    }
+
+    current.splice(toIndex, 0, movedStream);
 
     this._updateList(activeList.id, list => ({
       ...list,
@@ -244,6 +310,47 @@ export class StreamStateService {
 
   public setAvailableQualities(values: StreamQualityOption[]): void {
     this._reportedAvailableQualities.set(normalizeAvailableStreamQualities(values));
+  }
+
+  public setLayoutPreset(value: StreamLayoutPreset): void {
+    this._layoutPreset.set(this._normalizeStoredLayoutPreset(value));
+  }
+
+  public setFocusedChannel(rawName: string | null): void {
+    if (rawName === null) {
+      this._focusedChannel.set(null);
+      return;
+    }
+
+    const name = this._normalizeChannelName(rawName);
+
+    if (!name || !this.streams().some(stream => stream.name === name)) {
+      this._focusedChannel.set(null);
+      return;
+    }
+
+    this._focusedChannel.set(name);
+  }
+
+  public toggleFavoriteChannel(rawName: string): boolean {
+    const name = this._normalizeChannelName(rawName);
+
+    if (!name || !this._isValidChannelName(name)) {
+      return false;
+    }
+
+    let isFavorite = false;
+
+    this._favoriteChannels.update(values => {
+      if (values.includes(name)) {
+        return values.filter(value => value !== name);
+      }
+
+      isFavorite = true;
+      return [name, ...values];
+    });
+
+    return isFavorite;
   }
 
   public setStreamShowChat(index: number, value: boolean): void {
@@ -280,6 +387,11 @@ export class StreamStateService {
     this._lists.set(this._normalizeStoredLists(persistedState.lists, legacyShowChat));
     this._quality.set(normalizeStreamQuality(persistedState.quality));
     this._statistics.set(this._normalizeStoredStatistics(persistedState.statistics));
+    this._favoriteChannels.set(this._normalizeStoredChannelList(persistedState.favoriteChannels));
+    this._recentChannels.set(this._normalizeStoredChannelList(persistedState.recentChannels).slice(0, this._maxRecentChannels));
+    this._layoutPreset.set(this._normalizeStoredLayoutPreset(persistedState.layoutPreset));
+    this._focusedChannel.set(this._normalizeStoredFocusedChannel(persistedState.focusedChannel));
+    this._lastActiveListId.set(this._normalizeStoredListReference(persistedState.lastActiveListId));
   }
 
   private _readPersistedState(): StoredState {
@@ -310,6 +422,11 @@ export class StreamStateService {
         'auto',
       ),
       statistics: this._normalizeStoredStatistics(this._storage.getJson<StreamStatistic[]>('stats_v2', [])),
+      favoriteChannels: [],
+      recentChannels: [],
+      layoutPreset: 'auto',
+      focusedChannel: null,
+      lastActiveListId: migratedStreams.length > 0 ? 1 : null,
     };
 
     this._storage.setJson(this._stateKey, migratedState);
@@ -342,6 +459,26 @@ export class StreamStateService {
         } satisfies StreamStatistic;
       })
       .filter((item): item is StreamStatistic => item !== null);
+  }
+
+  private _normalizeStoredChannelList(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    const uniqueChannels = new Set<string>();
+
+    value.forEach(item => {
+      const name = this._normalizeChannelName(String(item ?? ''));
+
+      if (!name || !this._isValidChannelName(name) || uniqueChannels.has(name)) {
+        return;
+      }
+
+      uniqueChannels.add(name);
+    });
+
+    return [...uniqueChannels.values()];
   }
 
   private _normalizeStoredLists(value: unknown, defaultShowChat = false): StreamList[] {
@@ -396,6 +533,32 @@ export class StreamStateService {
     return nextId;
   }
 
+  private _normalizeStoredLayoutPreset(value: unknown): StreamLayoutPreset {
+    return value === 'balanced' || value === 'stage' || value === 'chat'
+      ? value
+      : 'auto';
+  }
+
+  private _normalizeStoredFocusedChannel(value: unknown): string | null {
+    if (typeof value !== 'string') {
+      return null;
+    }
+
+    const name = this._normalizeChannelName(value);
+
+    return name && this._isValidChannelName(name) ? name : null;
+  }
+
+  private _normalizeStoredListReference(value: unknown): number | null {
+    const parsed = typeof value === 'number' ? value : Number(value);
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return null;
+    }
+
+    return this._isKnownListId(parsed) ? parsed : null;
+  }
+
   private _bumpStatistic(channelName: string): void {
     const stats = [...this._statistics()];
     const existingIndex = stats.findIndex(item => item.name === channelName);
@@ -410,6 +573,13 @@ export class StreamStateService {
     }
 
     this._statistics.set(stats);
+  }
+
+  private _touchRecentChannel(channelName: string): void {
+    this._recentChannels.update(values => [
+      channelName,
+      ...values.filter(value => value !== channelName),
+    ].slice(0, this._maxRecentChannels));
   }
 
   private _normalizeChannelName(value: string): string {
@@ -464,6 +634,38 @@ export class StreamStateService {
     );
   }
 
+  private _buildDuplicateListName(sourceName: string): string {
+    const baseName = `${sourceName} Kopie`;
+
+    if (!this._hasListName(baseName)) {
+      return baseName;
+    }
+
+    let copyNumber = 2;
+
+    while (this._hasListName(`${baseName} ${copyNumber}`)) {
+      copyNumber += 1;
+    }
+
+    return `${baseName} ${copyNumber}`;
+  }
+
+  private _isKnownListId(listId: number): boolean {
+    return this._lists().some(list => list.id === listId);
+  }
+
+  private _clearFocusedChannelIfMissing(): void {
+    const focusedChannel = this._focusedChannel();
+
+    if (!focusedChannel) {
+      return;
+    }
+
+    if (!this.streams().some(stream => stream.name === focusedChannel)) {
+      this._focusedChannel.set(null);
+    }
+  }
+
   private _getNextListId(): number {
     return this._lists().reduce((maxId, list) => Math.max(maxId, list.id), 0) + 1;
   }
@@ -480,6 +682,11 @@ export class StreamStateService {
       })),
       quality: state.quality,
       statistics: [...state.statistics],
+      favoriteChannels: [...state.favoriteChannels],
+      recentChannels: [...state.recentChannels],
+      layoutPreset: state.layoutPreset,
+      focusedChannel: state.focusedChannel,
+      lastActiveListId: state.lastActiveListId,
     };
 
     if (this._persistScheduled) {
@@ -519,6 +726,11 @@ export class StreamStateService {
       lists: [],
       quality: 'auto',
       statistics: [],
+      favoriteChannels: [],
+      recentChannels: [],
+      layoutPreset: 'auto',
+      focusedChannel: null,
+      lastActiveListId: null,
     };
   }
 }

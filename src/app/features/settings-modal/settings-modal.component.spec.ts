@@ -2,7 +2,7 @@ import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
 import { vi } from 'vitest';
-import type { StreamChannel, StreamList, StreamQuality, StreamQualityOption, StreamStatistic } from '../../core/models/app-settings.model';
+import type { StreamChannel, StreamLayoutPreset, StreamList, StreamQuality, StreamQualityOption, StreamStatistic } from '../../core/models/app-settings.model';
 import { ListNavigationService } from '../../core/services/list-navigation.service';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { SettingsModalComponent } from './settings-modal.component';
@@ -77,28 +77,26 @@ describe('SettingsModalComponent', () => {
     ]);
     state.setActiveListId(1);
     state.quality.set('chunked');
+    state.favoriteChannels.set(['gronkh']);
+    state.recentChannels.set(['papaplatte']);
     state.statistics = [
       { name: 'gronkh', value: 3 },
       { name: 'papaplatte', value: 2 },
+      { name: 'bonjwa', value: 1 },
     ];
     await syncComponent();
 
     const datalist = fixture.nativeElement.querySelector('#history-datalist') as HTMLDataListElement | null;
-    const options = Array.from(datalist?.querySelectorAll('option') ?? []).map(option => ({
-      value: option.value,
-      label: option.getAttribute('label'),
-      text: option.textContent?.trim(),
-    }));
+    const options = Array.from(datalist?.querySelectorAll('option') ?? []).map(option => option.value);
     const countLabel = fixture.nativeElement.querySelector('.list-block__header span')?.textContent?.trim();
     const checkedRadio = fixture.nativeElement.querySelector('input[name="stream-quality"]:checked') as HTMLInputElement | null;
     const qualityButtons = fixture.nativeElement.querySelectorAll('.quality-btn') as NodeListOf<HTMLElement>;
     const qualityLabels = Array.from(qualityButtons, element => element.textContent?.trim());
     const listNames = Array.from(fixture.nativeElement.querySelectorAll('.list-item__name'), (element: Element) => element.textContent?.trim());
+    const suggestionChips = Array.from(fixture.nativeElement.querySelectorAll('.suggestion-chip'), (element: Element) => element.textContent?.trim());
 
-    expect(options).toEqual([
-      { value: 'gronkh (3)', label: null, text: '' },
-      { value: 'papaplatte (2)', label: null, text: '' },
-    ]);
+    expect(options).toEqual(['gronkh', 'papaplatte', 'bonjwa']);
+    expect(suggestionChips).toEqual(['gronkh', 'papaplatte']);
     expect(countLabel).toBe('2 Listen');
     expect(checkedRadio).not.toBeNull();
     expect(qualityLabels).toContain('Auto');
@@ -109,18 +107,17 @@ describe('SettingsModalComponent', () => {
     expect(listNames).toEqual(['Liste 1', 'Liste 2']);
   });
 
-  it('renders the singular stream count and disables move buttons at the boundaries', async () => {
+  it('renders the singular stream count and keeps the drag handle visible', async () => {
     state.menuOpen.set(true);
     state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud')] }]);
     state.setActiveListId(1);
     await syncComponent();
 
     const streamCountLabel = fixture.nativeElement.querySelectorAll('.list-block__header span')[1]?.textContent?.trim();
-    const moveButtons = fixture.nativeElement.querySelectorAll('.stream-item__move button');
+    const dragHandle = fixture.nativeElement.querySelector('.stream-item__drag-handle') as HTMLElement | null;
 
     expect(streamCountLabel).toBe('1 Stream');
-    expect((moveButtons[0] as HTMLButtonElement).disabled).toBe(true);
-    expect((moveButtons[1] as HTMLButtonElement).disabled).toBe(true);
+    expect(dragHandle?.textContent?.trim()).toBe('⋮⋮');
   });
 
   it('closes on escape and restores focus to the opener', async () => {
@@ -166,13 +163,27 @@ describe('SettingsModalComponent', () => {
     await syncComponent();
 
     const input = fixture.nativeElement.querySelector('#stream-input') as HTMLInputElement;
-    input.value = 'Gronkh (3)';
+    input.value = 'Gronkh';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await syncComponent();
 
     expect(state.addStream).toHaveBeenCalledWith('Gronkh');
     expect(toast.show).toHaveBeenCalledWith('gronkh hinzugefügt.');
+  });
+
+  it('duplicates a list and navigates to the copy', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud')] }]);
+    state.duplicateList.mockReturnValue({ ok: true, list: { id: 2, name: 'Liste 1 Kopie', streams: [channel('shroud')] } });
+    await syncComponent();
+
+    const duplicateButton = fixture.nativeElement.querySelector('[aria-label="Liste 1 duplizieren"]') as HTMLButtonElement;
+    duplicateButton.click();
+
+    expect(state.duplicateList).toHaveBeenCalledWith(1);
+    expect(listNavigation.navigateToList).toHaveBeenCalledWith(2);
+    expect(toast.show).toHaveBeenCalledWith('Liste 1 Kopie angelegt.');
   });
 
   it('shows the no-list error and focuses the list input when adding a stream is impossible', async () => {
@@ -500,19 +511,17 @@ describe('SettingsModalComponent', () => {
     expect(toast.show).not.toHaveBeenCalled();
   });
 
-  it('wires move, remove, quality and chat controls through DOM interactions', async () => {
+  it('wires remove, quality and chat controls through DOM interactions', async () => {
     state.menuOpen.set(true);
     state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv', true)] }]);
     state.setActiveListId(1);
     state.removeStream.mockReturnValue('shroud');
     await syncComponent();
 
-    const moveButtons = fixture.nativeElement.querySelectorAll('.stream-item__move button') as NodeListOf<HTMLButtonElement>;
     const removeButton = fixture.nativeElement.querySelector('[aria-label="shroud entfernen"]') as HTMLButtonElement;
     const qualityRadios = fixture.nativeElement.querySelectorAll('input[name="stream-quality"]') as NodeListOf<HTMLInputElement>;
     const chatCheckbox = fixture.nativeElement.querySelector('[aria-label="shroud Chat anzeigen"]') as HTMLInputElement;
 
-    moveButtons[2].click();
     removeButton.click();
     qualityRadios[2].checked = true;
     qualityRadios[2].dispatchEvent(new Event('change', { bubbles: true }));
@@ -520,7 +529,6 @@ describe('SettingsModalComponent', () => {
     chatCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
     await syncComponent();
 
-    expect(state.moveStream).toHaveBeenCalledWith(1, -1);
     expect(state.removeStream).toHaveBeenCalledWith(0);
     expect(state.setQuality).toHaveBeenCalledWith('720p60');
     expect(state.setStreamShowChat).toHaveBeenCalledWith(0, true);
@@ -531,6 +539,42 @@ describe('SettingsModalComponent', () => {
     getComponentMethod<(index: number, direction: -1 | 1) => void>(component, '_moveStream')(2, -1);
 
     expect(state.moveStream).toHaveBeenCalledWith(2, -1);
+  });
+
+  it('applies suggestions, toggles favorites, changes layout and delegates drag-and-drop reordering', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('gronkh')] }]);
+    state.setActiveListId(1);
+    state.favoriteChannels.set(['papaplatte']);
+    state.recentChannels.set(['bonjwa']);
+    state.toggleFavoriteChannel.mockReturnValue(true);
+    await syncComponent();
+
+    const suggestionButton = fixture.nativeElement.querySelector('.suggestion-chip') as HTMLButtonElement;
+    const favoriteButton = fixture.nativeElement.querySelector('[aria-label="shroud als Favorit speichern"]') as HTMLButtonElement;
+    const layoutRadios = fixture.nativeElement.querySelectorAll('input[name="stream-layout"]') as NodeListOf<HTMLInputElement>;
+    const dragEvent = new Event('dragstart') as DragEvent;
+    const dropEvent = new Event('drop', { bubbles: true, cancelable: true }) as DragEvent;
+
+    Object.defineProperty(dragEvent, 'dataTransfer', {
+      value: { effectAllowed: 'all', setData: vi.fn(), dropEffect: 'move' },
+    });
+    Object.defineProperty(dropEvent, 'dataTransfer', {
+      value: { dropEffect: 'move' },
+    });
+    vi.spyOn(dropEvent, 'preventDefault');
+
+    suggestionButton.click();
+    favoriteButton.click();
+    layoutRadios[2].checked = true;
+    layoutRadios[2].dispatchEvent(new Event('change', { bubbles: true }));
+    getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
+    getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDrop')(1, dropEvent);
+
+    expect(getComponentMember<{ value: string }>(component, '_channelNameControl').value).toBe('papaplatte');
+    expect(state.toggleFavoriteChannel).toHaveBeenCalledWith('shroud');
+    expect(state.setLayoutPreset).toHaveBeenCalledWith('stage');
+    expect(state.reorderStreams).toHaveBeenCalledWith(0, 1);
   });
 
   it('creates a list, navigates via the router service and shows a toast', async () => {
@@ -622,11 +666,14 @@ class MockStreamStateService {
   public readonly activeList = computed(() => this.lists().find(list => list.id === this.activeListId()) ?? null);
   public readonly streams = computed(() => this.activeList()?.streams ?? []);
   public readonly quality = signal<StreamQuality>('auto');
+  public readonly layoutPreset = signal<StreamLayoutPreset>('auto');
   public readonly availableQualities = signal<StreamQualityOption[]>([
     { value: 'auto', label: 'Auto' },
     { value: 'chunked', label: 'Quelle' },
     { value: '720p60', label: '720p60' },
   ]);
+  public readonly favoriteChannels = signal<string[]>([]);
+  public readonly recentChannels = signal<string[]>([]);
   public statistics: StreamStatistic[] = [];
 
   public readonly addStream = vi.fn<(rawName: string) => { ok: boolean; reason?: string; name?: string }>();
@@ -635,13 +682,19 @@ class MockStreamStateService {
     this.menuOpen.set(false);
   });
   public readonly deleteList = vi.fn<(listId: number) => StreamList | null>(() => null);
+  public readonly duplicateList = vi.fn<(listId: number) => { ok: boolean; reason?: string; list?: StreamList }>();
   public readonly moveStream = vi.fn();
   public readonly removeStream = vi.fn<(index: number) => string | null>(() => null);
+  public readonly reorderStreams = vi.fn();
   public readonly renameList = vi.fn<(listId: number, rawName: string) => { ok: boolean; reason?: string; list?: StreamList }>();
+  public readonly setLayoutPreset = vi.fn((value: StreamLayoutPreset) => {
+    this.layoutPreset.set(value);
+  });
   public readonly setQuality = vi.fn((value: StreamQuality) => {
     this.quality.set(value);
   });
   public readonly setStreamShowChat = vi.fn();
+  public readonly toggleFavoriteChannel = vi.fn<(channelName: string) => boolean>(() => true);
 
   public setLists(lists: StreamList[]): void {
     this.lists.set(lists);

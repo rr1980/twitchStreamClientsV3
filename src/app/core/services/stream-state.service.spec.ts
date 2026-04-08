@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
-import type { StreamChannel, StreamQualityOption } from '../models/app-settings.model';
+import type { AppSettings, StreamChannel, StreamQualityOption } from '../models/app-settings.model';
 import { ToastService } from '../../features/toast/toast.service';
 import { normalizeStreamQuality } from '../../shared/utils/stream-quality.util';
 import { StreamStateService } from './stream-state.service';
@@ -230,7 +230,47 @@ describe('StreamStateService', () => {
         { name: 'first_channel', value: 1 },
         { name: 'second_channel', value: 1 },
       ],
+      favoriteChannels: [],
+      recentChannels: ['second_channel', 'first_channel'],
+      layoutPreset: 'auto',
+      focusedChannel: null,
+      lastActiveListId: 1,
     });
+  });
+
+  it('duplicates lists with incremented copy names and cloned streams', () => {
+    service.createList('Favoriten');
+    service.setActiveListId(1);
+    service.addStream('shroud');
+
+    expect(service.duplicateList(1)).toEqual({
+      ok: true,
+      list: { id: 2, name: 'Favoriten Kopie', streams: [channel('shroud')] },
+    });
+    expect(service.duplicateList(1)).toEqual({
+      ok: true,
+      list: { id: 3, name: 'Favoriten Kopie 2', streams: [channel('shroud')] },
+    });
+  });
+
+  it('tracks favorites, recent channels, layout presets and focused streams', () => {
+    service.createList('Liste 1');
+    service.setActiveListId(1);
+    service.addStream('shroud');
+    service.addStream('gronkh');
+
+    expect(service.toggleFavoriteChannel('shroud')).toBe(true);
+    expect(service.favoriteChannels()).toEqual(['shroud']);
+    expect(service.recentChannels()).toEqual(['gronkh', 'shroud']);
+
+    service.setLayoutPreset('stage');
+    service.setFocusedChannel('gronkh');
+
+    expect(service.layoutPreset()).toBe('stage');
+    expect(service.focusedChannel()).toBe('gronkh');
+
+    expect(service.toggleFavoriteChannel('shroud')).toBe(false);
+    expect(service.favoriteChannels()).toEqual([]);
   });
 
   it('initializes only once even when called repeatedly', () => {
@@ -391,6 +431,7 @@ describe('StreamStateService', () => {
     expect(service.deleteList(2)).toEqual({ id: 2, name: 'Liste 2', streams: [] });
     expect(service.activeListId()).toBeNull();
     expect(service.lists()).toEqual([{ id: 1, name: 'Liste 1', streams: [] }]);
+    expect(service.lastActiveListId()).toBe(1);
   });
 
   it('opens, closes and toggles the menu state', () => {
@@ -438,6 +479,7 @@ describe('StreamStateService', () => {
     expect(service.streams()).toEqual([channel('legacy_channel', true)]);
     expect(service.quality()).toBe('480p');
     expect(service.lists()).toEqual([{ id: 1, name: 'Liste 1', streams: [channel('legacy_channel', true)] }]);
+    expect(service.lastActiveListId()).toBe(1);
   });
 
   it('prefers streams_v2 and quality_v2 when migrating legacy state', async () => {
@@ -573,17 +615,17 @@ describe('StreamStateService', () => {
     const storage = TestBed.inject(StorageService);
     const setJsonSpy = vi.spyOn(storage, 'setJson');
     const schedulePersist = getServiceMethod<(
-      state: { lists: { id: number; name: string; streams: StreamChannel[] }[]; quality: 'auto'; statistics: [] }
+      state: AppSettings
     ) => void>(service, '_schedulePersist');
 
     setJsonSpy.mockClear();
     setServiceMember(service, '_persistScheduled', true);
-    schedulePersist({ lists: [], quality: 'auto', statistics: [] });
+    schedulePersist(defaultState());
 
     expect(setJsonSpy).not.toHaveBeenCalled();
 
     setServiceMember(service, '_persistScheduled', false);
-    schedulePersist({ lists: [], quality: 'auto', statistics: [] });
+    schedulePersist(defaultState());
     setServiceMember(service, '_pendingPersistState', undefined);
     await flushPersistence();
 
@@ -596,6 +638,19 @@ describe('StreamStateService', () => {
 
   function quality(value: string, label = value): StreamQualityOption {
     return { value, label };
+  }
+
+  function defaultState(): AppSettings {
+    return {
+      lists: [],
+      quality: 'auto',
+      statistics: [],
+      favoriteChannels: [],
+      recentChannels: [],
+      layoutPreset: 'auto',
+      focusedChannel: null,
+      lastActiveListId: null,
+    };
   }
 
   function createService(): StreamStateService {
