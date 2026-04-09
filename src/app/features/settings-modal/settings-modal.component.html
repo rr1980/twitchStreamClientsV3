@@ -204,6 +204,24 @@
                               <div class="stream-item__actions">
                                 <button
                                   type="button"
+                                  class="stream-item__icon-btn stream-item__move-btn"
+                                  title="Nach oben verschieben"
+                                  [disabled]="!_canMoveStream(i, -1)"
+                                  [attr.aria-label]="stream.name + ' nach oben verschieben'"
+                                  (click)="_moveStream(i, -1)">
+                                  ↑
+                                </button>
+                                <button
+                                  type="button"
+                                  class="stream-item__icon-btn stream-item__move-btn"
+                                  title="Nach unten verschieben"
+                                  [disabled]="!_canMoveStream(i, 1)"
+                                  [attr.aria-label]="stream.name + ' nach unten verschieben'"
+                                  (click)="_moveStream(i, 1)">
+                                  ↓
+                                </button>
+                                <button
+                                  type="button"
                                   class="stream-item__icon-btn favorite-btn"
                                   [class.favorite-btn--active]="_favoriteChannelSet().has(stream.name)"
                                   [attr.aria-label]="_favoriteChannelSet().has(stream.name) ? stream.name + ' aus Favoriten entfernen' : stream.name + ' als Favorit speichern'"

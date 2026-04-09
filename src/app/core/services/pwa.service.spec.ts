@@ -6,12 +6,20 @@ import { vi } from 'vitest';
 import { PwaService } from './pwa.service';
 
 describe('PwaService', () => {
+  let originalMatchMedia: typeof window.matchMedia | undefined;
+
   beforeEach(() => {
     localStorage.clear();
+    originalMatchMedia = window.matchMedia;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    if (originalMatchMedia) {
+      window.matchMedia = originalMatchMedia;
+    }
+
+    delete (window.navigator as Navigator & { standalone?: boolean }).standalone;
   });
 
   it('shows the startup hint once and persists dismissal', () => {
@@ -66,6 +74,17 @@ describe('PwaService', () => {
 
     expect(service.updateAvailable()).toBe(false);
     updates.complete();
+  });
+
+  it('hides the startup hint when the app already runs in iOS standalone mode', () => {
+    Object.defineProperty(window.navigator, 'standalone', {
+      configurable: true,
+      value: true,
+    });
+
+    const service = createService();
+
+    expect(service.startupHintVisible()).toBe(false);
   });
 
   function createService(

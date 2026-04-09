@@ -14,6 +14,10 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<BeforeInstallPromptChoice>;
 }
 
+type NavigatorWithStandalone = Navigator & {
+  standalone?: boolean;
+};
+
 @Injectable({ providedIn: 'root' })
 export class PwaService {
   private readonly _startupHintSeenKey = 'pwa_startup_hint_seen_v1';
@@ -128,7 +132,8 @@ export class PwaService {
       return false;
     }
 
-    return browserWindow.matchMedia?.('(display-mode: standalone)').matches === true;
+    return browserWindow.matchMedia?.('(display-mode: standalone)').matches === true
+      || (browserWindow.navigator as NavigatorWithStandalone).standalone === true;
   }
 
   private get _window(): Window | null {

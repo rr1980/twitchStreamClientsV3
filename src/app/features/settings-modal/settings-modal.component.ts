@@ -298,6 +298,12 @@ export class SettingsModalComponent {
     this._state.moveStream(index, direction);
   }
 
+  protected _canMoveStream(index: number, direction: -1 | 1): boolean {
+    const targetIndex = index + direction;
+
+    return targetIndex >= 0 && targetIndex < this._streams().length;
+  }
+
   protected _setQuality(value: StreamQuality): void {
     this._state.setQuality(value);
   }

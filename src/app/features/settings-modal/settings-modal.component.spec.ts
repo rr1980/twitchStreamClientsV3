@@ -119,6 +119,24 @@ describe('SettingsModalComponent', () => {
     expect(dragHandle?.textContent?.trim()).toBe('⋮⋮');
   });
 
+  it('renders accessible move buttons and disables unavailable directions', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('gronkh')] }]);
+    state.setActiveListId(1);
+    await syncComponent();
+
+    const moveUpButton = fixture.nativeElement.querySelector('[aria-label="shroud nach oben verschieben"]') as HTMLButtonElement;
+    const moveDownButton = fixture.nativeElement.querySelector('[aria-label="shroud nach unten verschieben"]') as HTMLButtonElement;
+    const lastMoveDownButton = fixture.nativeElement.querySelector('[aria-label="gronkh nach unten verschieben"]') as HTMLButtonElement;
+
+    moveDownButton.click();
+
+    expect(moveUpButton.disabled).toBe(true);
+    expect(moveDownButton.disabled).toBe(false);
+    expect(lastMoveDownButton.disabled).toBe(true);
+    expect(state.moveStream).toHaveBeenCalledWith(0, 1);
+  });
+
   it('closes on escape and restores focus to the opener', async () => {
     const opener = document.createElement('button');
     document.body.appendChild(opener);
@@ -538,6 +556,17 @@ describe('SettingsModalComponent', () => {
     getComponentMethod<(index: number, direction: -1 | 1) => void>(component, '_moveStream')(2, -1);
 
     expect(state.moveStream).toHaveBeenCalledWith(2, -1);
+  });
+
+  it('reports whether a stream can move in a given direction', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('gronkh')] }]);
+    state.setActiveListId(1);
+    await syncComponent();
+
+    expect(getComponentMethod<(index: number, direction: -1 | 1) => boolean>(component, '_canMoveStream')(0, -1)).toBe(false);
+    expect(getComponentMethod<(index: number, direction: -1 | 1) => boolean>(component, '_canMoveStream')(0, 1)).toBe(true);
+    expect(getComponentMethod<(index: number, direction: -1 | 1) => boolean>(component, '_canMoveStream')(1, 1)).toBe(false);
   });
 
   it('applies suggestions, toggles favorites, changes layout and delegates drag-and-drop reordering', async () => {

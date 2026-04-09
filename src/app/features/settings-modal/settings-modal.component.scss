@@ -488,6 +488,7 @@
   letter-spacing: 0.02em;
   font-size: 0.82rem;
   cursor: grab;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -603,9 +604,24 @@
   transition: background 120ms ease, color 120ms ease, transform 120ms ease;
 }
 
+.stream-item__icon-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
 .stream-item__icon-btn:hover {
   background: rgba(255, 255, 255, 0.06);
   color: #fff;
+}
+
+.stream-item__icon-btn:disabled:hover {
+  background: transparent;
+  color: var(--color-muted);
+}
+
+.stream-item__move-btn {
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .favorite-btn {
