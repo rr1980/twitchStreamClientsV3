@@ -11,6 +11,8 @@
       @if (message.count > 1) {
         <span class="toast__count" [attr.aria-label]="message.count + ' ähnliche Meldungen'">×{{ message.count }}</span>
       }
+
+      <button type="button" class="toast__dismiss" aria-label="Schließen" (click)="_toastService.remove(message.id)">✕</button>
     </div>
   }
 </div>

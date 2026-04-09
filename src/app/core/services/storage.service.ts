@@ -76,8 +76,11 @@ export class StorageService {
     try {
       writer(storage);
       return true;
-    } catch {
-      // Ignore storage write failures and keep the app usable.
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        console.warn('[Storage] localStorage quota exceeded – recent changes may not persist.');
+      }
+
       return false;
     }
   }

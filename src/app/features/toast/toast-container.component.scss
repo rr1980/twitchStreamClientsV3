@@ -42,3 +42,20 @@
 .toast--info {
   background: rgba(145, 70, 255, 0.92);
 }
+
+.toast__dismiss {
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  opacity: 0.7;
+  line-height: 1;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+  }
+}

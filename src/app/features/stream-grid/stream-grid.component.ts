@@ -245,13 +245,14 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   }
 
   private _setAvailableQualitiesForStream(stream: string, qualities: StreamQualityOption[]): void {
+    const seen = new Set<string>();
     const normalizedQualities = qualities
       .map(quality => ({
         value: quality.value.trim(),
         label: quality.label.trim(),
       }))
       .filter(quality => quality.value.length > 0 && quality.label.length > 0)
-      .filter((quality, index, items) => items.findIndex(candidate => candidate.value === quality.value) === index);
+      .filter(quality => !seen.has(quality.value) && seen.add(quality.value));
     const currentQualities = this._availableQualitiesByStream.get(stream) ?? [];
 
     if (areStreamQualityOptionsEqual(currentQualities, normalizedQualities)) {

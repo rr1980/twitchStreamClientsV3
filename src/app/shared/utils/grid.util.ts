@@ -29,11 +29,15 @@ export function calculateOptimalGrid(
   let bestRows = 1;
   let maxArea = 0;
 
+  const chatCount = streams.filter(stream => stream.showChat).length;
+  const plainCount = count - chatCount;
+
   for (let cols = 1; cols <= count; cols++) {
     const rows = Math.ceil(count / cols);
     const cellWidth = containerWidth / cols;
     const cellHeight = containerHeight / rows;
-    const totalArea = streams.reduce((sum, stream) => sum + thisCellArea(cellWidth, cellHeight, stream.showChat), 0);
+    const totalArea = thisCellArea(cellWidth, cellHeight, true) * chatCount
+                    + thisCellArea(cellWidth, cellHeight, false) * plainCount;
 
     if (totalArea > maxArea) {
       maxArea = totalArea;

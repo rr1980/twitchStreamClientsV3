@@ -6,7 +6,7 @@ export class HotkeyService {
   private readonly _state = inject(StreamStateService);
 
   public handleWindowKeydown(event: KeyboardEvent, activeElement: Element | null): boolean {
-    if (event.defaultPrevented || event.isComposing) {
+    if (event.defaultPrevented || event.isComposing || event.key === 'Process') {
       return false;
     }
 
