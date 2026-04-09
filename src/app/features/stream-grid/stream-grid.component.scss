@@ -56,16 +56,19 @@
 .stream-overlay__action {
   min-height: 32px;
   padding: 6px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: none;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.62);
+  background: rgba(0, 0, 0, 0.82);
   color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
   pointer-events: auto;
+  cursor: pointer;
+  transition: background 120ms ease;
 }
 
 .stream-overlay__action:hover {
-  border-color: var(--color-twitch);
-  background: rgba(145, 70, 255, 0.4);
+  background: rgba(145, 70, 255, 0.85);
 }
 
 .stream-overlay__action:focus-visible {

@@ -95,6 +95,11 @@
   border-color: var(--color-twitch);
 }
 
+.menu-trigger:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
 @media (max-width: 720px) {
   .app-notice-stack {
     top: 16px;

@@ -61,14 +61,18 @@ export class PwaService {
       return;
     }
 
-    await promptEvent.prompt();
-    const choice = await promptEvent.userChoice;
+    try {
+      await promptEvent.prompt();
+      const choice = await promptEvent.userChoice;
 
-    if (choice.outcome === 'accepted') {
-      this.dismissStartupHint();
+      if (choice.outcome === 'accepted') {
+        this.dismissStartupHint();
+      }
+    } catch {
+      // Browser rejected the install prompt – nothing we can do.
+    } finally {
+      this._installPromptEvent.set(null);
     }
-
-    this._installPromptEvent.set(null);
   }
 
   public reloadForUpdate(): void {
