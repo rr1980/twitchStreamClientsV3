@@ -388,15 +388,18 @@ describe('StreamGridComponent', () => {
   });
 
   it('updates the viewport signals on resize', () => {
+    vi.useFakeTimers();
     const component = fixture.componentInstance;
 
     window.innerWidth = 1440;
     window.innerHeight = 900;
 
     getPrivateMethod<() => void>(component, '_onResize')();
+    vi.advanceTimersByTime(150);
 
     expect(getPrivateMethod<() => number>(component, '_viewportWidth')()).toBe(1440);
     expect(getPrivateMethod<() => number>(component, '_viewportHeight')()).toBe(900);
+    vi.useRealTimers();
   });
 
   it('returns zero viewport dimensions outside the browser platform', () => {

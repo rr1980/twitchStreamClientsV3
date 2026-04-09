@@ -1,7 +1,12 @@
 {
-  "name": "twitchStreamClientsV3",
-  "short_name": "twitchStreamClientsV3",
+  "name": "Twitch Multi-Viewer",
+  "short_name": "Multi-Viewer",
+  "id": "/",
+  "description": "Browser-basierter Twitch Multi-Viewer mit Listen, Qualitätswahl und lokaler Speicherung.",
   "display": "standalone",
+  "background_color": "#0f0f12",
+  "theme_color": "#9146FF",
+  "categories": ["entertainment"],
   "scope": "./",
   "start_url": "./",
   "icons": [

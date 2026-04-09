@@ -8,6 +8,19 @@
   gap: 10px;
 }
 
+@media (max-width: 400px) {
+  .toast-container {
+    right: 10px;
+    left: 10px;
+    bottom: 10px;
+  }
+
+  .toast {
+    min-width: 0;
+    max-width: none;
+  }
+}
+
 .toast {
   display: flex;
   align-items: center;

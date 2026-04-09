@@ -105,6 +105,10 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   }
 
   public ngOnDestroy(): void {
+    if (this._resizeTimer !== null) {
+      globalThis.clearTimeout(this._resizeTimer);
+    }
+
     for (const renderedEmbed of this._renderedEmbeds.values()) {
       renderedEmbed.handle.destroy();
     }
@@ -114,9 +118,18 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     this._state.setAvailableQualities([]);
   }
 
+  private _resizeTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+
   protected _onResize(): void {
-    this._viewportWidth.set(this._readViewportDimension('innerWidth'));
-    this._viewportHeight.set(this._readViewportDimension('innerHeight'));
+    if (this._resizeTimer !== null) {
+      globalThis.clearTimeout(this._resizeTimer);
+    }
+
+    this._resizeTimer = globalThis.setTimeout(() => {
+      this._resizeTimer = null;
+      this._viewportWidth.set(this._readViewportDimension('innerWidth'));
+      this._viewportHeight.set(this._readViewportDimension('innerHeight'));
+    }, 150);
   }
 
   private _scheduleSync(): void {
