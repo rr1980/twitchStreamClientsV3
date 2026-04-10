@@ -700,7 +700,7 @@ describe('SettingsModalComponent', () => {
     getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragOver')(2, overEvent);
 
     expect(preventSpy).toHaveBeenCalledTimes(1);
-    expect(getComponentMember<{ (): number | null }>(component, '_dropTargetStreamIndex')()).toBe(2);
+    expect(getComponentMember<() => number | null>(component, '_dropTargetStreamIndex')()).toBe(2);
   });
 
   it('handles drag-end by resetting drag state', async () => {
@@ -713,11 +713,11 @@ describe('SettingsModalComponent', () => {
     Object.defineProperty(dragEvent, 'dataTransfer', { value: { effectAllowed: '', setData: vi.fn() } });
 
     getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
-    expect(getComponentMember<{ (): number | null }>(component, '_draggedStreamIndex')()).toBe(0);
+    expect(getComponentMember<() => number | null>(component, '_draggedStreamIndex')()).toBe(0);
 
     getComponentMethod<() => void>(component, '_onStreamDragEnd')();
-    expect(getComponentMember<{ (): number | null }>(component, '_draggedStreamIndex')()).toBeNull();
-    expect(getComponentMember<{ (): number | null }>(component, '_dropTargetStreamIndex')()).toBeNull();
+    expect(getComponentMember<() => number | null>(component, '_draggedStreamIndex')()).toBeNull();
+    expect(getComponentMember<() => number | null>(component, '_dropTargetStreamIndex')()).toBeNull();
   });
 
   it('handles stream chat change from a checkbox input', async () => {
@@ -749,13 +749,13 @@ describe('SettingsModalComponent', () => {
     getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
     getComponentMethod<(index: number) => void>(component, '_onStreamDragEnter')(1);
 
-    expect(getComponentMember<{ (): number | null }>(component, '_dropTargetStreamIndex')()).toBe(1);
+    expect(getComponentMember<() => number | null>(component, '_dropTargetStreamIndex')()).toBe(1);
   });
 
   it('ignores drag-enter when no drag is in progress', () => {
     getComponentMethod<(index: number) => void>(component, '_onStreamDragEnter')(0);
 
-    expect(getComponentMember<{ (): number | null }>(component, '_dropTargetStreamIndex')()).toBeNull();
+    expect(getComponentMember<() => number | null>(component, '_dropTargetStreamIndex')()).toBeNull();
   });
 
   it('ignores drag-over when no drag is in progress', () => {
@@ -772,7 +772,7 @@ describe('SettingsModalComponent', () => {
 
     getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
 
-    expect(getComponentMember<{ (): number | null }>(component, '_draggedStreamIndex')()).toBe(0);
+    expect(getComponentMember<() => number | null>(component, '_draggedStreamIndex')()).toBe(0);
   });
 
   it('traps focus within the modal on Tab key', async () => {
