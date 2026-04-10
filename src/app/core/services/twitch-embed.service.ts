@@ -14,18 +14,21 @@ declare global {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     Twitch?: {
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      Embed: new (
-        elementId: string,
-        options: {
-          width: string;
-          height: string;
-          channel: string;
-          layout: 'video' | 'video-with-chat';
-          autoplay: boolean;
-          muted: boolean;
-          parent: string[];
-        },
-      ) => TwitchEmbedInstance;
+      Embed: {
+        new (
+          elementId: string,
+          options: {
+            width: string;
+            height: string;
+            channel: string;
+            layout: 'video' | 'video-with-chat';
+            autoplay: boolean;
+            muted: boolean;
+            parent: string[];
+          },
+        ): TwitchEmbedInstance;
+        VIDEO_READY?: string;
+      };
     };
   }
 }
@@ -120,8 +123,20 @@ export class TwitchEmbedService {
       muted: options.muted,
       parent: [browserWindow.location.hostname || 'localhost'],
     });
+    const readyEvents = new Set([
+      browserWindow.Twitch.Embed.VIDEO_READY ?? 'video_ready',
+      'video_ready',
+      'ready',
+    ]);
+    let didInitializePlayer = false;
 
-    embed.addEventListener('ready', () => {
+    const initializePlayer = (): void => {
+      if (didInitializePlayer) {
+        return;
+      }
+
+      didInitializePlayer = true;
+
       if (handle.isDestroyed()) {
         return;
       }
@@ -135,6 +150,10 @@ export class TwitchEmbedService {
         () => handle.isDestroyed(),
         options.onAvailableQualities,
       );
+    };
+
+    readyEvents.forEach(eventName => {
+      embed.addEventListener(eventName, initializePlayer);
     });
 
     return handle;

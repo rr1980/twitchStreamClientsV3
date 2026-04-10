@@ -20,6 +20,14 @@ describe('TwitchEmbedService', () => {
     window.Twitch = twitchApi;
   }
 
+  function setWindowTwitchEmbedWithReadyEvent(embed: ReturnType<typeof vi.fn>, readyEvent = 'VIDEO_READY_EVENT'): void {
+    const twitchApi = {} as NonNullable<Window['Twitch']>;
+    const embedConstructor = embed as ReturnType<typeof vi.fn> & { VIDEO_READY?: string };
+    embedConstructor.VIDEO_READY = readyEvent;
+    twitchApi.Embed = embedConstructor as never;
+    window.Twitch = twitchApi;
+  }
+
   function getServiceMethod<T extends (...args: never[]) => unknown>(propertyName: string): T {
     return ((service as unknown as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(service) as T;
   }
@@ -280,10 +288,11 @@ describe('TwitchEmbedService', () => {
       setQuality: vi.fn(),
     };
     let readyCallback: (() => void) | undefined;
+    const readyEvent = 'VIDEO_READY_EVENT';
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === readyEvent) {
             readyCallback = callback;
           }
         }),
@@ -291,7 +300,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    setWindowTwitchEmbed(EmbedMock);
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
 
     service.createEmbed({
       elementId: 'twitch-embed-muted',
@@ -325,10 +334,11 @@ describe('TwitchEmbedService', () => {
       setQuality: vi.fn(),
     };
     let readyCallback: (() => void) | undefined;
+    const readyEvent = 'VIDEO_READY_EVENT';
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === readyEvent) {
             readyCallback = callback;
           }
         }),
@@ -336,7 +346,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    setWindowTwitchEmbed(EmbedMock);
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
 
     const handle = service.createEmbed({
       elementId: 'twitch-embed-queued-muted',
@@ -371,10 +381,11 @@ describe('TwitchEmbedService', () => {
       setQuality: vi.fn(),
     };
     let readyCallback: (() => void) | undefined;
+    const readyEvent = 'VIDEO_READY_EVENT';
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === readyEvent) {
             readyCallback = callback;
           }
         }),
@@ -382,7 +393,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    setWindowTwitchEmbed(EmbedMock);
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
 
     const handle = service.createEmbed({
       elementId: 'twitch-embed-direct-muted',
@@ -420,10 +431,11 @@ describe('TwitchEmbedService', () => {
       setQuality: vi.fn(),
     };
     let readyCallback: (() => void) | undefined;
+    const readyEvent = 'VIDEO_READY_EVENT';
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === readyEvent) {
             readyCallback = callback;
           }
         }),
@@ -431,7 +443,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    setWindowTwitchEmbed(EmbedMock);
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
 
     const handle = service.createEmbed({
       elementId: 'twitch-embed-restored-volume',
@@ -667,10 +679,11 @@ describe('TwitchEmbedService', () => {
       setQuality: vi.fn(),
     };
     let readyCallback: (() => void) | undefined;
+    const readyEvent = 'VIDEO_READY_EVENT';
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === readyEvent) {
             readyCallback = callback;
           }
         }),
@@ -678,7 +691,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    setWindowTwitchEmbed(EmbedMock);
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
 
     service.createEmbed({
       elementId: 'fallback-720',
