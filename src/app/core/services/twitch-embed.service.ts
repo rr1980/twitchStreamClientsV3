@@ -73,6 +73,8 @@ interface CreateEmbedOptions {
 export class TwitchEmbedService {
   private readonly _maxQualitySyncFrames = 120;
   private readonly _maxQualitySyncDurationMs = 2000;
+  private readonly _maxMuteSyncFrames = 120;
+  private readonly _maxMuteSyncDurationMs = 2000;
   private readonly _document = inject(DOCUMENT);
   private readonly _platformId = inject(PLATFORM_ID);
   private _scriptPromise?: Promise<void>;
@@ -419,16 +421,31 @@ export class TwitchEmbedService {
     };
   }
 
-  private _syncRequestedMutedState(player: TwitchPlayer, muted: boolean): void {
+  private async _syncRequestedMutedState(
+    player: TwitchPlayer,
+    getRequestedMuted: () => boolean,
+    isCancelled: () => boolean,
+  ): Promise<void> {
     if (typeof player.setMuted !== 'function') {
       return;
     }
 
-    if (typeof player.getMuted === 'function' && player.getMuted() === muted) {
-      return;
-    }
+    const syncDeadline = Date.now() + this._maxMuteSyncDurationMs;
 
-    player.setMuted(muted);
+    for (let frame = 0; frame < this._maxMuteSyncFrames && Date.now() < syncDeadline; frame++) {
+      if (isCancelled()) {
+        return;
+      }
+
+      const muted = getRequestedMuted();
+      player.setMuted(muted);
+
+      if (typeof player.getMuted === 'function' && player.getMuted() === muted) {
+        return;
+      }
+
+      await this._waitForNextFrame();
+    }
   }
 
   private _createHandle(elementId: string, initialMuted: boolean): TwitchEmbedHandle & {
@@ -438,6 +455,22 @@ export class TwitchEmbedService {
     let destroyed = false;
     let player: TwitchPlayer | null = null;
     let requestedMuted = initialMuted;
+    let muteSyncRunId = 0;
+
+    const syncRequestedMutedState = (): void => {
+      if (!player || destroyed) {
+        return;
+      }
+
+      const currentPlayer = player;
+      const syncRunId = ++muteSyncRunId;
+
+      void this._syncRequestedMutedState(
+        currentPlayer,
+        () => requestedMuted,
+        () => destroyed || player !== currentPlayer || syncRunId !== muteSyncRunId,
+      );
+    };
 
     return {
       destroy: () => {
@@ -446,16 +479,12 @@ export class TwitchEmbedService {
         }
 
         destroyed = true;
+        muteSyncRunId += 1;
         this.clearEmbed(elementId);
       },
       setMuted: (value: boolean) => {
         requestedMuted = value;
-
-        if (!player || destroyed) {
-          return;
-        }
-
-        this._syncRequestedMutedState(player, requestedMuted);
+        syncRequestedMutedState();
       },
       setPlayer: (nextPlayer: TwitchPlayer) => {
         if (destroyed) {
@@ -463,7 +492,7 @@ export class TwitchEmbedService {
         }
 
         player = nextPlayer;
-        this._syncRequestedMutedState(player, requestedMuted);
+        syncRequestedMutedState();
       },
       isDestroyed: () => destroyed,
     };

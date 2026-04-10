@@ -212,8 +212,9 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
       if (currentState) {
         if (this._canReuseEmbedForMutedState(currentState, nextState)) {
+          currentState.handle.setMuted(nextState.muted);
+
           if (currentState.muted !== nextState.muted) {
-            currentState.handle.setMuted(nextState.muted);
             this._renderedEmbeds.set(stream.name, {
               ...currentState,
               muted: nextState.muted,

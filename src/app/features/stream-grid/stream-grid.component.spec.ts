@@ -238,7 +238,7 @@ describe('StreamGridComponent', () => {
 
     expect(twitch.createEmbed).not.toHaveBeenCalled();
     expect(firstHandle?.setMuted).toHaveBeenCalledWith(true);
-    expect(secondHandle?.setMuted).not.toHaveBeenCalled();
+    expect(secondHandle?.setMuted).toHaveBeenCalledWith(true);
 
     firstHandle?.setMuted.mockClear();
     secondHandle?.setMuted.mockClear();
@@ -248,7 +248,7 @@ describe('StreamGridComponent', () => {
 
     expect(twitch.createEmbed).not.toHaveBeenCalled();
     expect(firstHandle?.setMuted).toHaveBeenCalledWith(false);
-    expect(secondHandle?.setMuted).not.toHaveBeenCalled();
+    expect(secondHandle?.setMuted).toHaveBeenCalledWith(true);
   });
 
   it('publishes Twitch quality options from active embeds and clears them when no streams remain', async () => {
