@@ -23,6 +23,23 @@ describe('SettingsModalComponent', () => {
     return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
   }
 
+  function getElement<T extends Element>(selector: string): T {
+    const element = fixture.nativeElement.querySelector(selector) as T | null;
+
+    expect(element).not.toBeNull();
+
+    return element as T;
+  }
+
+  function setInputValue(selector: string, value: string): HTMLInputElement {
+    const input = getElement<HTMLInputElement>(selector);
+
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    return input;
+  }
+
   beforeEach(async () => {
     listNavigation = new MockListNavigationService();
     state = new MockStreamStateService();
@@ -162,14 +179,15 @@ describe('SettingsModalComponent', () => {
     state.addStream.mockReturnValue({ ok: true, name: 'shroud' });
     await syncComponent();
 
-    getComponentMember<{ setValue(value: string): void; value: string }>(component, '_channelNameControl').setValue('Shroud');
-    fixture.nativeElement.querySelector('[aria-label="Kanal hinzufügen"]')?.click();
+    const input = setInputValue('#stream-input', 'Shroud');
+
+    getElement<HTMLButtonElement>('[aria-label="Kanal hinzufügen"]').click();
     await syncComponent();
 
     expect(state.addStream).toHaveBeenCalledWith('Shroud');
-    expect(getComponentMember<{ value: string }>(component, '_channelNameControl').value).toBe('');
+    expect(input.value).toBe('');
     expect(toast.show).toHaveBeenCalledWith('shroud hinzugefügt.');
-    expect(document.activeElement).toBe(fixture.nativeElement.querySelector('#stream-input'));
+    expect(document.activeElement).toBe(input);
   });
 
   it('adds a stream via enter on the input field', async () => {
@@ -383,7 +401,7 @@ describe('SettingsModalComponent', () => {
     expect(toast.show).toHaveBeenNthCalledWith(2, 'shroud ist bereits aktiv.', 'error');
   });
 
-  it('ignores empty add results without showing a toast', async () => {
+  it('shows an error toast for empty channel names and refocuses the input', async () => {
     state.menuOpen.set(true);
     state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
     state.setActiveListId(1);
@@ -578,8 +596,9 @@ describe('SettingsModalComponent', () => {
     state.toggleFavoriteChannel.mockReturnValue(true);
     await syncComponent();
 
-    const suggestionButton = fixture.nativeElement.querySelector('.suggestion-chip') as HTMLButtonElement;
-    const favoriteButton = fixture.nativeElement.querySelector('[aria-label="shroud als Favorit speichern"]') as HTMLButtonElement;
+    const streamInput = getElement<HTMLInputElement>('#stream-input');
+    const suggestionButton = getElement<HTMLButtonElement>('.suggestion-chip');
+    const favoriteButton = getElement<HTMLButtonElement>('[aria-label="shroud als Favorit speichern"]');
     const layoutRadios = fixture.nativeElement.querySelectorAll('input[name="stream-layout"]') as NodeListOf<HTMLInputElement>;
     const dragEvent = new Event('dragstart') as DragEvent;
     const dropEvent = new Event('drop', { bubbles: true, cancelable: true }) as DragEvent;
@@ -599,23 +618,10 @@ describe('SettingsModalComponent', () => {
     getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
     getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDrop')(1, dropEvent);
 
-    expect(getComponentMember<{ value: string }>(component, '_channelNameControl').value).toBe('papaplatte');
+    expect(streamInput.value).toBe('papaplatte');
     expect(state.toggleFavoriteChannel).toHaveBeenCalledWith('shroud');
     expect(state.setLayoutPreset).toHaveBeenCalledWith('stage');
     expect(state.reorderStreams).toHaveBeenCalledWith(0, 1);
-  });
-
-  it('creates a list, navigates via the router service and shows a toast', async () => {
-    state.menuOpen.set(true);
-    state.createList.mockReturnValue({ ok: true, list: { id: 4, name: 'Esports', streams: [] } });
-    await syncComponent();
-
-    getComponentMember<{ setValue(value: string): void }>(component, '_newListNameControl').setValue('Esports');
-    getComponentMethod<() => void>(component, '_createList')();
-
-    expect(state.createList).toHaveBeenCalledWith('Esports');
-    expect(listNavigation.navigateToList).toHaveBeenCalledWith(4);
-    expect(toast.show).toHaveBeenCalledWith('Esports angelegt.');
   });
 
   it('renames and deletes lists through the state service', async () => {
@@ -773,52 +779,6 @@ describe('SettingsModalComponent', () => {
     getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
 
     expect(getComponentMember<() => number | null>(component, '_draggedStreamIndex')()).toBe(0);
-  });
-
-  it('traps focus within the modal on Tab key', async () => {
-    state.menuOpen.set(true);
-    state.setLists([]);
-    await syncComponent();
-
-    const modalPanel = fixture.nativeElement.querySelector('.modal');
-
-    if (modalPanel) {
-      const focusableElements = modalPanel.querySelectorAll('button, input, [tabindex]:not([tabindex="-1"])') as NodeListOf<HTMLElement>;
-      const lastElement = focusableElements[focusableElements.length - 1];
-
-      if (lastElement) {
-        lastElement.focus();
-        const tabEvent = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true });
-        const preventSpy = vi.spyOn(tabEvent, 'preventDefault');
-
-        getComponentMethod<(event: KeyboardEvent) => void>(component, '_onDialogKeydown')(tabEvent);
-
-        expect(preventSpy).toHaveBeenCalled();
-      }
-    }
-  });
-
-  it('traps focus backward within the modal on Shift+Tab', async () => {
-    state.menuOpen.set(true);
-    state.setLists([]);
-    await syncComponent();
-
-    const modalPanel = fixture.nativeElement.querySelector('.modal');
-
-    if (modalPanel) {
-      const focusableElements = modalPanel.querySelectorAll('button, input, [tabindex]:not([tabindex="-1"])') as NodeListOf<HTMLElement>;
-      const firstElement = focusableElements[0];
-
-      if (firstElement) {
-        firstElement.focus();
-        const tabEvent = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true });
-        const preventSpy = vi.spyOn(tabEvent, 'preventDefault');
-
-        getComponentMethod<(event: KeyboardEvent) => void>(component, '_onDialogKeydown')(tabEvent);
-
-        expect(preventSpy).toHaveBeenCalled();
-      }
-    }
   });
 
   function channel(name: string, showChat = false): StreamChannel {

@@ -736,7 +736,7 @@ describe('TwitchEmbedService', () => {
     expect(resolveRequestedQuality('720p60', ['480p', '360p'])).toBeNull();
   });
 
-  it('scores and ranks quality candidates in the expected order', () => {
+  it('scores and ranks quality candidates by actual frame rate', () => {
     const getQualityMatchScore = getServiceMethod<(
       candidate: string,
       requestedQuality: string,
@@ -752,11 +752,17 @@ describe('TwitchEmbedService', () => {
     expect(getQualityMatchScore('720p', '720p60', '720p')).toBe(1);
     expect(getQualityMatchScore('720p30-60', '720p60', '720p')).toBe(2);
     expect(getQualityMatchScore('720p30', '720p60', '720p')).toBe(3);
+    expect(getQualityMatchScore('360p30', '360p60', '360p')).toBe(3);
     expect(rankQualityMatches('720p60', '720p', ['720p30', '720p', '720p30-60', '720p60'])).toEqual([
       '720p60',
       '720p',
       '720p30-60',
       '720p30',
+    ]);
+    expect(rankQualityMatches('360p60', '360p', ['360p30', '360p', '360p30-60'])).toEqual([
+      '360p',
+      '360p30-60',
+      '360p30',
     ]);
   });
 });

@@ -356,11 +356,21 @@ export class TwitchEmbedService {
       return 1;
     }
 
-    if (requestedQuality.endsWith('60') && candidate.includes('60')) {
+    const requestedFrameRate = this._extractQualityFrameRates(requestedQuality)[0] ?? 0;
+    const candidateFrameRates = this._extractQualityFrameRates(candidate);
+
+    if (requestedFrameRate > 0 && candidateFrameRates.includes(requestedFrameRate)) {
       return 2;
     }
 
     return 3;
+  }
+
+  private _extractQualityFrameRates(value: string): number[] {
+    return (value.match(/\d+/g) ?? [])
+      .slice(1)
+      .map(rate => Number(rate))
+      .filter(rate => Number.isFinite(rate) && rate > 0);
   }
 
   private _normalizeQualityDescriptor(descriptor: TwitchQualityDescriptor): StreamQualityOption | null {
