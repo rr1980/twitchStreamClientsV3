@@ -186,6 +186,7 @@ describe('TwitchEmbedService', () => {
     });
 
     expect(typeof handle.destroy).toBe('function');
+    expect(typeof handle.setMuted).toBe('function');
 
     handle.destroy();
 
@@ -208,6 +209,7 @@ describe('TwitchEmbedService', () => {
       muted: false,
     });
 
+    handle.setMuted(true);
     handle.destroy();
     handle.destroy();
 
@@ -259,6 +261,132 @@ describe('TwitchEmbedService', () => {
       { value: '1080p60', label: '1080p60' },
       { value: 'audio_only', label: 'Nur Audio' },
     ]);
+  });
+
+  it('syncs the requested muted state through the player API when the embed is ready', async () => {
+    const player = {
+      getQualities: vi.fn(() => []),
+      getQuality: vi.fn(() => 'auto'),
+      getMuted: vi.fn(() => false),
+      setMuted: vi.fn(),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbed(EmbedMock);
+
+    service.createEmbed({
+      elementId: 'twitch-embed-muted',
+      channel: 'muted',
+      quality: 'auto',
+      showChat: false,
+      muted: true,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+
+    expect(player.setMuted).toHaveBeenCalledWith(true);
+  });
+
+  it('applies queued mute changes once the player becomes ready', async () => {
+    const player = {
+      getQualities: vi.fn(() => []),
+      getQuality: vi.fn(() => 'auto'),
+      getMuted: vi.fn(() => false),
+      setMuted: vi.fn(),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbed(EmbedMock);
+
+    const handle = service.createEmbed({
+      elementId: 'twitch-embed-queued-muted',
+      channel: 'queued-muted',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+    });
+
+    handle.setMuted(true);
+    readyCallback?.();
+    await Promise.resolve();
+
+    expect(player.setMuted).toHaveBeenCalledWith(true);
+  });
+
+  it('updates the player mute state directly after the embed is ready', async () => {
+    const player = {
+      getQualities: vi.fn(() => []),
+      getQuality: vi.fn(() => 'auto'),
+      getMuted: vi.fn(() => false),
+      setMuted: vi.fn(),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbed(EmbedMock);
+
+    const handle = service.createEmbed({
+      elementId: 'twitch-embed-direct-muted',
+      channel: 'direct-muted',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+    player.setMuted.mockClear();
+
+    handle.setMuted(true);
+
+    expect(player.setMuted).toHaveBeenCalledWith(true);
+  });
+
+  it('does not reapply the muted state when the player already matches it', () => {
+    const syncRequestedMutedState = getServiceMethod<(player: { setMuted?: (value: boolean) => void; getMuted?: () => boolean }, muted: boolean) => void>(
+      '_syncRequestedMutedState',
+    );
+    const player = {
+      getMuted: vi.fn(() => true),
+      setMuted: vi.fn(),
+    };
+
+    syncRequestedMutedState(player, true);
+
+    expect(player.setMuted).not.toHaveBeenCalled();
   });
 
   it('normalizes Twitch quality descriptors from labels and prefers the richest source label', () => {

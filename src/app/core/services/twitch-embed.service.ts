@@ -32,6 +32,8 @@ declare global {
 
 interface TwitchPlayer {
   setQuality(value: string): void;
+  setMuted?(value: boolean): void;
+  getMuted?(): boolean;
   getQualities(): TwitchQualityDescriptor[];
   getQuality(): string;
 }
@@ -55,6 +57,7 @@ interface TwitchEmbedInstance {
 
 export interface TwitchEmbedHandle {
   destroy(): void;
+  setMuted(value: boolean): void;
 }
 
 interface CreateEmbedOptions {
@@ -99,10 +102,10 @@ export class TwitchEmbedService {
     const browserWindow = this._window;
 
     if (!browserWindow?.Twitch?.Embed) {
-      return this._createHandle(options.elementId);
+      return this._createHandle(options.elementId, options.muted);
     }
 
-    const handle = this._createHandle(options.elementId);
+    const handle = this._createHandle(options.elementId, options.muted);
 
     const embed = new browserWindow.Twitch.Embed(options.elementId, {
       width: '100%',
@@ -120,6 +123,7 @@ export class TwitchEmbedService {
       }
 
       const player = embed.getPlayer();
+      handle.setPlayer(player);
       void this._syncRequestedQuality(
         player,
         options.channel,
@@ -415,8 +419,25 @@ export class TwitchEmbedService {
     };
   }
 
-  private _createHandle(elementId: string): TwitchEmbedHandle & { isDestroyed(): boolean } {
+  private _syncRequestedMutedState(player: TwitchPlayer, muted: boolean): void {
+    if (typeof player.setMuted !== 'function') {
+      return;
+    }
+
+    if (typeof player.getMuted === 'function' && player.getMuted() === muted) {
+      return;
+    }
+
+    player.setMuted(muted);
+  }
+
+  private _createHandle(elementId: string, initialMuted: boolean): TwitchEmbedHandle & {
+    isDestroyed(): boolean;
+    setPlayer(player: TwitchPlayer): void;
+  } {
     let destroyed = false;
+    let player: TwitchPlayer | null = null;
+    let requestedMuted = initialMuted;
 
     return {
       destroy: () => {
@@ -426,6 +447,23 @@ export class TwitchEmbedService {
 
         destroyed = true;
         this.clearEmbed(elementId);
+      },
+      setMuted: (value: boolean) => {
+        requestedMuted = value;
+
+        if (!player || destroyed) {
+          return;
+        }
+
+        this._syncRequestedMutedState(player, requestedMuted);
+      },
+      setPlayer: (nextPlayer: TwitchPlayer) => {
+        if (destroyed) {
+          return;
+        }
+
+        player = nextPlayer;
+        this._syncRequestedMutedState(player, requestedMuted);
       },
       isDestroyed: () => destroyed,
     };

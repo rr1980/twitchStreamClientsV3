@@ -208,11 +208,23 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
         muted: muteAllStreams || index !== 0,
       };
 
-      if (this._isRenderedStateCurrent(stream.name, nextState)) {
-        return;
-      }
+      const currentState = this._renderedEmbeds.get(stream.name);
 
-      this._renderedEmbeds.get(stream.name)?.handle.destroy();
+      if (currentState) {
+        if (this._canReuseEmbedForMutedState(currentState, nextState)) {
+          if (currentState.muted !== nextState.muted) {
+            currentState.handle.setMuted(nextState.muted);
+            this._renderedEmbeds.set(stream.name, {
+              ...currentState,
+              muted: nextState.muted,
+            });
+          }
+
+          return;
+        }
+
+        currentState.handle.destroy();
+      }
 
       const handle = this._twitch.createEmbed({
         elementId: wrapperId,
@@ -303,17 +315,10 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     return this._grid().placements[index] ?? {};
   }
 
-  private _isRenderedStateCurrent(stream: string, nextState: RenderedEmbedSnapshot): boolean {
-    const currentState = this._renderedEmbeds.get(stream);
-
-    if (!currentState) {
-      return false;
-    }
-
+  private _canReuseEmbedForMutedState(currentState: RenderedEmbedState, nextState: RenderedEmbedSnapshot): boolean {
     return currentState.elementId === nextState.elementId
       && currentState.quality === nextState.quality
-      && currentState.showChat === nextState.showChat
-      && currentState.muted === nextState.muted;
+      && currentState.showChat === nextState.showChat;
   }
 
   private _readViewportDimension(dimension: 'innerWidth' | 'innerHeight'): number {

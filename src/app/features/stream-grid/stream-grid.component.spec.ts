@@ -222,28 +222,33 @@ describe('StreamGridComponent', () => {
     }));
   });
 
-  it('mutes every embed when mute-all mode is enabled', async () => {
-    state.muteAllStreams.set(true);
+  it('mutes every embed when mute-all mode is enabled and updates live embeds in place', async () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
     await syncComponent();
 
-    expect(twitch.createEmbed).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      elementId: 'twitch-embed-shroud',
-      muted: true,
-    }));
-    expect(twitch.createEmbed).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      elementId: 'twitch-embed-rocketbeanstv',
-      muted: true,
-    }));
+    const firstHandle = twitch.handles.get('twitch-embed-shroud');
+    const secondHandle = twitch.handles.get('twitch-embed-rocketbeanstv');
+
+    firstHandle?.setMuted.mockClear();
+    secondHandle?.setMuted.mockClear();
 
     twitch.createEmbed.mockClear();
+    state.muteAllStreams.set(true);
+    await syncComponent();
+
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(firstHandle?.setMuted).toHaveBeenCalledWith(true);
+    expect(secondHandle?.setMuted).not.toHaveBeenCalled();
+
+    firstHandle?.setMuted.mockClear();
+    secondHandle?.setMuted.mockClear();
+
     state.muteAllStreams.set(false);
     await syncComponent();
 
-    expect(twitch.createEmbed).toHaveBeenCalledWith(expect.objectContaining({
-      elementId: 'twitch-embed-shroud',
-      muted: false,
-    }));
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(firstHandle?.setMuted).toHaveBeenCalledWith(false);
+    expect(secondHandle?.setMuted).not.toHaveBeenCalled();
   });
 
   it('publishes Twitch quality options from active embeds and clears them when no streams remain', async () => {
@@ -310,7 +315,7 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).not.toHaveBeenCalled();
   });
 
-  it('recreates affected embeds on reorder and destroys all handles on component teardown', async () => {
+  it('updates mute state in place on reorder and destroys all handles on component teardown', async () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
     await syncComponent();
 
@@ -318,14 +323,18 @@ describe('StreamGridComponent', () => {
     const secondHandle = twitch.handles.get('twitch-embed-rocketbeanstv');
     firstHandle?.destroy.mockClear();
     secondHandle?.destroy.mockClear();
+    firstHandle?.setMuted.mockClear();
+    secondHandle?.setMuted.mockClear();
     twitch.createEmbed.mockClear();
 
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('rocketbeanstv'), channel('shroud')] });
     await syncComponent();
 
-    expect(firstHandle?.destroy).toHaveBeenCalledTimes(1);
-    expect(secondHandle?.destroy).toHaveBeenCalledTimes(1);
-    expect(twitch.createEmbed).toHaveBeenCalledTimes(2);
+    expect(firstHandle?.destroy).not.toHaveBeenCalled();
+    expect(secondHandle?.destroy).not.toHaveBeenCalled();
+    expect(firstHandle?.setMuted).toHaveBeenCalledWith(true);
+    expect(secondHandle?.setMuted).toHaveBeenCalledWith(false);
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
 
     twitch.handles.get('twitch-embed-rocketbeanstv')?.destroy.mockClear();
     twitch.handles.get('twitch-embed-shroud')?.destroy.mockClear();
@@ -600,6 +609,7 @@ class MockTwitchEmbedService {
 
 class MockTwitchEmbedHandle implements TwitchEmbedHandle {
   public readonly destroy = vi.fn();
+  public readonly setMuted = vi.fn();
 }
 
 class MockToastService {
