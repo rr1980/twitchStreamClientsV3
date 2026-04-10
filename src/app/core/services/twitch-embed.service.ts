@@ -34,6 +34,8 @@ interface TwitchPlayer {
   setQuality(value: string): void;
   setMuted?(value: boolean): void;
   getMuted?(): boolean;
+  setVolume?(value: number): void;
+  getVolume?(): number;
   getQualities(): TwitchQualityDescriptor[];
   getQuality(): string;
 }
@@ -424,6 +426,8 @@ export class TwitchEmbedService {
   private async _syncRequestedMutedState(
     player: TwitchPlayer,
     getRequestedMuted: () => boolean,
+    getRestoredVolume: () => number,
+    setRestoredVolume: (value: number) => void,
     isCancelled: () => boolean,
   ): Promise<void> {
     if (typeof player.setMuted !== 'function') {
@@ -438,9 +442,27 @@ export class TwitchEmbedService {
       }
 
       const muted = getRequestedMuted();
+      const currentVolume = typeof player.getVolume === 'function'
+        ? player.getVolume()
+        : null;
+
+      if (typeof currentVolume === 'number' && Number.isFinite(currentVolume) && currentVolume > 0) {
+        setRestoredVolume(currentVolume);
+      }
+
       player.setMuted(muted);
 
-      if (typeof player.getMuted === 'function' && player.getMuted() === muted) {
+      if (typeof player.setVolume === 'function') {
+        player.setVolume(muted ? 0 : getRestoredVolume());
+      }
+
+      const mutedMatches = typeof player.getMuted !== 'function' || player.getMuted() === muted;
+      const volumeMatches = typeof player.getVolume !== 'function'
+        || (muted
+          ? player.getVolume() === 0
+          : player.getVolume() > 0);
+
+      if (mutedMatches && volumeMatches) {
         return;
       }
 
@@ -455,6 +477,7 @@ export class TwitchEmbedService {
     let destroyed = false;
     let player: TwitchPlayer | null = null;
     let requestedMuted = initialMuted;
+    let restoredVolume = 0.5;
     let muteSyncRunId = 0;
 
     const syncRequestedMutedState = (): void => {
@@ -468,6 +491,10 @@ export class TwitchEmbedService {
       void this._syncRequestedMutedState(
         currentPlayer,
         () => requestedMuted,
+        () => restoredVolume,
+        value => {
+          restoredVolume = value;
+        },
         () => destroyed || player !== currentPlayer || syncRunId !== muteSyncRunId,
       );
     };

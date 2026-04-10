@@ -265,12 +265,17 @@ describe('TwitchEmbedService', () => {
 
   it('syncs the requested muted state through the player API when the embed is ready', async () => {
     let muted = false;
+    let volume = 0.5;
     const player = {
       getQualities: vi.fn(() => []),
       getQuality: vi.fn(() => 'auto'),
       getMuted: vi.fn(() => muted),
+      getVolume: vi.fn(() => volume),
       setMuted: vi.fn((value: boolean) => {
         muted = value;
+      }),
+      setVolume: vi.fn((value: number) => {
+        volume = value;
       }),
       setQuality: vi.fn(),
     };
@@ -300,16 +305,22 @@ describe('TwitchEmbedService', () => {
     await Promise.resolve();
 
     expect(player.setMuted).toHaveBeenCalledWith(true);
+    expect(player.setVolume).toHaveBeenCalledWith(0);
   });
 
   it('applies queued mute changes once the player becomes ready', async () => {
     let muted = false;
+    let volume = 0.5;
     const player = {
       getQualities: vi.fn(() => []),
       getQuality: vi.fn(() => 'auto'),
       getMuted: vi.fn(() => muted),
+      getVolume: vi.fn(() => volume),
       setMuted: vi.fn((value: boolean) => {
         muted = value;
+      }),
+      setVolume: vi.fn((value: number) => {
+        volume = value;
       }),
       setQuality: vi.fn(),
     };
@@ -340,16 +351,22 @@ describe('TwitchEmbedService', () => {
     await Promise.resolve();
 
     expect(player.setMuted).toHaveBeenCalledWith(true);
+    expect(player.setVolume).toHaveBeenCalledWith(0);
   });
 
   it('updates the player mute state directly after the embed is ready', async () => {
     let muted = false;
+    let volume = 0.5;
     const player = {
       getQualities: vi.fn(() => []),
       getQuality: vi.fn(() => 'auto'),
       getMuted: vi.fn(() => muted),
+      getVolume: vi.fn(() => volume),
       setMuted: vi.fn((value: boolean) => {
         muted = value;
+      }),
+      setVolume: vi.fn((value: number) => {
+        volume = value;
       }),
       setQuality: vi.fn(),
     };
@@ -378,31 +395,137 @@ describe('TwitchEmbedService', () => {
     readyCallback?.();
     await Promise.resolve();
     player.setMuted.mockClear();
+    player.setVolume.mockClear();
 
     handle.setMuted(true);
 
     expect(player.setMuted).toHaveBeenCalledWith(true);
+    expect(player.setVolume).toHaveBeenCalledWith(0);
+  });
+
+  it('restores the previous volume when a muted player is unmuted again', async () => {
+    let muted = true;
+    let volume = 0;
+    const player = {
+      getQualities: vi.fn(() => []),
+      getQuality: vi.fn(() => 'auto'),
+      getMuted: vi.fn(() => muted),
+      getVolume: vi.fn(() => volume),
+      setMuted: vi.fn((value: boolean) => {
+        muted = value;
+      }),
+      setVolume: vi.fn((value: number) => {
+        volume = value;
+      }),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbed(EmbedMock);
+
+    const handle = service.createEmbed({
+      elementId: 'twitch-embed-restored-volume',
+      channel: 'restored-volume',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+    handle.setMuted(true);
+    await Promise.resolve();
+    player.setMuted.mockClear();
+    player.setVolume.mockClear();
+
+    handle.setMuted(false);
+
+    expect(player.setMuted).toHaveBeenCalledWith(false);
+    expect(player.setVolume).toHaveBeenCalledWith(0.5);
   });
 
   it('reapplies the muted state even when the player already reports the same value', async () => {
     const syncRequestedMutedState = getServiceMethod<(
-      player: { setMuted?: (value: boolean) => void; getMuted?: () => boolean },
+      player: {
+        setMuted?: (value: boolean) => void;
+        getMuted?: () => boolean;
+        setVolume?: (value: number) => void;
+        getVolume?: () => number;
+      },
       getRequestedMuted: () => boolean,
+      getRestoredVolume: () => number,
+      setRestoredVolume: (value: number) => void,
       isCancelled: () => boolean,
     ) => Promise<void>>(
       '_syncRequestedMutedState',
     );
     let muted = true;
+    let volume = 0;
     const player = {
       getMuted: vi.fn(() => muted),
+      getVolume: vi.fn(() => volume),
       setMuted: vi.fn((value: boolean) => {
         muted = value;
       }),
+      setVolume: vi.fn((value: number) => {
+        volume = value;
+      }),
     };
 
-    await syncRequestedMutedState(player, () => true, () => false);
+    await syncRequestedMutedState(player, () => true, () => 0.5, () => undefined, () => false);
 
     expect(player.setMuted).toHaveBeenCalledWith(true);
+    expect(player.setVolume).toHaveBeenCalledWith(0);
+  });
+
+  it('stops mute syncing immediately when the run is already cancelled', async () => {
+    const syncRequestedMutedState = getServiceMethod<(
+      player: { setMuted?: (value: boolean) => void; getMuted?: () => boolean },
+      getRequestedMuted: () => boolean,
+      getRestoredVolume: () => number,
+      setRestoredVolume: (value: number) => void,
+      isCancelled: () => boolean,
+    ) => Promise<void>>(
+      '_syncRequestedMutedState',
+    );
+    const player = {
+      getMuted: vi.fn(() => false),
+      setMuted: vi.fn(),
+    };
+
+    await syncRequestedMutedState(player, () => true, () => 0.5, () => undefined, () => true);
+
+    expect(player.setMuted).not.toHaveBeenCalled();
+  });
+
+  it('skips mute syncing when the player does not expose setMuted', async () => {
+    const syncRequestedMutedState = getServiceMethod<(
+      player: { getMuted?: () => boolean; setVolume?: (value: number) => void; getVolume?: () => number },
+      getRequestedMuted: () => boolean,
+      getRestoredVolume: () => number,
+      setRestoredVolume: (value: number) => void,
+      isCancelled: () => boolean,
+    ) => Promise<void>>(
+      '_syncRequestedMutedState',
+    );
+    const player = {
+      getMuted: vi.fn(() => false),
+      getVolume: vi.fn(() => 0.5),
+      setVolume: vi.fn(),
+    };
+
+    await expect(syncRequestedMutedState(player, () => true, () => 0.5, () => undefined, () => false)).resolves.toBeUndefined();
+    expect(player.setVolume).not.toHaveBeenCalled();
   });
 
   it('normalizes Twitch quality descriptors from labels and prefers the richest source label', () => {
