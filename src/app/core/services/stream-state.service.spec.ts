@@ -632,6 +632,128 @@ describe('StreamStateService', () => {
     expect(setJsonSpy).not.toHaveBeenCalled();
   });
 
+  it('returns not-found when duplicating a non-existent list', () => {
+    const result = service.duplicateList(999);
+
+    expect(result).toEqual({ ok: false, reason: 'not-found' });
+  });
+
+  it('clears the focused channel when the focused stream is removed', () => {
+    service.createList('Test');
+    service.setActiveListId(1);
+    service.addStream('streamer_a');
+    service.addStream('streamer_b');
+    service.setFocusedChannel('streamer_a');
+
+    expect(service.focusedChannel()).toBe('streamer_a');
+
+    service.removeStream(0);
+
+    expect(service.focusedChannel()).toBeNull();
+  });
+
+  it('clears focused channel when set to an invalid or non-existent name', () => {
+    service.createList('Test');
+    service.setActiveListId(1);
+    service.addStream('streamer_a');
+
+    service.setFocusedChannel('non_existent');
+    expect(service.focusedChannel()).toBeNull();
+
+    service.setFocusedChannel('');
+    expect(service.focusedChannel()).toBeNull();
+  });
+
+  it('returns false when toggling favorite with an invalid name', () => {
+    const result = service.toggleFavoriteChannel('');
+
+    expect(result).toBe(false);
+  });
+
+  it('does nothing when reordering to the same index', () => {
+    service.createList('Test');
+    service.setActiveListId(1);
+    service.addStream('a');
+    service.addStream('b');
+
+    const streamsBefore = service.streams().map(s => s.name);
+    service.reorderStreams(0, 0);
+    const streamsAfter = service.streams().map(s => s.name);
+
+    expect(streamsAfter).toEqual(streamsBefore);
+  });
+
+  it('caps recent channels at 24 entries', () => {
+    service.createList('Test');
+    service.setActiveListId(1);
+
+    for (let i = 0; i < 30; i++) {
+      service.addStream(`channel_${String(i).padStart(2, '0')}`);
+    }
+
+    expect(service.recentChannels().length).toBeLessThanOrEqual(24);
+  });
+
+  it('normalizes stored channel lists with duplicates and non-strings', () => {
+    localStorage.setItem('app_state_v3', JSON.stringify({
+      lists: [],
+      quality: 'auto',
+      statistics: [],
+      favoriteChannels: ['abc', 'abc', '', 'def'],
+      recentChannels: ['xyz', 'xyz'],
+      layoutPreset: 'auto',
+      focusedChannel: null,
+      lastActiveListId: null,
+    }));
+
+    const freshService = createService();
+
+    expect(freshService.favoriteChannels()).toEqual(['abc', 'def']);
+    expect(freshService.recentChannels()).toEqual(['xyz']);
+  });
+
+  it('normalizes an invalid stored focused channel', () => {
+    localStorage.setItem('app_state_v3', JSON.stringify({
+      lists: [{ id: 1, name: 'Test', streams: [{ name: 'valid', showChat: false }] }],
+      quality: 'auto',
+      statistics: [],
+      favoriteChannels: [],
+      recentChannels: [],
+      layoutPreset: 'auto',
+      focusedChannel: '!!!invalid!!!',
+      lastActiveListId: 1,
+    }));
+
+    const freshService = createService();
+
+    expect(freshService.focusedChannel()).toBeNull();
+  });
+
+  it('generates unique duplicate names when collisions exist', () => {
+    service.createList('Test');
+    service.createList('Test Kopie');
+    service.setActiveListId(1);
+
+    const result = service.duplicateList(1);
+
+    expect(result.ok).toBe(true);
+    expect(result.list?.name).toBe('Test Kopie 2');
+  });
+
+  it('clears focused channel when switching to a list without that stream', () => {
+    service.createList('List A');
+    service.createList('List B');
+    service.setActiveListId(1);
+    service.addStream('streamer_x');
+    service.setFocusedChannel('streamer_x');
+
+    expect(service.focusedChannel()).toBe('streamer_x');
+
+    service.setActiveListId(2);
+
+    expect(service.focusedChannel()).toBeNull();
+  });
+
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }

@@ -402,6 +402,42 @@ describe('StreamGridComponent', () => {
     vi.useRealTimers();
   });
 
+  it('debounces rapid resize events and only applies the last values', () => {
+    vi.useFakeTimers();
+    const component = fixture.componentInstance;
+    const onResize = getPrivateMethod<() => void>(component, '_onResize');
+
+    window.innerWidth = 800;
+    window.innerHeight = 600;
+    onResize();
+
+    window.innerWidth = 1024;
+    window.innerHeight = 768;
+    onResize();
+
+    window.innerWidth = 1440;
+    window.innerHeight = 900;
+    onResize();
+
+    vi.advanceTimersByTime(150);
+
+    expect(getPrivateMethod<() => number>(component, '_viewportWidth')()).toBe(1440);
+    expect(getPrivateMethod<() => number>(component, '_viewportHeight')()).toBe(900);
+    vi.useRealTimers();
+  });
+
+  it('clears the resize timer on destroy', () => {
+    vi.useFakeTimers();
+    const component = fixture.componentInstance;
+
+    getPrivateMethod<() => void>(component, '_onResize')();
+
+    fixture.destroy();
+
+    expect(() => vi.advanceTimersByTime(150)).not.toThrow();
+    vi.useRealTimers();
+  });
+
   it('returns zero viewport dimensions outside the browser platform', () => {
     const component = fixture.componentInstance;
 
@@ -409,6 +445,72 @@ describe('StreamGridComponent', () => {
 
     expect(getPrivateMethod<(dimension: 'innerWidth' | 'innerHeight') => number>(component, '_readViewportDimension')('innerWidth')).toBe(0);
     expect(getPrivateMethod<(dimension: 'innerWidth' | 'innerHeight') => number>(component, '_readViewportDimension')('innerHeight')).toBe(0);
+  });
+
+  it('reorders displayed streams to put the focused stream first', async () => {
+    state.setActiveList({ id: 1, name: 'Test', streams: [channel('a'), channel('b'), channel('c')] });
+    state.focusedChannel.set('b');
+    await syncComponent();
+
+    const component = fixture.componentInstance;
+    const displayedStreams = getPrivateMethod<() => StreamChannel[]>(component, '_displayedStreams')();
+
+    expect(displayedStreams[0].name).toBe('b');
+    expect(displayedStreams.map(s => s.name)).toEqual(['b', 'a', 'c']);
+  });
+
+  it('falls back to default order when focused stream is not in the list', async () => {
+    state.setActiveList({ id: 1, name: 'Test', streams: [channel('a'), channel('b')] });
+    state.focusedChannel.set('nonexistent');
+    await syncComponent();
+
+    const component = fixture.componentInstance;
+    const displayedStreams = getPrivateMethod<() => StreamChannel[]>(component, '_displayedStreams')();
+
+    expect(displayedStreams.map(s => s.name)).toEqual(['a', 'b']);
+  });
+
+  it('clears the resize timer in ngOnDestroy when one is active', () => {
+    vi.useFakeTimers();
+    const component = fixture.componentInstance;
+    const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+    getPrivateMethod<() => void>(component, '_onResize')();
+    component.ngOnDestroy();
+
+    expect(clearSpy).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('ignores stale quality callbacks after a stream is replaced', async () => {
+    state.setActiveList({ id: 1, name: 'Test', streams: [channel('streamer')] });
+    await syncComponent();
+
+    const staleHandle = twitch.handles.get('twitch-embed-streamer');
+
+    state.setActiveList({ id: 1, name: 'Test', streams: [channel('other')] });
+    await syncComponent();
+
+    state.setAvailableQualities.mockClear();
+    twitch.reportQualities('twitch-embed-streamer', [quality('720p60')]);
+
+    expect(state.setAvailableQualities).not.toHaveBeenCalled();
+    expect(staleHandle?.destroy).toHaveBeenCalled();
+  });
+
+  it('clears quality data when receiving only empty quality values', async () => {
+    state.setActiveList({ id: 1, name: 'Test', streams: [channel('streamer')] });
+    await syncComponent();
+
+    twitch.reportQualities('twitch-embed-streamer', [quality('720p60')]);
+
+    state.setAvailableQualities.mockClear();
+    twitch.reportQualities('twitch-embed-streamer', [
+      quality('', ''),
+      quality('  ', '  '),
+    ]);
+
+    expect(state.setAvailableQualities).toHaveBeenLastCalledWith([]);
   });
 
   function channel(name: string, showChat = false): StreamChannel {

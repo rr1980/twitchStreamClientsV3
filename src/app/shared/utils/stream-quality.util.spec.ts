@@ -49,6 +49,26 @@ describe('stream-quality.util', () => {
     expect(areStreamQualityOptionsEqual(left, changed)).toBe(false);
   });
 
+  it('sorts qualities with same resolution by frame rate', () => {
+    expect(normalizeAvailableStreamQualities([
+      quality('720p30', '720p30'),
+      quality('720p60', '720p60'),
+    ])).toEqual([
+      quality('720p60'),
+      quality('720p30'),
+    ]);
+  });
+
+  it('falls back to locale comparison for qualities with same token', () => {
+    expect(normalizeAvailableStreamQualities([
+      quality('480p30', '480p30'),
+      quality('480p', '480p'),
+    ])).toEqual([
+      quality('480p30'),
+      quality('480p'),
+    ]);
+  });
+
   function quality(value: string, label = value): StreamQualityOption {
     return { value, label };
   }

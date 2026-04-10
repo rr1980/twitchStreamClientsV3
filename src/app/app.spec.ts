@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import { App } from './app';
 import { appRoutes } from './app.config';
 import { HotkeyService } from './core/services/hotkey.service';
+import { PwaService } from './core/services/pwa.service';
 import { StreamStateService } from './core/services/stream-state.service';
 
 describe('App', () => {
@@ -218,5 +219,66 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(router.url).toBe('/List/2');
+  });
+
+  it('renders and dismisses the update notice', async () => {
+    const fixture = TestBed.createComponent(App);
+    const pwa = TestBed.inject(PwaService);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('.app-notice--update')).toBeNull();
+
+    (pwa as unknown as Record<string, { set: (v: boolean) => void }>)['_updateAvailable'].set(true);
+    fixture.detectChanges();
+
+    const updateNotice = fixture.nativeElement.querySelector('.app-notice--update') as HTMLElement;
+    expect(updateNotice?.textContent).toContain('Update verfügbar');
+
+    const dismissBtn = fixture.nativeElement.querySelector('[aria-label="Update-Hinweis schließen"]') as HTMLButtonElement;
+    dismissBtn.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.app-notice--update')).toBeNull();
+  });
+
+  it('delegates reload to the PWA service when the update button is clicked', async () => {
+    const fixture = TestBed.createComponent(App);
+    const pwa = TestBed.inject(PwaService);
+    const reloadSpy = vi.spyOn(pwa, 'reloadForUpdate').mockImplementation(() => {});
+
+    (pwa as unknown as Record<string, { set: (v: boolean) => void }>)['_updateAvailable'].set(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const reloadBtn = fixture.nativeElement.querySelector('.app-notice__btn--accent') as HTMLButtonElement;
+    reloadBtn.click();
+
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('delegates install to the PWA service', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    const pwa = TestBed.inject(PwaService);
+    const installSpy = vi.spyOn(pwa, 'install').mockResolvedValue(undefined);
+
+    getAppMethod<() => void>(app, '_installApp')();
+
+    expect(installSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the install button when canInstall is true', async () => {
+    const pwa = TestBed.inject(PwaService);
+    const fakePromptEvent = { prompt: vi.fn(), userChoice: Promise.resolve({ outcome: 'accepted', platform: 'web' }) };
+    (pwa as unknown as Record<string, { set: (v: unknown) => void }>)['_installPromptEvent'].set(fakePromptEvent);
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const installButton = fixture.nativeElement.querySelector('.app-notice__btn--accent') as HTMLButtonElement;
+    expect(installButton?.textContent?.trim()).toBe('Installieren');
   });
 });

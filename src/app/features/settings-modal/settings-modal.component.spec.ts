@@ -670,6 +670,157 @@ describe('SettingsModalComponent', () => {
     expect(listNavigation.navigateToList).toHaveBeenCalledWith(2);
   });
 
+  it('shows an error toast when duplicating a list fails', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Test', streams: [] }]);
+    state.setActiveListId(1);
+    state.duplicateList.mockReturnValue({ ok: false, reason: 'not-found' });
+    await syncComponent();
+
+    getComponentMethod<(list: StreamList) => void>(component, '_duplicateList')({ id: 99, name: 'Test', streams: [] });
+
+    expect(toast.show).toHaveBeenCalledWith('Die Liste konnte nicht dupliziert werden.', 'error');
+  });
+
+  it('handles drag-over by preventing default and updating drop target', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Test', streams: [channel('a'), channel('b'), channel('c')] }]);
+    state.setActiveListId(1);
+    await syncComponent();
+
+    const dragEvent = new Event('dragstart') as DragEvent;
+    Object.defineProperty(dragEvent, 'dataTransfer', { value: { effectAllowed: '', setData: vi.fn(), dropEffect: '' } });
+
+    getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
+
+    const overEvent = new Event('dragover', { cancelable: true }) as DragEvent;
+    Object.defineProperty(overEvent, 'dataTransfer', { value: { dropEffect: '' } });
+    const preventSpy = vi.spyOn(overEvent, 'preventDefault');
+
+    getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragOver')(2, overEvent);
+
+    expect(preventSpy).toHaveBeenCalledTimes(1);
+    expect(getComponentMember<{ (): number | null }>(component, '_dropTargetStreamIndex')()).toBe(2);
+  });
+
+  it('handles drag-end by resetting drag state', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Test', streams: [channel('a'), channel('b')] }]);
+    state.setActiveListId(1);
+    await syncComponent();
+
+    const dragEvent = new Event('dragstart') as DragEvent;
+    Object.defineProperty(dragEvent, 'dataTransfer', { value: { effectAllowed: '', setData: vi.fn() } });
+
+    getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
+    expect(getComponentMember<{ (): number | null }>(component, '_draggedStreamIndex')()).toBe(0);
+
+    getComponentMethod<() => void>(component, '_onStreamDragEnd')();
+    expect(getComponentMember<{ (): number | null }>(component, '_draggedStreamIndex')()).toBeNull();
+    expect(getComponentMember<{ (): number | null }>(component, '_dropTargetStreamIndex')()).toBeNull();
+  });
+
+  it('handles stream chat change from a checkbox input', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Test', streams: [channel('a')] }]);
+    state.setActiveListId(1);
+    await syncComponent();
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = true;
+    const event = new Event('change');
+    Object.defineProperty(event, 'target', { value: checkbox });
+
+    getComponentMethod<(index: number, event: Event) => void>(component, '_onStreamChatChange')(0, event);
+
+    expect(state.setStreamShowChat).toHaveBeenCalledWith(0, true);
+  });
+
+  it('handles drag-enter by updating drop target index', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Test', streams: [channel('a'), channel('b')] }]);
+    state.setActiveListId(1);
+    await syncComponent();
+
+    const dragEvent = new Event('dragstart') as DragEvent;
+    Object.defineProperty(dragEvent, 'dataTransfer', { value: { effectAllowed: '', setData: vi.fn() } });
+
+    getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
+    getComponentMethod<(index: number) => void>(component, '_onStreamDragEnter')(1);
+
+    expect(getComponentMember<{ (): number | null }>(component, '_dropTargetStreamIndex')()).toBe(1);
+  });
+
+  it('ignores drag-enter when no drag is in progress', () => {
+    getComponentMethod<(index: number) => void>(component, '_onStreamDragEnter')(0);
+
+    expect(getComponentMember<{ (): number | null }>(component, '_dropTargetStreamIndex')()).toBeNull();
+  });
+
+  it('ignores drag-over when no drag is in progress', () => {
+    const overEvent = new Event('dragover', { cancelable: true }) as DragEvent;
+    const preventSpy = vi.spyOn(overEvent, 'preventDefault');
+
+    getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragOver')(0, overEvent);
+
+    expect(preventSpy).not.toHaveBeenCalled();
+  });
+
+  it('handles drag-start without dataTransfer available', () => {
+    const dragEvent = new Event('dragstart') as DragEvent;
+
+    getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
+
+    expect(getComponentMember<{ (): number | null }>(component, '_draggedStreamIndex')()).toBe(0);
+  });
+
+  it('traps focus within the modal on Tab key', async () => {
+    state.menuOpen.set(true);
+    state.setLists([]);
+    await syncComponent();
+
+    const modalPanel = fixture.nativeElement.querySelector('.modal');
+
+    if (modalPanel) {
+      const focusableElements = modalPanel.querySelectorAll('button, input, [tabindex]:not([tabindex="-1"])') as NodeListOf<HTMLElement>;
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (lastElement) {
+        lastElement.focus();
+        const tabEvent = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true });
+        const preventSpy = vi.spyOn(tabEvent, 'preventDefault');
+
+        getComponentMethod<(event: KeyboardEvent) => void>(component, '_onDialogKeydown')(tabEvent);
+
+        expect(preventSpy).toHaveBeenCalled();
+      }
+    }
+  });
+
+  it('traps focus backward within the modal on Shift+Tab', async () => {
+    state.menuOpen.set(true);
+    state.setLists([]);
+    await syncComponent();
+
+    const modalPanel = fixture.nativeElement.querySelector('.modal');
+
+    if (modalPanel) {
+      const focusableElements = modalPanel.querySelectorAll('button, input, [tabindex]:not([tabindex="-1"])') as NodeListOf<HTMLElement>;
+      const firstElement = focusableElements[0];
+
+      if (firstElement) {
+        firstElement.focus();
+        const tabEvent = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true });
+        const preventSpy = vi.spyOn(tabEvent, 'preventDefault');
+
+        getComponentMethod<(event: KeyboardEvent) => void>(component, '_onDialogKeydown')(tabEvent);
+
+        expect(preventSpy).toHaveBeenCalled();
+      }
+    }
+  });
+
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }

@@ -87,6 +87,88 @@ describe('PwaService', () => {
     expect(service.startupHintVisible()).toBe(false);
   });
 
+  it('clears the install prompt when the browser rejects it', async () => {
+    const service = createService();
+    const installEvent = new Event('beforeinstallprompt') as Event & {
+      prompt: () => Promise<void>;
+      userChoice: Promise<{ outcome: 'dismissed'; platform: string }>;
+    };
+
+    installEvent.prompt = vi.fn(async () => { throw new Error('user gesture required'); });
+    installEvent.userChoice = Promise.resolve({ outcome: 'dismissed', platform: 'web' });
+
+    window.dispatchEvent(installEvent);
+
+    expect(service.canInstall()).toBe(true);
+
+    await service.install();
+
+    expect(service.canInstall()).toBe(false);
+    expect(service.startupHintVisible()).toBe(true);
+  });
+
+  it('does nothing when install is called without a prompt event', async () => {
+    const service = createService();
+
+    expect(service.canInstall()).toBe(false);
+
+    await expect(service.install()).resolves.toBeUndefined();
+  });
+
+  it('reloadForUpdate calls window.location.reload', () => {
+    const service = createService();
+    const reloadSpy = vi.fn();
+    const originalLocation = window.location;
+
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...originalLocation, reload: reloadSpy },
+    });
+
+    service.reloadForUpdate();
+
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    });
+
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the install prompt when appinstalled is dispatched', () => {
+    const service = createService();
+    const installEvent = new Event('beforeinstallprompt') as Event & {
+      prompt: () => Promise<void>;
+      userChoice: Promise<{ outcome: 'accepted'; platform: string }>;
+    };
+
+    installEvent.prompt = vi.fn(async () => undefined);
+    installEvent.userChoice = Promise.resolve({ outcome: 'accepted', platform: 'web' });
+
+    window.dispatchEvent(installEvent);
+    expect(service.canInstall()).toBe(true);
+
+    window.dispatchEvent(new Event('appinstalled'));
+    expect(service.canInstall()).toBe(false);
+    expect(service.startupHintVisible()).toBe(false);
+  });
+
+  it('hides the startup hint when matchMedia reports standalone mode', () => {
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia;
+
+    const service = createService();
+
+    expect(service.startupHintVisible()).toBe(false);
+  });
+
+  it('keeps the startup hint hidden after it was previously dismissed', () => {
+    localStorage.setItem('pwa_startup_hint_seen_v1', 'true');
+
+    const service = createService();
+
+    expect(service.startupHintVisible()).toBe(false);
+  });
+
   function createService(
     swUpdateOverride: Pick<SwUpdate, 'isEnabled' | 'versionUpdates'> = {
       isEnabled: true,
