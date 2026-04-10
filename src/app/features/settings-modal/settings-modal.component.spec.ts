@@ -31,6 +31,16 @@ describe('SettingsModalComponent', () => {
     return element as T;
   }
 
+  function getButtonByText(text: string): HTMLButtonElement {
+    const buttons = fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>;
+    const button = Array.from(buttons)
+      .find(candidate => candidate.textContent?.trim() === text);
+
+    expect(button).toBeDefined();
+
+    return button as HTMLButtonElement;
+  }
+
   function setInputValue(selector: string, value: string): HTMLInputElement {
     const input = getElement<HTMLInputElement>(selector);
 
@@ -624,6 +634,58 @@ describe('SettingsModalComponent', () => {
     expect(state.reorderStreams).toHaveBeenCalledWith(0, 1);
   });
 
+  it('wires quick actions through the UI and shows feedback', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud', true)] }]);
+    state.setActiveListId(1);
+    state.favoriteChannels.set(['papaplatte']);
+    state.disableChatsForActiveList.mockReturnValue(1);
+    state.addFavoriteChannelsToActiveList.mockReturnValue({ ok: true, added: ['papaplatte', 'gronkh'] });
+    await syncComponent();
+
+    getButtonByText('Alle Chats aus').click();
+    getButtonByText('Alle Streams stummschalten').click();
+    getButtonByText('Favoriten zur Liste hinzufuegen').click();
+
+    expect(state.disableChatsForActiveList).toHaveBeenCalledTimes(1);
+    expect(state.setMuteAllStreams).toHaveBeenCalledWith(true);
+    expect(state.addFavoriteChannelsToActiveList).toHaveBeenCalledTimes(1);
+    expect(toast.show).toHaveBeenCalledWith('Chat fuer 1 Stream deaktiviert.', 'info');
+    expect(toast.show).toHaveBeenCalledWith('Alle Streams stummgeschaltet.', 'info');
+    expect(toast.show).toHaveBeenCalledWith('2 Favoriten hinzugefuegt.', 'info');
+  });
+
+  it('covers quick-action edge cases when nothing changes or no list is active', async () => {
+    state.menuOpen.set(true);
+    await syncComponent();
+
+    getComponentMethod<() => void>(component, '_disableAllChats')();
+    getComponentMethod<() => void>(component, '_toggleMuteAllStreams')();
+    state.addFavoriteChannelsToActiveList.mockReturnValue({ ok: false, reason: 'no-list', added: [] });
+    getComponentMethod<() => void>(component, '_addFavoritesToActiveList')();
+
+    expect(toast.show).toHaveBeenNthCalledWith(1, 'Waehle zuerst eine Liste aus.', 'error');
+    expect(toast.show).toHaveBeenNthCalledWith(2, 'Waehle zuerst eine Liste aus.', 'error');
+    expect(toast.show).toHaveBeenNthCalledWith(3, 'Waehle zuerst eine Liste aus.', 'error');
+
+    toast.show.mockClear();
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud')] }]);
+    state.setActiveListId(1);
+    state.disableChatsForActiveList.mockReturnValue(0);
+    state.addFavoriteChannelsToActiveList.mockReturnValue({ ok: true, added: [] });
+    state.muteAllStreams.set(true);
+    await syncComponent();
+
+    getComponentMethod<() => void>(component, '_disableAllChats')();
+    getComponentMethod<() => void>(component, '_toggleMuteAllStreams')();
+    getComponentMethod<() => void>(component, '_addFavoritesToActiveList')();
+
+    expect(state.setMuteAllStreams).toHaveBeenCalledWith(false);
+    expect(toast.show).toHaveBeenNthCalledWith(1, 'Alle Chats sind bereits deaktiviert.', 'info');
+    expect(toast.show).toHaveBeenNthCalledWith(2, 'Standard-Audio wiederhergestellt.', 'info');
+    expect(toast.show).toHaveBeenNthCalledWith(3, 'Keine neuen Favoriten zum Hinzufuegen.', 'info');
+  });
+
   it('renames and deletes lists through the state service', async () => {
     state.menuOpen.set(true);
     state.setLists([
@@ -806,6 +868,7 @@ class MockStreamStateService {
   public readonly streams = computed(() => this.activeList()?.streams ?? []);
   public readonly quality = signal<StreamQuality>('auto');
   public readonly layoutPreset = signal<StreamLayoutPreset>('auto');
+  public readonly muteAllStreams = signal(false);
   public readonly availableQualities = signal<StreamQualityOption[]>([
     { value: 'auto', label: 'Auto' },
     { value: 'chunked', label: 'Quelle' },
@@ -826,8 +889,15 @@ class MockStreamStateService {
   public readonly removeStream = vi.fn<(index: number) => string | null>(() => null);
   public readonly reorderStreams = vi.fn();
   public readonly renameList = vi.fn<(listId: number, rawName: string) => { ok: boolean; reason?: string; list?: StreamList }>();
+  public readonly disableChatsForActiveList = vi.fn(() => 0);
+  public readonly addFavoriteChannelsToActiveList = vi.fn<() => { ok: boolean; reason?: 'no-list'; added: string[] }>(
+    () => ({ ok: true, added: [] }),
+  );
   public readonly setLayoutPreset = vi.fn((value: StreamLayoutPreset) => {
     this.layoutPreset.set(value);
+  });
+  public readonly setMuteAllStreams = vi.fn((value: boolean) => {
+    this.muteAllStreams.set(value);
   });
   public readonly setQuality = vi.fn((value: StreamQuality) => {
     this.quality.set(value);

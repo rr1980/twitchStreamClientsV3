@@ -249,7 +249,34 @@
         </section>
 
         <aside class="panel panel--side">
-          <div class="option-block panel-card panel-card--compact panel-card--subtle">
+          <div class="option-block panel-card panel-card--compact panel-card--subtle" [class.panel-card--muted]="!_hasActiveList()">
+            <p class="section-label">Schnellaktionen</p>
+
+            <div class="quick-actions">
+              <button
+                type="button"
+                class="quick-action-btn"
+                [disabled]="!_hasActiveList() || !_hasChatsEnabled()"
+                (click)="_disableAllChats()">
+                Alle Chats aus
+              </button>
+              <button
+                type="button"
+                class="quick-action-btn"
+                [disabled]="!_hasActiveList() || !_hasStreams()"
+                (click)="_toggleMuteAllStreams()">
+                {{ _audioQuickActionLabel() }}
+              </button>
+              <button
+                type="button"
+                class="quick-action-btn"
+                [disabled]="!_hasActiveList() || !_canAddFavoritesToList()"
+                (click)="_addFavoritesToActiveList()">
+                Favoriten zur Liste hinzufuegen
+              </button>
+            </div>
+          </div>
+          <div class="option-block panel-card panel-card--compact panel-card--subtle" [class.panel-card--muted]="!_hasActiveList()">
             <fieldset class="quality-fieldset" aria-labelledby="layout-label">
               <legend class="section-label" id="layout-label">Layout</legend>
 
@@ -260,6 +287,7 @@
                       type="radio"
                       name="stream-layout"
                       [checked]="_selectedLayoutPreset() === layoutOption.value"
+                      [disabled]="!_hasActiveList()"
                       (change)="_setLayoutPreset(layoutOption.value)" />
                     <span class="quality-btn">{{ layoutOption.label }}</span>
                   </label>
@@ -268,7 +296,7 @@
             </fieldset>
           </div>
 
-          <div class="option-block panel-card panel-card--compact panel-card--subtle">
+          <div class="option-block panel-card panel-card--compact panel-card--subtle" [class.panel-card--muted]="!_hasActiveList()">
             <fieldset class="quality-fieldset" aria-labelledby="quality-label">
               <legend class="section-label" id="quality-label">Qualität</legend>
 
@@ -279,6 +307,7 @@
                       type="radio"
                       name="stream-quality"
                       [checked]="_selectedQuality() === quality.value"
+                      [disabled]="!_hasActiveList()"
                       (change)="_setQuality(quality.value)" />
                     <span class="quality-btn">{{ quality.label }}</span>
                   </label>

@@ -243,6 +243,7 @@
 .primary-btn:focus-visible,
 .icon-btn:focus-visible,
 .quality-btn:focus-visible,
+.quick-action-btn:focus-visible,
 .apply-btn:focus-visible,
 .danger-btn:focus-visible,
 .stream-item__icon-btn:focus-visible,
@@ -739,6 +740,38 @@
   min-width: 0;
 }
 
+.quick-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.quick-action-btn {
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  text-align: left;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.quick-action-btn:hover {
+  border-color: var(--color-twitch);
+  background: rgba(145, 70, 255, 0.12);
+}
+
+.quick-action-btn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.quick-action-btn:disabled:hover {
+  border-color: var(--color-border);
+  background: var(--color-bg);
+}
+
 .quality-option input {
   position: absolute;
   opacity: 0;
@@ -766,6 +799,11 @@
 .quality-option--active .quality-btn {
   border-color: var(--color-twitch);
   color: var(--color-twitch);
+}
+
+.quality-option input:disabled + .quality-btn {
+  opacity: 0.48;
+  cursor: not-allowed;
 }
 
 .quality-option input:focus-visible + .quality-btn {

@@ -222,6 +222,30 @@ describe('StreamGridComponent', () => {
     }));
   });
 
+  it('mutes every embed when mute-all mode is enabled', async () => {
+    state.muteAllStreams.set(true);
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
+    await syncComponent();
+
+    expect(twitch.createEmbed).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      elementId: 'twitch-embed-shroud',
+      muted: true,
+    }));
+    expect(twitch.createEmbed).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      elementId: 'twitch-embed-rocketbeanstv',
+      muted: true,
+    }));
+
+    twitch.createEmbed.mockClear();
+    state.muteAllStreams.set(false);
+    await syncComponent();
+
+    expect(twitch.createEmbed).toHaveBeenCalledWith(expect.objectContaining({
+      elementId: 'twitch-embed-shroud',
+      muted: false,
+    }));
+  });
+
   it('publishes Twitch quality options from active embeds and clears them when no streams remain', async () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
     await syncComponent();
@@ -538,6 +562,7 @@ class MockStreamStateService {
   public readonly quality = signal<StreamQuality>('auto');
   public readonly layoutPreset = signal<StreamLayoutPreset>('auto');
   public readonly focusedChannel = signal<string | null>(null);
+  public readonly muteAllStreams = signal(false);
   public readonly availableQualities = signal<StreamQualityOption[]>([{ value: 'auto', label: 'Auto' }]);
   public readonly setAvailableQualities = vi.fn((values: StreamQualityOption[]) => {
     this.availableQualities.set([{ value: 'auto', label: 'Auto' }, ...values]);

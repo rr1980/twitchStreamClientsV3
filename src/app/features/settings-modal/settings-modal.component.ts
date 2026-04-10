@@ -51,8 +51,11 @@ export class SettingsModalComponent {
   protected readonly _streams = this._state.streams;
   protected readonly _selectedQuality = this._state.quality;
   protected readonly _selectedLayoutPreset = this._state.layoutPreset;
+  protected readonly _muteAllStreams = this._state.muteAllStreams;
   protected readonly _favoriteChannels = this._state.favoriteChannels;
   protected readonly _hasActiveList = computed(() => this._activeList() !== null);
+  protected readonly _hasStreams = computed(() => this._streams().length > 0);
+  protected readonly _hasChatsEnabled = computed(() => this._streams().some(stream => stream.showChat));
   protected readonly _favoriteChannelSet = computed(() => new Set(this._favoriteChannels()));
   protected readonly _favoriteSuggestions = computed(() => {
     const activeChannels = new Set(this._streams().map(stream => stream.name));
@@ -69,6 +72,10 @@ export class SettingsModalComponent {
       .filter(channel => !activeChannels.has(channel) && !favoriteChannels.has(channel))
       .slice(0, 8);
   });
+  protected readonly _canAddFavoritesToList = computed(() => this._favoriteSuggestions().length > 0);
+  protected readonly _audioQuickActionLabel = computed(() => this._muteAllStreams()
+    ? 'Audio zuruecksetzen'
+    : 'Alle Streams stummschalten');
   protected readonly _layoutOptions: StreamLayoutPresetOption[] = [
     { value: 'auto', label: 'Auto' },
     { value: 'balanced', label: 'Grid' },
@@ -310,6 +317,62 @@ export class SettingsModalComponent {
 
   protected _setLayoutPreset(value: StreamLayoutPreset): void {
     this._state.setLayoutPreset(value);
+  }
+
+  protected _disableAllChats(): void {
+    if (!this._hasActiveList()) {
+      this._toast.show('Waehle zuerst eine Liste aus.', 'error');
+      return;
+    }
+
+    const changedCount = this._state.disableChatsForActiveList();
+
+    if (changedCount === 0) {
+      this._toast.show('Alle Chats sind bereits deaktiviert.', 'info');
+      return;
+    }
+
+    this._toast.show(
+      changedCount === 1
+        ? 'Chat fuer 1 Stream deaktiviert.'
+        : `Chat fuer ${changedCount} Streams deaktiviert.`,
+      'info',
+    );
+  }
+
+  protected _toggleMuteAllStreams(): void {
+    if (!this._hasActiveList()) {
+      this._toast.show('Waehle zuerst eine Liste aus.', 'error');
+      return;
+    }
+
+    const nextValue = !this._muteAllStreams();
+    this._state.setMuteAllStreams(nextValue);
+    this._toast.show(
+      nextValue ? 'Alle Streams stummgeschaltet.' : 'Standard-Audio wiederhergestellt.',
+      'info',
+    );
+  }
+
+  protected _addFavoritesToActiveList(): void {
+    const result = this._state.addFavoriteChannelsToActiveList();
+
+    if (!result.ok) {
+      this._toast.show('Waehle zuerst eine Liste aus.', 'error');
+      return;
+    }
+
+    if (result.added.length === 0) {
+      this._toast.show('Keine neuen Favoriten zum Hinzufuegen.', 'info');
+      return;
+    }
+
+    this._toast.show(
+      result.added.length === 1
+        ? '1 Favorit hinzugefuegt.'
+        : `${result.added.length} Favoriten hinzugefuegt.`,
+      'info',
+    );
   }
 
   protected _applySuggestedChannel(channelName: string): void {

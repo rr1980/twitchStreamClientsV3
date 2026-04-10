@@ -90,6 +90,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     effect(() => {
       this._displayedStreams();
       this._state.quality();
+      this._state.muteAllStreams();
 
       if (!this._viewReady) {
         return;
@@ -157,6 +158,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
     const streams = this._displayedStreams();
     const quality = this._state.quality();
+    const muteAllStreams = this._state.muteAllStreams();
 
     const activeChannels = new Set(streams.map(stream => stream.name));
 
@@ -203,7 +205,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
         elementId: wrapperId,
         quality,
         showChat: stream.showChat,
-        muted: index !== 0,
+        muted: muteAllStreams || index !== 0,
       };
 
       if (this._isRenderedStateCurrent(stream.name, nextState)) {
