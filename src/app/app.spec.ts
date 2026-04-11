@@ -41,7 +41,7 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelector('h1')?.textContent).toContain('Dein Setup ist leer');
-    expect(compiled.querySelector('.menu-trigger')?.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(compiled.querySelector('.menu-trigger')).toBeNull();
   });
 
   it('delegates window keydown handling to the hotkey service', () => {
@@ -103,10 +103,56 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
+    window.innerWidth = 1024;
+    getAppMethod<(event: PointerEvent) => void>(
+      fixture.componentInstance,
+      '_onWindowPointerMove',
+    )({ clientX: 1000, clientY: 20 } as PointerEvent);
+    fixture.detectChanges();
+
     const trigger = fixture.nativeElement.querySelector('.menu-trigger') as HTMLButtonElement;
+
+    expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
+
     trigger.click();
 
     expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the menu trigger only near the top-right pointer hotspot', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('.menu-trigger')).toBeNull();
+
+    window.innerWidth = 1024;
+    getAppMethod<(event: PointerEvent) => void>(app, '_onWindowPointerMove')({ clientX: 1000, clientY: 20 } as PointerEvent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.menu-trigger')).not.toBeNull();
+
+    getAppMethod<(event: PointerEvent) => void>(app, '_onWindowPointerMove')({ clientX: 200, clientY: 200 } as PointerEvent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.menu-trigger')).toBeNull();
+  });
+
+  it('keeps the menu trigger hidden when no browser window is available', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    (app as unknown as Record<string, unknown>)['_document'] = { defaultView: null };
+
+    getAppMethod<(event: PointerEvent) => void>(app, '_onWindowPointerMove')({ clientX: 1000, clientY: 20 } as PointerEvent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.menu-trigger')).toBeNull();
   });
 
   it('renders and dismisses the startup hint on first load', async () => {
@@ -219,6 +265,30 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(router.url).toBe('/List/2');
+  });
+
+  it('does not restore a missing last active list on the initial null route', async () => {
+    localStorage.setItem('app_state_v3', JSON.stringify({
+      lists: [{ id: 2, name: 'Esports', streams: [] }],
+      quality: 'auto',
+      statistics: [],
+      favoriteChannels: [],
+      recentChannels: [],
+      layoutPreset: 'auto',
+      focusedChannel: null,
+      lastActiveListId: 9,
+    }));
+
+    const state = TestBed.inject(StreamStateService);
+    state.initialize();
+    const fixture = TestBed.createComponent(App);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    TestBed.tick();
+    await fixture.whenStable();
+
+    expect(router.url).toBe('/List/null');
   });
 
   it('renders and dismisses the update notice', async () => {

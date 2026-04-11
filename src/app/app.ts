@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
@@ -20,16 +20,20 @@ import { PwaService } from './core/services/pwa.service';
   host: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     '(window:keydown)': '_onWindowKeydown($event)',
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    '(window:pointermove)': '_onWindowPointerMove($event)',
   },
 })
 export class App {
   protected readonly _state = inject(StreamStateService);
   protected readonly _pwa = inject(PwaService);
+  protected readonly _menuTriggerVisible = signal(false);
   private readonly _document = inject(DOCUMENT);
   private readonly _hotkeys = inject(HotkeyService);
   private readonly _listNavigation = inject(ListNavigationService);
   private readonly _title = inject(Title);
   private readonly _router = inject(Router);
+  private readonly _menuTriggerRevealDistancePx = 96;
   private _didAttemptInitialRestore = false;
   private readonly _activeListIdFromRoute = toSignal(
     this._router.events.pipe(
@@ -61,6 +65,20 @@ export class App {
     if (this._hotkeys.handleWindowKeydown(event, this._document.activeElement)) {
       event.preventDefault();
     }
+  }
+
+  protected _onWindowPointerMove(event: PointerEvent): void {
+    const browserWindow = this._document.defaultView;
+
+    if (!browserWindow) {
+      this._menuTriggerVisible.set(false);
+      return;
+    }
+
+    this._menuTriggerVisible.set(
+      event.clientY <= this._menuTriggerRevealDistancePx
+      && browserWindow.innerWidth - event.clientX <= this._menuTriggerRevealDistancePx,
+    );
   }
 
   protected _openMenu(): void {
