@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
@@ -33,7 +33,10 @@ export class App {
   private readonly _listNavigation = inject(ListNavigationService);
   private readonly _title = inject(Title);
   private readonly _router = inject(Router);
-  private readonly _menuTriggerRevealDistancePx = 96;
+  private readonly _destroyRef = inject(DestroyRef);
+  private readonly _menuTriggerRevealDistancePx = 160;
+  private readonly _menuTriggerHideDelayMs = 700;
+  private _menuTriggerHideTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   private _didAttemptInitialRestore = false;
   private readonly _activeListIdFromRoute = toSignal(
     this._router.events.pipe(
@@ -59,6 +62,10 @@ export class App {
     effect(() => {
       this._title.setTitle(this._buildDocumentTitle());
     });
+
+    this._destroyRef.onDestroy(() => {
+      this._clearMenuTriggerHideTimer();
+    });
   }
 
   protected _onWindowKeydown(event: KeyboardEvent): void {
@@ -71,14 +78,18 @@ export class App {
     const browserWindow = this._document.defaultView;
 
     if (!browserWindow) {
+      this._clearMenuTriggerHideTimer();
       this._menuTriggerVisible.set(false);
       return;
     }
 
-    this._menuTriggerVisible.set(
-      event.clientY <= this._menuTriggerRevealDistancePx
-      && browserWindow.innerWidth - event.clientX <= this._menuTriggerRevealDistancePx,
-    );
+    if (this._isInsideMenuTriggerHotspot(event, browserWindow)) {
+      this._clearMenuTriggerHideTimer();
+      this._menuTriggerVisible.set(true);
+      return;
+    }
+
+    this._scheduleMenuTriggerHide();
   }
 
   protected _openMenu(): void {
@@ -130,5 +141,30 @@ export class App {
     queueMicrotask(() => {
       this._listNavigation.navigateToList(lastActiveListId);
     });
+  }
+
+  private _isInsideMenuTriggerHotspot(event: PointerEvent, browserWindow: Window): boolean {
+    return event.clientY <= this._menuTriggerRevealDistancePx
+      && browserWindow.innerWidth - event.clientX <= this._menuTriggerRevealDistancePx;
+  }
+
+  private _scheduleMenuTriggerHide(): void {
+    if (!this._menuTriggerVisible() || this._menuTriggerHideTimer !== null) {
+      return;
+    }
+
+    this._menuTriggerHideTimer = globalThis.setTimeout(() => {
+      this._menuTriggerHideTimer = null;
+      this._menuTriggerVisible.set(false);
+    }, this._menuTriggerHideDelayMs);
+  }
+
+  private _clearMenuTriggerHideTimer(): void {
+    if (this._menuTriggerHideTimer === null) {
+      return;
+    }
+
+    globalThis.clearTimeout(this._menuTriggerHideTimer);
+    this._menuTriggerHideTimer = null;
   }
 }
