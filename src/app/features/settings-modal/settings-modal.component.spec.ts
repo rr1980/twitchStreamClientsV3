@@ -279,6 +279,64 @@ describe('SettingsModalComponent', () => {
     expect(getComponentMember<() => number | null>(component, '_editingListId')()).toBeNull();
   });
 
+  it('starts inline rename via dblclick and cancels with escape', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
+    state.setActiveListId(1);
+    await syncComponent();
+
+    const selectButton = fixture.nativeElement.querySelector('.list-item__select') as HTMLButtonElement;
+    selectButton.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    await syncComponent();
+
+    const renameInput = fixture.nativeElement.querySelector('.list-item__rename-input') as HTMLInputElement;
+    expect(renameInput).not.toBeNull();
+    expect(renameInput.value).toBe('Liste 1');
+
+    renameInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await syncComponent();
+
+    expect(getComponentMember<() => number | null>(component, '_editingListId')()).toBeNull();
+    expect(fixture.nativeElement.querySelector('.list-item__rename-input')).toBeNull();
+  });
+
+  it('starts inline rename via the edit button and confirms with OK', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
+    state.setActiveListId(1);
+    state.renameList.mockReturnValue({ ok: true, list: { id: 1, name: 'Neuer Name', streams: [] } });
+    await syncComponent();
+
+    const editButton = fixture.nativeElement.querySelector('[aria-label="Liste 1 umbenennen"]') as HTMLButtonElement;
+    editButton.click();
+    await syncComponent();
+
+    const renameInput = fixture.nativeElement.querySelector('.list-item__rename-input') as HTMLInputElement;
+    renameInput.value = 'Neuer Name';
+    renameInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const okButton = fixture.nativeElement.querySelector('[aria-label="Listenname speichern"]') as HTMLButtonElement;
+    okButton.click();
+    await syncComponent();
+
+    expect(state.renameList).toHaveBeenCalledWith(1, 'Neuer Name');
+    expect(toast.show).toHaveBeenCalledWith('Neuer Name gespeichert.');
+  });
+
+  it('hides the edit button while inline rename is active', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
+    state.setActiveListId(1);
+    await syncComponent();
+
+    expect(fixture.nativeElement.querySelector('[aria-label="Liste 1 umbenennen"]')).not.toBeNull();
+
+    getComponentMethod<(list: StreamList) => void>(component, '_startRenameList')({ id: 1, name: 'Liste 1', streams: [] });
+    await syncComponent();
+
+    expect(fixture.nativeElement.querySelector('[aria-label="Liste 1 umbenennen"]')).toBeNull();
+  });
+
   it('keeps focus trapped inside the dialog on tab from the last element', async () => {
     state.menuOpen.set(true);
     state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud')] }]);
