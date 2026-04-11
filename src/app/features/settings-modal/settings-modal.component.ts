@@ -369,7 +369,16 @@ export class SettingsModalComponent {
 
     if (streamItem) {
       const rect = streamItem.getBoundingClientRect();
-      event.dataTransfer.setDragImage(streamItem, event.clientX - rect.left, event.clientY - rect.top);
+      const clone = streamItem.cloneNode(true) as HTMLElement;
+      clone.classList.add('stream-item--drag-preview');
+      clone.style.position = 'fixed';
+      clone.style.top = '-9999px';
+      clone.style.left = '-9999px';
+      clone.style.width = `${rect.width}px`;
+      clone.style.pointerEvents = 'none';
+      document.body.appendChild(clone);
+      event.dataTransfer.setDragImage(clone, event.clientX - rect.left, event.clientY - rect.top);
+      requestAnimationFrame(() => clone.remove());
     }
   }
 
