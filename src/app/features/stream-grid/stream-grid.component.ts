@@ -189,12 +189,17 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const shouldDeferNewEmbeds = this._shouldDeferEmbedStartup(host);
-    const shouldForceMuteSync = this._lastMuteAllStreams !== null && this._lastMuteAllStreams !== muteAllStreams;
+    const shouldDeferEmbedSync = this._shouldDeferEmbedSync(host);
+    const shouldForceMuteSync = !shouldDeferEmbedSync
+      && this._lastMuteAllStreams !== null
+      && this._lastMuteAllStreams !== muteAllStreams;
     const pendingEmbedSyncs: PendingEmbedSync[] = [];
 
     this._removeStaleEmbeds(activeChannels);
-    this._lastMuteAllStreams = muteAllStreams;
+
+    if (!shouldDeferEmbedSync) {
+      this._lastMuteAllStreams = muteAllStreams;
+    }
 
     streams.forEach((stream, index) => {
       if (runId !== this._syncRunId) {
@@ -219,15 +224,17 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
       if (currentState) {
         if (this._canReuseEmbed(currentState, nextState)) {
-          this._syncMutedState(currentState, nextState, shouldForceMuteSync);
+          if (!shouldDeferEmbedSync) {
+            this._syncMutedState(currentState, nextState, shouldForceMuteSync);
+          }
+
           return;
         }
 
-        if (shouldDeferNewEmbeds) {
-          this._syncMutedState(currentState, nextState, shouldForceMuteSync);
+        if (shouldDeferEmbedSync) {
           return;
         }
-      } else if (shouldDeferNewEmbeds) {
+      } else if (shouldDeferEmbedSync) {
         return;
       }
 
@@ -393,7 +400,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     currentState.handle.setMuted(nextState.muted);
   }
 
-  private _shouldDeferEmbedStartup(host: HTMLElement): boolean {
+  private _shouldDeferEmbedSync(host: HTMLElement): boolean {
     return this._state.menuOpen() || this._isDocumentHidden(host.ownerDocument);
   }
 

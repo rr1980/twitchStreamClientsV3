@@ -340,7 +340,7 @@ describe('StreamGridComponent', () => {
     expect(secondHandle?.setMuted).toHaveBeenCalledWith(true);
   });
 
-  it('syncs mute changes on existing embeds even while new embeds are deferred', async () => {
+  it('defers mute changes while the menu is open and applies them after closing', async () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
     await syncComponent();
 
@@ -358,11 +358,18 @@ describe('StreamGridComponent', () => {
 
     expect(twitch.loadScript).not.toHaveBeenCalled();
     expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(firstHandle?.setMuted).not.toHaveBeenCalled();
+    expect(secondHandle?.setMuted).not.toHaveBeenCalled();
+
+    state.menuOpen.set(false);
+    await syncComponent();
+
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
     expect(firstHandle?.setMuted).toHaveBeenCalledWith(true);
     expect(secondHandle?.setMuted).toHaveBeenCalledWith(true);
   });
 
-  it('defers recreating changed embeds while still syncing their muted state', async () => {
+  it('defers recreating changed embeds and mute changes while the menu is open', async () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
     await syncComponent();
 
@@ -381,7 +388,7 @@ describe('StreamGridComponent', () => {
     expect(twitch.loadScript).not.toHaveBeenCalled();
     expect(twitch.createEmbed).not.toHaveBeenCalled();
     expect(handle?.destroy).not.toHaveBeenCalled();
-    expect(handle?.setMuted).toHaveBeenCalledWith(true);
+    expect(handle?.setMuted).not.toHaveBeenCalled();
 
     state.menuOpen.set(false);
     await syncComponent();

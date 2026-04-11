@@ -78,6 +78,7 @@ interface CreateEmbedOptions {
 export class TwitchEmbedService {
   private readonly _maxQualitySyncFrames = 120;
   private readonly _maxQualitySyncDurationMs = 2000;
+  private readonly _minMuteSyncFrames = 30;
   private readonly _maxMuteSyncFrames = 600;
   private readonly _maxMuteSyncDurationMs = 10000;
   private readonly _document = inject(DOCUMENT);
@@ -501,7 +502,7 @@ export class TwitchEmbedService {
           ? player.getVolume() === 0
           : player.getVolume() > 0);
 
-      if (mutedMatches && volumeMatches) {
+      if (mutedMatches && volumeMatches && frame >= this._minMuteSyncFrames) {
         return;
       }
 

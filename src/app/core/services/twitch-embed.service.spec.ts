@@ -563,6 +563,44 @@ describe('TwitchEmbedService', () => {
     expect(player.setVolume).toHaveBeenCalledWith(0);
   });
 
+  it('keeps reapplying mute commands for a short burst even when Twitch already reports the requested state', async () => {
+    const syncRequestedMutedState = getServiceMethod<(
+      player: {
+        setMuted?: (value: boolean) => void;
+        getMuted?: () => boolean;
+        setVolume?: (value: number) => void;
+        getVolume?: () => number;
+      },
+      getRequestedMuted: () => boolean,
+      getRestoredVolume: () => number,
+      setRestoredVolume: (value: number) => void,
+      isCancelled: () => boolean,
+    ) => Promise<void>>(
+      '_syncRequestedMutedState',
+    );
+    const player = {
+      getMuted: vi.fn(() => true),
+      getVolume: vi.fn(() => 0),
+      setMuted: vi.fn(),
+      setVolume: vi.fn(),
+    };
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      callback(0);
+      return 1;
+    });
+
+    setServiceMember('_minMuteSyncFrames', 2);
+
+    try {
+      await syncRequestedMutedState(player, () => true, () => 0.5, () => undefined, () => false);
+
+      expect(player.setMuted).toHaveBeenCalledTimes(3);
+      expect(player.setVolume).toHaveBeenCalledTimes(3);
+    } finally {
+      rafSpy.mockRestore();
+    }
+  });
+
   it('stops mute syncing immediately when the run is already cancelled', async () => {
     const syncRequestedMutedState = getServiceMethod<(
       player: { setMuted?: (value: boolean) => void; getMuted?: () => boolean },
