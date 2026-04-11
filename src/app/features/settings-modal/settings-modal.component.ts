@@ -371,7 +371,7 @@ export class SettingsModalComponent {
       clone.style.left = '-9999px';
       clone.style.width = `${rect.width}px`;
       clone.style.pointerEvents = 'none';
-      document.body.appendChild(clone);
+      this._document.body.appendChild(clone);
       event.dataTransfer.setDragImage(clone, event.clientX - rect.left, event.clientY - rect.top);
       requestAnimationFrame(() => clone.remove());
     }

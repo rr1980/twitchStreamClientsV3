@@ -1,6 +1,5 @@
 export type StreamQuality = string;
 export type StreamLayoutPreset = 'auto' | 'balanced' | 'stage' | 'chat';
-export type StreamAudioMode = 'default' | 'all-muted';
 
 export interface StreamQualityOption {
   value: StreamQuality;
