@@ -41,7 +41,7 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelector('h1')?.textContent).toContain('Dein Setup ist leer');
-    expect(compiled.querySelector('.menu-trigger')).toBeNull();
+    expect(compiled.querySelector('.menu-trigger')?.textContent?.trim()).toBe('Menü');
   });
 
   it('delegates window keydown handling to the hotkey service', () => {
@@ -103,9 +103,6 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    getAppMethod<() => void>(fixture.componentInstance, '_showMenuTrigger')();
-    fixture.detectChanges();
-
     const trigger = fixture.nativeElement.querySelector('.menu-trigger') as HTMLButtonElement;
 
     expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
@@ -115,108 +112,20 @@ describe('App', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it('shows the menu trigger when the hotspot is entered and hides it after a delay', async () => {
-    vi.useFakeTimers();
+  it('marks the menu trigger as open while the menu is open', async () => {
     const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-
-    try {
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(fixture.nativeElement.querySelector('.menu-trigger')).toBeNull();
-
-      getAppMethod<() => void>(app, '_showMenuTrigger')();
-      fixture.detectChanges();
-
-      expect(fixture.nativeElement.querySelector('.menu-trigger')).not.toBeNull();
-
-      getAppMethod<() => void>(app, '_scheduleMenuTriggerHide')();
-      fixture.detectChanges();
-
-      expect(fixture.nativeElement.querySelector('.menu-trigger')).not.toBeNull();
-
-      vi.advanceTimersByTime(700);
-      fixture.detectChanges();
-
-      expect(fixture.nativeElement.querySelector('.menu-trigger')).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('keeps the menu trigger visible when returning to the hotspot before the hide delay ends', async () => {
-    vi.useFakeTimers();
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    const showMenuTrigger = getAppMethod<() => void>(app, '_showMenuTrigger');
-    const scheduleMenuTriggerHide = getAppMethod<() => void>(app, '_scheduleMenuTriggerHide');
-
-    try {
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      showMenuTrigger();
-      fixture.detectChanges();
-      scheduleMenuTriggerHide();
-      vi.advanceTimersByTime(350);
-      showMenuTrigger();
-      vi.advanceTimersByTime(700);
-      fixture.detectChanges();
-
-      expect(fixture.nativeElement.querySelector('.menu-trigger')).not.toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('wires hotspot and button pointer events through the template', async () => {
-    vi.useFakeTimers();
-    const fixture = TestBed.createComponent(App);
-
-    try {
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      const topHotspot = fixture.nativeElement.querySelector('.menu-trigger-hotspot--top') as HTMLElement;
-
-      topHotspot.dispatchEvent(new Event('pointerenter'));
-      fixture.detectChanges();
-
-      const trigger = fixture.nativeElement.querySelector('.menu-trigger') as HTMLButtonElement;
-
-      expect(trigger).not.toBeNull();
-
-      trigger.dispatchEvent(new Event('pointerleave'));
-      vi.advanceTimersByTime(350);
-      trigger.dispatchEvent(new Event('pointerenter'));
-      vi.advanceTimersByTime(700);
-      fixture.detectChanges();
-
-      expect(fixture.nativeElement.querySelector('.menu-trigger')).not.toBeNull();
-
-      trigger.dispatchEvent(new FocusEvent('focusin'));
-      trigger.dispatchEvent(new FocusEvent('focusout'));
-      vi.advanceTimersByTime(700);
-      fixture.detectChanges();
-
-      expect(fixture.nativeElement.querySelector('.menu-trigger')).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('ignores repeated hide scheduling while the menu trigger is hidden', async () => {
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
+    const state = TestBed.inject(StreamStateService);
 
     fixture.detectChanges();
     await fixture.whenStable();
 
-    getAppMethod<() => void>(app, '_scheduleMenuTriggerHide')();
+    state.openMenu();
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('.menu-trigger')).toBeNull();
+    const trigger = fixture.nativeElement.querySelector('.menu-trigger') as HTMLButtonElement;
+
+    expect(trigger.classList.contains('menu-trigger--open')).toBe(true);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('renders and dismisses the startup hint on first load', async () => {

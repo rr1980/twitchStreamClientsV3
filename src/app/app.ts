@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
@@ -25,15 +25,11 @@ import { PwaService } from './core/services/pwa.service';
 export class App {
   protected readonly _state = inject(StreamStateService);
   protected readonly _pwa = inject(PwaService);
-  protected readonly _menuTriggerVisible = signal(false);
   private readonly _document = inject(DOCUMENT);
   private readonly _hotkeys = inject(HotkeyService);
   private readonly _listNavigation = inject(ListNavigationService);
   private readonly _title = inject(Title);
   private readonly _router = inject(Router);
-  private readonly _destroyRef = inject(DestroyRef);
-  private readonly _menuTriggerHideDelayMs = 700;
-  private _menuTriggerHideTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   private _didAttemptInitialRestore = false;
   private readonly _activeListIdFromRoute = toSignal(
     this._router.events.pipe(
@@ -59,21 +55,12 @@ export class App {
     effect(() => {
       this._title.setTitle(this._buildDocumentTitle());
     });
-
-    this._destroyRef.onDestroy(() => {
-      this._clearMenuTriggerHideTimer();
-    });
   }
 
   protected _onWindowKeydown(event: KeyboardEvent): void {
     if (this._hotkeys.handleWindowKeydown(event, this._document.activeElement)) {
       event.preventDefault();
     }
-  }
-
-  protected _showMenuTrigger(): void {
-    this._clearMenuTriggerHideTimer();
-    this._menuTriggerVisible.set(true);
   }
 
   protected _openMenu(): void {
@@ -127,23 +114,4 @@ export class App {
     });
   }
 
-  protected _scheduleMenuTriggerHide(): void {
-    if (!this._menuTriggerVisible() || this._menuTriggerHideTimer !== null) {
-      return;
-    }
-
-    this._menuTriggerHideTimer = globalThis.setTimeout(() => {
-      this._menuTriggerHideTimer = null;
-      this._menuTriggerVisible.set(false);
-    }, this._menuTriggerHideDelayMs);
-  }
-
-  private _clearMenuTriggerHideTimer(): void {
-    if (this._menuTriggerHideTimer === null) {
-      return;
-    }
-
-    globalThis.clearTimeout(this._menuTriggerHideTimer);
-    this._menuTriggerHideTimer = null;
-  }
 }
