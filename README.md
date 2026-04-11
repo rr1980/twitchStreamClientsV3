@@ -10,6 +10,11 @@ It lets you group channels into reusable lists, switch stream quality globally, 
 
 The app is optimized for a compact codebase, predictable state handling, and strong automated test coverage.
 
+## Documentation
+
+- For a maintainer-oriented architecture summary, see [docs/architecture-summary.md](docs/architecture-summary.md)
+- For contribution expectations and review checks, see [CONTRIBUTING.md](CONTRIBUTING.md)
+
 ## Overview
 
 - Adaptive multi-stream grid driven by viewport size and chat layout
