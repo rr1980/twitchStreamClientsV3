@@ -37,6 +37,8 @@ type RenderedEmbedSnapshot = Omit<RenderedEmbedState, 'handle'>;
   host: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     '(window:resize)': '_onResize()',
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    '(document:visibilitychange)': '_onDocumentVisibilityChange()',
   },
 })
 export class StreamGridComponent implements AfterViewInit, OnDestroy {
@@ -91,6 +93,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     effect(() => {
       this._displayedStreams();
       this._state.quality();
+      this._state.menuOpen();
       this._state.muteAllStreams();
 
       if (!this._viewReady) {
@@ -134,6 +137,14 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     }, 150);
   }
 
+  protected _onDocumentVisibilityChange(): void {
+    if (!this._viewReady || this._isDocumentHidden(this._hostRef()?.nativeElement.ownerDocument)) {
+      return;
+    }
+
+    this._scheduleSync();
+  }
+
   private _scheduleSync(): void {
     const runId = ++this._syncRunId;
 
@@ -165,6 +176,11 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
     if (streams.length === 0) {
       this._lastMuteAllStreams = null;
+      this._removeStaleEmbeds(activeChannels);
+      return;
+    }
+
+    if (this._shouldDeferEmbedStartup(host)) {
       this._removeStaleEmbeds(activeChannels);
       return;
     }
@@ -353,6 +369,14 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
       return currentState.muted !== (muteAllStreams || index !== 0);
     });
+  }
+
+  private _shouldDeferEmbedStartup(host: HTMLElement): boolean {
+    return this._state.menuOpen() || this._isDocumentHidden(host.ownerDocument);
+  }
+
+  private _isDocumentHidden(documentRef: Document | undefined): boolean {
+    return documentRef?.visibilityState === 'hidden';
   }
 
   private _readViewportDimension(dimension: 'innerWidth' | 'innerHeight'): number {

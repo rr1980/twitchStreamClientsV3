@@ -222,6 +222,76 @@ describe('StreamGridComponent', () => {
     }));
   });
 
+  it('defers embed startup while the menu overlay is open', async () => {
+    state.menuOpen.set(true);
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
+    await syncComponent();
+
+    expect(twitch.loadScript).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+
+    state.menuOpen.set(false);
+    await syncComponent();
+
+    expect(twitch.loadScript).toHaveBeenCalledTimes(1);
+    expect(twitch.createEmbed).toHaveBeenCalledTimes(2);
+    expect(twitch.createEmbed).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      elementId: 'twitch-embed-shroud',
+      muted: false,
+    }));
+    expect(twitch.createEmbed).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      elementId: 'twitch-embed-rocketbeanstv',
+      muted: true,
+    }));
+  });
+
+  it('defers embed startup while the document is hidden and retries when it becomes visible', async () => {
+    const visibilitySpy = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+
+    try {
+      state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+      await syncComponent();
+
+      expect(twitch.loadScript).not.toHaveBeenCalled();
+      expect(twitch.createEmbed).not.toHaveBeenCalled();
+
+      visibilitySpy.mockReturnValue('visible');
+      getPrivateMethod<() => void>(fixture.componentInstance, '_onDocumentVisibilityChange')();
+      await syncComponent();
+
+      expect(twitch.loadScript).toHaveBeenCalledTimes(1);
+      expect(twitch.createEmbed).toHaveBeenCalledWith(expect.objectContaining({
+        elementId: 'twitch-embed-shroud',
+      }));
+    } finally {
+      visibilitySpy.mockRestore();
+    }
+  });
+
+  it('ignores visibility changes before the view is ready or while the document is still hidden', async () => {
+    const component = fixture.componentInstance;
+    const syncEmbedsSpy = vi.spyOn(
+      component as unknown as Record<string, (...args: never[]) => Promise<void>>,
+      '_syncEmbeds',
+    ).mockResolvedValue(undefined);
+
+    getPrivateMethod<() => void>(component, '_onDocumentVisibilityChange')();
+    await Promise.resolve();
+
+    expect(syncEmbedsSpy).not.toHaveBeenCalled();
+
+    component.ngAfterViewInit();
+    TestBed.tick();
+    await Promise.resolve();
+    syncEmbedsSpy.mockClear();
+    setPrivateMember(component, '_hostRef', () => ({ nativeElement: { ownerDocument: { visibilityState: 'hidden' } } }));
+
+    getPrivateMethod<() => void>(component, '_onDocumentVisibilityChange')();
+    await Promise.resolve();
+
+    expect(syncEmbedsSpy).not.toHaveBeenCalled();
+  });
+
   it('recreates embeds when mute-all mode is enabled or disabled', async () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
     await syncComponent();
@@ -291,6 +361,15 @@ describe('StreamGridComponent', () => {
       quality('720p60'),
       quality('audio_only', 'Nur Audio'),
     ]);
+    state.setAvailableQualities.mockClear();
+
+    twitch.reportQualities('twitch-embed-shroud', [
+      quality('chunked', '1080p60 (Quelle)'),
+      quality('1080p60'),
+      quality('720p60'),
+    ]);
+
+    expect(state.setAvailableQualities).not.toHaveBeenCalled();
 
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [] });
     await syncComponent();
@@ -593,6 +672,7 @@ class MockStreamStateService {
   public readonly streams = computed(() => this._activeList()?.streams ?? []);
   public readonly quality = signal<StreamQuality>('auto');
   public readonly layoutPreset = signal<StreamLayoutPreset>('auto');
+  public readonly menuOpen = signal(false);
   public readonly focusedChannel = signal<string | null>(null);
   public readonly muteAllStreams = signal(false);
   public readonly availableQualities = signal<StreamQualityOption[]>([{ value: 'auto', label: 'Auto' }]);
