@@ -22,7 +22,8 @@ describe('TwitchEmbedService', () => {
 
   function setWindowTwitchEmbedWithReadyEvent(embed: ReturnType<typeof vi.fn>, readyEvent = 'VIDEO_READY_EVENT'): void {
     const twitchApi = {} as NonNullable<Window['Twitch']>;
-    const embedConstructor = embed as ReturnType<typeof vi.fn> & { VIDEO_READY?: string };
+    const embedConstructor = embed as ReturnType<typeof vi.fn> & { VIDEO_PLAY?: string; VIDEO_READY?: string };
+    embedConstructor.VIDEO_PLAY = 'VIDEO_PLAY_EVENT';
     embedConstructor.VIDEO_READY = readyEvent;
     twitchApi.Embed = embedConstructor as never;
     window.Twitch = twitchApi;
@@ -203,6 +204,68 @@ describe('TwitchEmbedService', () => {
     host.remove();
   });
 
+  it('starts embeds muted so browser autoplay is allowed', async () => {
+    let muted = false;
+    let volume = 0.5;
+    const player = {
+      getQualities: vi.fn(() => []),
+      getQuality: vi.fn(() => 'auto'),
+      getMuted: vi.fn(() => muted),
+      getVolume: vi.fn(() => volume),
+      setMuted: vi.fn((value: boolean) => {
+        muted = value;
+      }),
+      setVolume: vi.fn((value: number) => {
+        volume = value;
+      }),
+      setQuality: vi.fn(),
+    };
+    const readyEvent = 'VIDEO_READY_EVENT';
+    let readyCallback: (() => void) | undefined;
+    let playCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === readyEvent) {
+            readyCallback = callback;
+          }
+
+          if (event === 'VIDEO_PLAY_EVENT') {
+            playCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
+
+    service.createEmbed({
+      elementId: 'twitch-embed-autoplay',
+      channel: 'autoplay',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+    });
+
+    expect(EmbedMock).toHaveBeenCalledWith('twitch-embed-autoplay', expect.objectContaining({
+      autoplay: true,
+      muted: true,
+    }));
+
+    readyCallback?.();
+    await Promise.resolve();
+
+    expect(player.setMuted).not.toHaveBeenCalled();
+    expect(player.setVolume).not.toHaveBeenCalled();
+
+    playCallback?.();
+    await Promise.resolve();
+
+    expect(player.setMuted).toHaveBeenCalledWith(false);
+    expect(player.setVolume).toHaveBeenCalledWith(0.5);
+  });
+
   it('returns a no-op handle when Twitch is unavailable', () => {
     const host = document.createElement('div');
     host.id = 'twitch-embed-missing';
@@ -242,7 +305,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -269,65 +332,6 @@ describe('TwitchEmbedService', () => {
       { value: '1080p60', label: '1080p60' },
       { value: 'audio_only', label: 'Nur Audio' },
     ]);
-  });
-
-  it('polls the player when Twitch does not emit a ready event for an embed', async () => {
-    let muted = false;
-    let volume = 0.5;
-    const player = {
-      getQualities: vi.fn(() => []),
-      getQuality: vi.fn(() => 'auto'),
-      getMuted: vi.fn(() => muted),
-      getVolume: vi.fn(() => volume),
-      setMuted: vi.fn((value: boolean) => {
-        muted = value;
-      }),
-      setVolume: vi.fn((value: number) => {
-        volume = value;
-      }),
-      setQuality: vi.fn(),
-    };
-    const rafCallbacks: FrameRequestCallback[] = [];
-    const getPlayer = vi.fn()
-      .mockImplementationOnce(() => {
-        throw new Error('not ready');
-      })
-      .mockReturnValue(player);
-    const EmbedMock = vi.fn(function MockEmbed() {
-      return {
-        addEventListener: vi.fn(),
-        getPlayer,
-      };
-    });
-    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
-      rafCallbacks.push(callback);
-      return rafCallbacks.length;
-    });
-
-    setWindowTwitchEmbedWithReadyEvent(EmbedMock);
-
-    service.createEmbed({
-      elementId: 'twitch-embed-polled-muted',
-      channel: 'polled-muted',
-      quality: 'auto',
-      showChat: false,
-      muted: true,
-    });
-
-    expect(getPlayer).not.toHaveBeenCalled();
-
-    rafCallbacks.shift()?.(0);
-    await Promise.resolve();
-    expect(getPlayer).toHaveBeenCalledTimes(1);
-    expect(player.setMuted).not.toHaveBeenCalled();
-
-    rafCallbacks.shift()?.(16);
-    await Promise.resolve();
-
-    expect(player.setMuted).toHaveBeenCalledWith(true);
-    expect(player.setVolume).toHaveBeenCalledWith(0);
-
-    rafSpy.mockRestore();
   });
 
   it('syncs the requested muted state through the player API when the embed is ready', async () => {
@@ -648,7 +652,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -697,7 +701,7 @@ describe('TwitchEmbedService', () => {
       const EmbedMock = vi.fn(function MockEmbed() {
         return {
           addEventListener: vi.fn((event: string, callback: () => void) => {
-            if (event === 'ready') {
+            if (event === 'video.ready') {
               readyCallback = callback;
             }
           }),
@@ -776,7 +780,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -810,7 +814,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -845,7 +849,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -891,7 +895,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -927,7 +931,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -977,7 +981,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -1028,7 +1032,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),

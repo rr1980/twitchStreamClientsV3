@@ -27,6 +27,7 @@ declare global {
             parent: string[];
           },
         ): TwitchEmbedInstance;
+        VIDEO_PLAY?: string;
         VIDEO_READY?: string;
       };
     };
@@ -80,8 +81,6 @@ export class TwitchEmbedService {
   private readonly _maxQualitySyncDurationMs = 2000;
   private readonly _maxMuteSyncFrames = 600;
   private readonly _maxMuteSyncDurationMs = 10000;
-  private readonly _maxPlayerReadySyncFrames = 600;
-  private readonly _maxPlayerReadySyncDurationMs = 10000;
   private readonly _document = inject(DOCUMENT);
   private readonly _platformId = inject(PLATFORM_ID);
   private _scriptPromise?: Promise<void>;
@@ -122,13 +121,16 @@ export class TwitchEmbedService {
       channel: options.channel,
       layout: options.showChat ? 'video-with-chat' : 'video',
       autoplay: true,
-      muted: options.muted,
+      muted: true,
       parent: [browserWindow.location.hostname || 'localhost'],
     });
     const readyEvents = new Set([
-      browserWindow.Twitch.Embed.VIDEO_READY ?? 'video_ready',
-      'video_ready',
-      'ready',
+      browserWindow.Twitch.Embed.VIDEO_READY ?? 'video.ready',
+      'video.ready',
+    ]);
+    const playEvents = new Set([
+      browserWindow.Twitch.Embed.VIDEO_PLAY ?? 'video.play',
+      'video.play',
     ]);
     let didInitializePlayer = false;
 
@@ -167,7 +169,11 @@ export class TwitchEmbedService {
         initializePlayer();
       });
     });
-    void this._syncPlayerReadyState(initializePlayer, () => handle.isDestroyed());
+    playEvents.forEach(eventName => {
+      embed.addEventListener(eventName, () => {
+        handle.setPlaybackStarted();
+      });
+    });
 
     return handle;
   }
@@ -502,37 +508,25 @@ export class TwitchEmbedService {
     }
   }
 
-  private async _syncPlayerReadyState(
-    initializePlayer: () => boolean,
-    isDestroyed: () => boolean,
-  ): Promise<void> {
-    const syncDeadline = Date.now() + this._maxPlayerReadySyncDurationMs;
-
-    for (let frame = 0; frame < this._maxPlayerReadySyncFrames && Date.now() < syncDeadline; frame++) {
-      if (isDestroyed()) {
-        return;
-      }
-
-      await this._waitForNextFrame();
-
-      if (isDestroyed() || initializePlayer()) {
-        return;
-      }
-    }
-  }
-
   private _createHandle(elementId: string, initialMuted: boolean): TwitchEmbedHandle & {
     isDestroyed(): boolean;
+    setPlaybackStarted(): void;
     setPlayer(player: TwitchPlayer): void;
   } {
     let destroyed = false;
+    let hasPlaybackStarted = false;
     let player: TwitchPlayer | null = null;
+    let shouldDelayInitialUnmute = initialMuted === false;
     let requestedMuted = initialMuted;
     let restoredVolume = 0.5;
     let muteSyncRunId = 0;
 
     const syncRequestedMutedState = (): void => {
       if (!player || destroyed) {
+        return;
+      }
+
+      if (shouldDelayInitialUnmute && !hasPlaybackStarted && requestedMuted === false) {
         return;
       }
 
@@ -561,7 +555,16 @@ export class TwitchEmbedService {
         this.clearEmbed(elementId);
       },
       setMuted: (value: boolean) => {
+        shouldDelayInitialUnmute = false;
         requestedMuted = value;
+        syncRequestedMutedState();
+      },
+      setPlaybackStarted: () => {
+        if (destroyed || hasPlaybackStarted) {
+          return;
+        }
+
+        hasPlaybackStarted = true;
         syncRequestedMutedState();
       },
       setPlayer: (nextPlayer: TwitchPlayer) => {
