@@ -20,8 +20,6 @@ import { PwaService } from './core/services/pwa.service';
   host: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     '(window:keydown)': '_onWindowKeydown($event)',
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    '(window:pointermove)': '_onWindowPointerMove($event)',
   },
 })
 export class App {
@@ -34,7 +32,6 @@ export class App {
   private readonly _title = inject(Title);
   private readonly _router = inject(Router);
   private readonly _destroyRef = inject(DestroyRef);
-  private readonly _menuTriggerRevealDistancePx = 160;
   private readonly _menuTriggerHideDelayMs = 700;
   private _menuTriggerHideTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   private _didAttemptInitialRestore = false;
@@ -74,22 +71,9 @@ export class App {
     }
   }
 
-  protected _onWindowPointerMove(event: PointerEvent): void {
-    const browserWindow = this._document.defaultView;
-
-    if (!browserWindow) {
-      this._clearMenuTriggerHideTimer();
-      this._menuTriggerVisible.set(false);
-      return;
-    }
-
-    if (this._isInsideMenuTriggerHotspot(event, browserWindow)) {
-      this._clearMenuTriggerHideTimer();
-      this._menuTriggerVisible.set(true);
-      return;
-    }
-
-    this._scheduleMenuTriggerHide();
+  protected _showMenuTrigger(): void {
+    this._clearMenuTriggerHideTimer();
+    this._menuTriggerVisible.set(true);
   }
 
   protected _openMenu(): void {
@@ -143,12 +127,7 @@ export class App {
     });
   }
 
-  private _isInsideMenuTriggerHotspot(event: PointerEvent, browserWindow: Window): boolean {
-    return event.clientY <= this._menuTriggerRevealDistancePx
-      && browserWindow.innerWidth - event.clientX <= this._menuTriggerRevealDistancePx;
-  }
-
-  private _scheduleMenuTriggerHide(): void {
+  protected _scheduleMenuTriggerHide(): void {
     if (!this._menuTriggerVisible() || this._menuTriggerHideTimer !== null) {
       return;
     }

@@ -72,6 +72,24 @@
   outline-offset: 2px;
 }
 
+.menu-trigger-hotspot {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 49;
+  background: transparent;
+}
+
+.menu-trigger-hotspot--top {
+  width: 180px;
+  height: 18px;
+}
+
+.menu-trigger-hotspot--right {
+  width: 18px;
+  height: 180px;
+}
+
 .menu-trigger {
   position: fixed;
   top: 20px;
@@ -112,6 +130,16 @@
   .menu-trigger {
     top: 16px;
     right: 16px;
+  }
+
+  .menu-trigger-hotspot--top {
+    width: 148px;
+    height: 18px;
+  }
+
+  .menu-trigger-hotspot--right {
+    width: 18px;
+    height: 148px;
   }
 }
 

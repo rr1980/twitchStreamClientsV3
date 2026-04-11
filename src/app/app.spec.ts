@@ -103,11 +103,7 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    window.innerWidth = 1024;
-    getAppMethod<(event: PointerEvent) => void>(
-      fixture.componentInstance,
-      '_onWindowPointerMove',
-    )({ clientX: 1000, clientY: 20 } as PointerEvent);
+    getAppMethod<() => void>(fixture.componentInstance, '_showMenuTrigger')();
     fixture.detectChanges();
 
     const trigger = fixture.nativeElement.querySelector('.menu-trigger') as HTMLButtonElement;
@@ -119,7 +115,7 @@ describe('App', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it('shows the menu trigger only near the top-right pointer hotspot', async () => {
+  it('shows the menu trigger when the hotspot is entered and hides it after a delay', async () => {
     vi.useFakeTimers();
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
@@ -130,13 +126,12 @@ describe('App', () => {
 
       expect(fixture.nativeElement.querySelector('.menu-trigger')).toBeNull();
 
-      window.innerWidth = 1024;
-      getAppMethod<(event: PointerEvent) => void>(app, '_onWindowPointerMove')({ clientX: 1000, clientY: 20 } as PointerEvent);
+      getAppMethod<() => void>(app, '_showMenuTrigger')();
       fixture.detectChanges();
 
       expect(fixture.nativeElement.querySelector('.menu-trigger')).not.toBeNull();
 
-      getAppMethod<(event: PointerEvent) => void>(app, '_onWindowPointerMove')({ clientX: 200, clientY: 200 } as PointerEvent);
+      getAppMethod<() => void>(app, '_scheduleMenuTriggerHide')();
       fixture.detectChanges();
 
       expect(fixture.nativeElement.querySelector('.menu-trigger')).not.toBeNull();
@@ -154,18 +149,18 @@ describe('App', () => {
     vi.useFakeTimers();
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
-    const onPointerMove = getAppMethod<(event: PointerEvent) => void>(app, '_onWindowPointerMove');
+    const showMenuTrigger = getAppMethod<() => void>(app, '_showMenuTrigger');
+    const scheduleMenuTriggerHide = getAppMethod<() => void>(app, '_scheduleMenuTriggerHide');
 
     try {
       fixture.detectChanges();
       await fixture.whenStable();
 
-      window.innerWidth = 1024;
-      onPointerMove({ clientX: 1000, clientY: 20 } as PointerEvent);
+      showMenuTrigger();
       fixture.detectChanges();
-      onPointerMove({ clientX: 200, clientY: 200 } as PointerEvent);
+      scheduleMenuTriggerHide();
       vi.advanceTimersByTime(350);
-      onPointerMove({ clientX: 1000, clientY: 20 } as PointerEvent);
+      showMenuTrigger();
       vi.advanceTimersByTime(700);
       fixture.detectChanges();
 
@@ -175,16 +170,50 @@ describe('App', () => {
     }
   });
 
-  it('keeps the menu trigger hidden when no browser window is available', async () => {
+  it('wires hotspot and button pointer events through the template', async () => {
+    vi.useFakeTimers();
+    const fixture = TestBed.createComponent(App);
+
+    try {
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const topHotspot = fixture.nativeElement.querySelector('.menu-trigger-hotspot--top') as HTMLElement;
+
+      topHotspot.dispatchEvent(new Event('pointerenter'));
+      fixture.detectChanges();
+
+      const trigger = fixture.nativeElement.querySelector('.menu-trigger') as HTMLButtonElement;
+
+      expect(trigger).not.toBeNull();
+
+      trigger.dispatchEvent(new Event('pointerleave'));
+      vi.advanceTimersByTime(350);
+      trigger.dispatchEvent(new Event('pointerenter'));
+      vi.advanceTimersByTime(700);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('.menu-trigger')).not.toBeNull();
+
+      trigger.dispatchEvent(new FocusEvent('focusin'));
+      trigger.dispatchEvent(new FocusEvent('focusout'));
+      vi.advanceTimersByTime(700);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('.menu-trigger')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ignores repeated hide scheduling while the menu trigger is hidden', async () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
 
     fixture.detectChanges();
     await fixture.whenStable();
 
-    (app as unknown as Record<string, unknown>)['_document'] = { defaultView: null };
-
-    getAppMethod<(event: PointerEvent) => void>(app, '_onWindowPointerMove')({ clientX: 1000, clientY: 20 } as PointerEvent);
+    getAppMethod<() => void>(app, '_scheduleMenuTriggerHide')();
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('.menu-trigger')).toBeNull();
@@ -324,6 +353,22 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(router.url).toBe('/List/null');
+  });
+
+  it('does not navigate when the stored last active list is no longer present', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    const navigateToList = vi.fn();
+
+    (app as unknown as Record<string, unknown>)['_state'] = {
+      lastActiveListId: () => 9,
+      lists: () => [],
+    };
+    (app as unknown as Record<string, unknown>)['_listNavigation'] = { navigateToList };
+
+    getAppMethod<(activeListId: number | null) => void>(app, '_restoreInitialView')(null);
+
+    expect(navigateToList).not.toHaveBeenCalled();
   });
 
   it('renders and dismisses the update notice', async () => {

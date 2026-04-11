@@ -28,6 +28,17 @@
   }
 </div>
 
+<div
+  class="menu-trigger-hotspot menu-trigger-hotspot--top"
+  aria-hidden="true"
+  (pointerenter)="_showMenuTrigger()"
+  (pointerleave)="_scheduleMenuTriggerHide()"></div>
+<div
+  class="menu-trigger-hotspot menu-trigger-hotspot--right"
+  aria-hidden="true"
+  (pointerenter)="_showMenuTrigger()"
+  (pointerleave)="_scheduleMenuTriggerHide()"></div>
+
 @if (_menuTriggerVisible() || _state.menuOpen()) {
   <button
     class="menu-trigger"
@@ -37,7 +48,11 @@
     aria-haspopup="dialog"
     aria-controls="settings-modal"
     [attr.aria-expanded]="_state.menuOpen()"
-    (click)="_openMenu()">
+    (click)="_openMenu()"
+    (pointerenter)="_showMenuTrigger()"
+    (pointerleave)="_scheduleMenuTriggerHide()"
+    (focusin)="_showMenuTrigger()"
+    (focusout)="_scheduleMenuTriggerHide()">
     ⚙
   </button>
 }
