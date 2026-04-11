@@ -828,6 +828,29 @@ describe('SettingsModalComponent', () => {
     expect(getComponentMember<() => number | null>(component, '_draggedStreamIndex')()).toBe(0);
   });
 
+  it('sets drag image from the closest stream-item element during drag start', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('gronkh')] }]);
+    state.setActiveListId(1);
+    await syncComponent();
+
+    const streamItem = fixture.nativeElement.querySelector('.stream-item') as HTMLElement;
+    const dragHandle = streamItem.querySelector('.stream-item__drag-handle') as HTMLElement;
+    const dragEvent = new Event('dragstart', { bubbles: true }) as DragEvent;
+    const setDragImage = vi.fn();
+
+    Object.defineProperty(dragEvent, 'dataTransfer', {
+      value: { effectAllowed: '', setData: vi.fn(), setDragImage },
+    });
+    Object.defineProperty(dragEvent, 'target', { value: dragHandle });
+    Object.defineProperty(dragEvent, 'clientX', { value: 100 });
+    Object.defineProperty(dragEvent, 'clientY', { value: 50 });
+
+    getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
+
+    expect(setDragImage).toHaveBeenCalledTimes(1);
+  });
+
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }

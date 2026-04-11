@@ -1149,4 +1149,87 @@ describe('TwitchEmbedService', () => {
       '360p30',
     ]);
   });
+
+  it('applies quality changes through the handle after the player is ready', async () => {
+    const player = {
+      getQualities: vi.fn(() => ['720p60', '480p']),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'video.ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      callback(0);
+      return 1;
+    });
+
+    setWindowTwitchEmbed(EmbedMock);
+
+    const handle = service.createEmbed({
+      elementId: 'twitch-embed-handle-quality',
+      channel: 'handle-quality',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+    player.setQuality.mockClear();
+
+    handle.setQuality('480p');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(player.setQuality).toHaveBeenCalledWith('480p');
+
+    rafSpy.mockRestore();
+  });
+
+  it('ignores quality changes on the handle after destruction', async () => {
+    const player = {
+      getQualities: vi.fn(() => ['720p60']),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'video.ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbed(EmbedMock);
+
+    const handle = service.createEmbed({
+      elementId: 'twitch-embed-destroyed-quality',
+      channel: 'destroyed-quality',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+    player.setQuality.mockClear();
+
+    handle.destroy();
+    handle.setQuality('720p60');
+
+    expect(player.setQuality).not.toHaveBeenCalled();
+  });
 });

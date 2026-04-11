@@ -854,6 +854,41 @@ describe('StreamStateService', () => {
     expect(service.focusedChannel()).toBeNull();
   });
 
+  it('does not update when setting the same quality, layout preset or mute state', () => {
+    service.createList('Test');
+    service.setActiveListId(1);
+    service.setQuality('720p60');
+    service.setLayoutPreset('stage');
+    service.setMuteAllStreams(true);
+
+    const listBefore = service.activeList();
+
+    service.setQuality('720p60');
+    service.setLayoutPreset('stage');
+    service.setMuteAllStreams(true);
+
+    expect(service.activeList()).toBe(listBefore);
+  });
+
+  it('does nothing when setting focused channel without an active list', () => {
+    service.setFocusedChannel('someone');
+
+    expect(service.focusedChannel()).toBeNull();
+  });
+
+  it('does not update when setting the same focused channel', () => {
+    service.createList('Test');
+    service.setActiveListId(1);
+    service.addStream('streamer_a');
+    service.setFocusedChannel('streamer_a');
+
+    const listBefore = service.activeList();
+
+    service.setFocusedChannel('streamer_a');
+
+    expect(service.activeList()).toBe(listBefore);
+  });
+
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }
