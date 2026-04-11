@@ -219,7 +219,7 @@ describe('StreamGridComponent', () => {
       channel: 'rocketbeanstv',
       quality: 'auto',
       showChat: false,
-      muted: true,
+      muted: false,
       onAvailableQualities: expect.any(Function),
     }));
   });
@@ -257,7 +257,7 @@ describe('StreamGridComponent', () => {
     }));
     expect(twitch.createEmbed).toHaveBeenNthCalledWith(2, expect.objectContaining({
       elementId: 'twitch-embed-rocketbeanstv',
-      muted: true,
+      muted: false,
     }));
   });
 
@@ -337,7 +337,7 @@ describe('StreamGridComponent', () => {
     expect(secondHandle?.destroy).not.toHaveBeenCalled();
     expect(twitch.createEmbed).not.toHaveBeenCalled();
     expect(firstHandle?.setMuted).toHaveBeenCalledWith(false);
-    expect(secondHandle?.setMuted).toHaveBeenCalledWith(true);
+    expect(secondHandle?.setMuted).toHaveBeenCalledWith(false);
   });
 
   it('defers mute changes while the menu is open and applies them after closing', async () => {
@@ -455,7 +455,7 @@ describe('StreamGridComponent', () => {
       channel: 'rocketbeanstv',
       quality: 'auto',
       showChat: false,
-      muted: true,
+      muted: false,
     }));
   });
 
@@ -474,7 +474,7 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).not.toHaveBeenCalled();
   });
 
-  it('updates muted state on reorder and destroys all handles on component teardown', async () => {
+  it('preserves muted state on reorder and destroys all handles on component teardown', async () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
     await syncComponent();
 
@@ -490,8 +490,8 @@ describe('StreamGridComponent', () => {
     expect(firstHandle?.destroy).not.toHaveBeenCalled();
     expect(secondHandle?.destroy).not.toHaveBeenCalled();
     expect(twitch.createEmbed).not.toHaveBeenCalled();
-    expect(firstHandle?.setMuted).toHaveBeenCalledWith(true);
-    expect(secondHandle?.setMuted).toHaveBeenCalledWith(false);
+    expect(firstHandle?.setMuted).not.toHaveBeenCalled();
+    expect(secondHandle?.setMuted).not.toHaveBeenCalled();
 
     twitch.handles.get('twitch-embed-rocketbeanstv')?.destroy.mockClear();
     twitch.handles.get('twitch-embed-shroud')?.destroy.mockClear();

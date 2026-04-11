@@ -649,6 +649,7 @@ describe('SettingsModalComponent', () => {
 
     expect(state.disableChatsForActiveList).toHaveBeenCalledTimes(1);
     expect(state.setMuteAllStreams).toHaveBeenCalledWith(true);
+    expect(state.closeMenu).toHaveBeenCalledTimes(1);
     expect(state.addFavoriteChannelsToActiveList).toHaveBeenCalledTimes(1);
     expect(toast.show).toHaveBeenCalledWith('Chat fuer 1 Stream deaktiviert.', 'info');
     expect(toast.show).toHaveBeenCalledWith('Alle Streams stummgeschaltet.', 'info');
@@ -669,6 +670,7 @@ describe('SettingsModalComponent', () => {
     expect(toast.show).toHaveBeenNthCalledWith(3, 'Waehle zuerst eine Liste aus.', 'error');
 
     toast.show.mockClear();
+    state.closeMenu.mockClear();
     state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud')] }]);
     state.setActiveListId(1);
     state.disableChatsForActiveList.mockReturnValue(0);
@@ -681,6 +683,7 @@ describe('SettingsModalComponent', () => {
     getComponentMethod<() => void>(component, '_addFavoritesToActiveList')();
 
     expect(state.setMuteAllStreams).toHaveBeenCalledWith(false);
+    expect(state.closeMenu).toHaveBeenCalledTimes(1);
     expect(toast.show).toHaveBeenNthCalledWith(1, 'Alle Chats sind bereits deaktiviert.', 'info');
     expect(toast.show).toHaveBeenNthCalledWith(2, 'Standard-Audio wiederhergestellt.', 'info');
     expect(toast.show).toHaveBeenNthCalledWith(3, 'Keine neuen Favoriten zum Hinzufuegen.', 'info');

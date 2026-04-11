@@ -217,7 +217,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
         elementId: wrapperId,
         quality,
         showChat: stream.showChat,
-        muted: muteAllStreams || index !== 0,
+        muted: muteAllStreams,
       };
 
       const currentState = this._renderedEmbeds.get(stream.name);

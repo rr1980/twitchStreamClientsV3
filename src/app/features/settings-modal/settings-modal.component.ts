@@ -348,6 +348,7 @@ export class SettingsModalComponent {
 
     const nextValue = !this._muteAllStreams();
     this._state.setMuteAllStreams(nextValue);
+    this._close();
     this._toast.show(
       nextValue ? 'Alle Streams stummgeschaltet.' : 'Standard-Audio wiederhergestellt.',
       'info',
