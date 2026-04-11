@@ -78,8 +78,10 @@ interface CreateEmbedOptions {
 export class TwitchEmbedService {
   private readonly _maxQualitySyncFrames = 120;
   private readonly _maxQualitySyncDurationMs = 2000;
-  private readonly _maxMuteSyncFrames = 120;
-  private readonly _maxMuteSyncDurationMs = 2000;
+  private readonly _maxMuteSyncFrames = 600;
+  private readonly _maxMuteSyncDurationMs = 10000;
+  private readonly _maxPlayerReadySyncFrames = 600;
+  private readonly _maxPlayerReadySyncDurationMs = 10000;
   private readonly _document = inject(DOCUMENT);
   private readonly _platformId = inject(PLATFORM_ID);
   private _scriptPromise?: Promise<void>;
@@ -130,18 +132,24 @@ export class TwitchEmbedService {
     ]);
     let didInitializePlayer = false;
 
-    const initializePlayer = (): void => {
+    const initializePlayer = (): boolean => {
       if (didInitializePlayer) {
-        return;
+        return true;
+      }
+
+      if (handle.isDestroyed()) {
+        return true;
+      }
+
+      let player: TwitchPlayer;
+
+      try {
+        player = embed.getPlayer();
+      } catch {
+        return false;
       }
 
       didInitializePlayer = true;
-
-      if (handle.isDestroyed()) {
-        return;
-      }
-
-      const player = embed.getPlayer();
       handle.setPlayer(player);
       void this._syncRequestedQuality(
         player,
@@ -150,11 +158,16 @@ export class TwitchEmbedService {
         () => handle.isDestroyed(),
         options.onAvailableQualities,
       );
+
+      return true;
     };
 
     readyEvents.forEach(eventName => {
-      embed.addEventListener(eventName, initializePlayer);
+      embed.addEventListener(eventName, () => {
+        initializePlayer();
+      });
     });
+    void this._syncPlayerReadyState(initializePlayer, () => handle.isDestroyed());
 
     return handle;
   }
@@ -486,6 +499,25 @@ export class TwitchEmbedService {
       }
 
       await this._waitForNextFrame();
+    }
+  }
+
+  private async _syncPlayerReadyState(
+    initializePlayer: () => boolean,
+    isDestroyed: () => boolean,
+  ): Promise<void> {
+    const syncDeadline = Date.now() + this._maxPlayerReadySyncDurationMs;
+
+    for (let frame = 0; frame < this._maxPlayerReadySyncFrames && Date.now() < syncDeadline; frame++) {
+      if (isDestroyed()) {
+        return;
+      }
+
+      await this._waitForNextFrame();
+
+      if (isDestroyed() || initializePlayer()) {
+        return;
+      }
     }
   }
 

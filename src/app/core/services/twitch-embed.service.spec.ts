@@ -271,6 +271,65 @@ describe('TwitchEmbedService', () => {
     ]);
   });
 
+  it('polls the player when Twitch does not emit a ready event for an embed', async () => {
+    let muted = false;
+    let volume = 0.5;
+    const player = {
+      getQualities: vi.fn(() => []),
+      getQuality: vi.fn(() => 'auto'),
+      getMuted: vi.fn(() => muted),
+      getVolume: vi.fn(() => volume),
+      setMuted: vi.fn((value: boolean) => {
+        muted = value;
+      }),
+      setVolume: vi.fn((value: number) => {
+        volume = value;
+      }),
+      setQuality: vi.fn(),
+    };
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const getPlayer = vi.fn()
+      .mockImplementationOnce(() => {
+        throw new Error('not ready');
+      })
+      .mockReturnValue(player);
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn(),
+        getPlayer,
+      };
+    });
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      rafCallbacks.push(callback);
+      return rafCallbacks.length;
+    });
+
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock);
+
+    service.createEmbed({
+      elementId: 'twitch-embed-polled-muted',
+      channel: 'polled-muted',
+      quality: 'auto',
+      showChat: false,
+      muted: true,
+    });
+
+    expect(getPlayer).not.toHaveBeenCalled();
+
+    rafCallbacks.shift()?.(0);
+    await Promise.resolve();
+    expect(getPlayer).toHaveBeenCalledTimes(1);
+    expect(player.setMuted).not.toHaveBeenCalled();
+
+    rafCallbacks.shift()?.(16);
+    await Promise.resolve();
+
+    expect(player.setMuted).toHaveBeenCalledWith(true);
+    expect(player.setVolume).toHaveBeenCalledWith(0);
+
+    rafSpy.mockRestore();
+  });
+
   it('syncs the requested muted state through the player API when the embed is ready', async () => {
     let muted = false;
     let volume = 0.5;
@@ -893,11 +952,14 @@ describe('TwitchEmbedService', () => {
     readyCallback?.();
     await Promise.resolve();
 
-    expect(rafCallbacks).toHaveLength(1);
+    expect(rafCallbacks.length).toBeGreaterThanOrEqual(1);
 
     handle.destroy();
-    rafCallbacks.shift()?.(0);
-    await Promise.resolve();
+
+    while (rafCallbacks.length > 0) {
+      rafCallbacks.shift()?.(0);
+      await Promise.resolve();
+    }
 
     expect(player.setQuality).not.toHaveBeenCalled();
 
