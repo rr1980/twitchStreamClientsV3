@@ -159,6 +159,7 @@ export class SettingsModalComponent {
     this._editingListId.set(null);
   }
 
+  /** Activates the selected list and updates the route. */
   protected _selectList(listId: number): void {
     this._navigateToList(listId);
   }
@@ -200,6 +201,7 @@ export class SettingsModalComponent {
     this._state.closeMenu();
   }
 
+  /** Closes the modal when the backdrop itself is clicked. */
   protected _onBackdropClick(event: MouseEvent): void {
     if (event.target === event.currentTarget) {
       this._close();
@@ -292,21 +294,25 @@ export class SettingsModalComponent {
     }
   }
 
+  /** Moves a stream by one position inside the active list. */
   protected _moveStream(index: number, direction: -1 | 1): void {
     this._state.moveStream(index, direction);
   }
 
+  /** Returns whether a move action stays within the current stream bounds. */
   protected _canMoveStream(index: number, direction: -1 | 1): boolean {
     const targetIndex = index + direction;
 
     return targetIndex >= 0 && targetIndex < this._streams().length;
   }
 
+  /** Updates the list-wide stream quality and closes the modal. */
   protected _setQuality(value: StreamQuality): void {
     this._state.setQuality(value);
     this._close();
   }
 
+  /** Updates the active list layout preset. */
   protected _setLayoutPreset(value: StreamLayoutPreset): void {
     this._state.setLayoutPreset(value);
   }
@@ -390,6 +396,7 @@ export class SettingsModalComponent {
     }
   }
 
+  /** Marks a stream as the current drop target while dragging. */
   protected _onStreamDragEnter(index: number): void {
     if (this._draggedStreamIndex() === null || this._draggedStreamIndex() === index) {
       return;
@@ -398,6 +405,7 @@ export class SettingsModalComponent {
     this._dropTargetStreamIndex.set(index);
   }
 
+  /** Keeps drag-and-drop active and updates the hovered drop target. */
   protected _onStreamDragOver(index: number, event: DragEvent): void {
     if (this._draggedStreamIndex() === null) {
       return;
@@ -427,22 +435,27 @@ export class SettingsModalComponent {
     this._resetDragState();
   }
 
+  /** Clears drag state after the browser finishes a drag interaction. */
   protected _onStreamDragEnd(): void {
     this._resetDragState();
   }
 
+  /** Provides a stable identity for quality options rendered in the template. */
   protected _trackQuality(_: number, quality: StreamQualityOption): string {
     return quality.value;
   }
 
+  /** Provides a stable identity for layout options rendered in the template. */
   protected _trackLayoutOption(_: number, option: StreamLayoutPresetOption): StreamLayoutPreset {
     return option.value;
   }
 
+  /** Updates the chat visibility for one stream entry. */
   protected _setStreamShowChat(index: number, value: boolean): void {
     this._state.setStreamShowChat(index, value);
   }
 
+  /** Forwards checkbox changes from the template to the stream chat toggle. */
   protected _onStreamChatChange(index: number, event: Event): void {
     const target = event.target;
 
@@ -451,30 +464,37 @@ export class SettingsModalComponent {
     }
   }
 
+  /** Provides a stable identity for list rows rendered in the template. */
   protected _trackList(_: number, list: StreamList): number {
     return list.id;
   }
 
+  /** Provides a stable identity for stream rows rendered in the template. */
   protected _trackStream(_: number, stream: StreamChannel): string {
     return stream.name;
   }
 
+  /** Returns whether the given stream is currently being dragged. */
   protected _isDraggedStream(index: number): boolean {
     return this._draggedStreamIndex() === index;
   }
 
+  /** Returns whether the given stream is the active drop target. */
   protected _isDropTarget(index: number): boolean {
     return this._dropTargetStreamIndex() === index && this._draggedStreamIndex() !== index;
   }
 
+  /** Removes trailing statistic counts from suggestion labels before validation. */
   private _extractChannelName(value: string): string {
     return value.replace(/\s+\(\d+\)$/, '');
   }
 
+  /** Navigates to the canonical route for the selected list. */
   private _navigateToList(listId: number | null): void {
     this._listNavigation.navigateToList(listId);
   }
 
+  /** Picks the next list to show after deleting the current one. */
   private _getNextListIdAfterDeletion(lists: StreamList[], removedListId: number): number | null {
     const removedIndex = lists.findIndex(list => list.id === removedListId);
 
@@ -487,6 +507,7 @@ export class SettingsModalComponent {
     return remainingLists[removedIndex]?.id ?? remainingLists[removedIndex - 1]?.id ?? null;
   }
 
+  /** Focuses the requested input on the next microtask and optionally selects its content. */
   private _focusInput(inputRef: () => ElementRef<HTMLInputElement> | undefined, selectText = false): void {
     queueMicrotask(() => {
       const input = inputRef()?.nativeElement;
@@ -503,11 +524,13 @@ export class SettingsModalComponent {
     });
   }
 
+  /** Clears drag state after a completed or cancelled reorder interaction. */
   private _resetDragState(): void {
     this._draggedStreamIndex.set(null);
     this._dropTargetStreamIndex.set(null);
   }
 
+  /** Collects focusable elements so keyboard navigation can be trapped in the modal. */
   private _getFocusableElements(container: HTMLElement): HTMLElement[] {
     return Array.from(
       container.querySelectorAll<HTMLElement>(

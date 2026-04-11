@@ -160,6 +160,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     this._scheduleSync();
   }
 
+  /** Coalesces multiple reactive changes into a single embed synchronization pass. */
   private _scheduleSync(): void {
     const runId = ++this._syncRunId;
 
@@ -172,6 +173,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  /** Reconciles rendered embeds with the active list, quality, chat, and mute state. */
   private async _syncEmbeds(runId: number): Promise<void> {
     if (runId !== this._syncRunId) {
       return;
@@ -327,6 +329,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  /** Destroys embeds for channels that are no longer part of the active view. */
   private _removeStaleEmbeds(activeChannels: Set<string>): void {
     let removedEmbed = false;
 
@@ -351,6 +354,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** Stores the latest quality set for one stream and republishes the flattened union. */
   private _setAvailableQualitiesForStream(stream: string, qualities: StreamQualityOption[]): void {
     const seen = new Set<string>();
     const normalizedQualities = qualities
@@ -375,6 +379,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     this._syncAvailableQualities();
   }
 
+  /** Publishes the merged quality options reported by all currently rendered embeds. */
   private _syncAvailableQualities(): void {
     this._state.setAvailableQualities([...this._availableQualitiesByStream.values()].flat());
   }
@@ -397,11 +402,13 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     return this._grid().placements[index] ?? {};
   }
 
+  /** Returns whether an existing embed can be kept without recreation. */
   private _canReuseEmbed(currentState: RenderedEmbedState, nextState: RenderedEmbedSnapshot): boolean {
     return currentState.elementId === nextState.elementId
       && currentState.showChat === nextState.showChat;
   }
 
+  /** Applies mute changes to an existing embed only when the state actually changed. */
   private _syncMutedState(
     currentState: RenderedEmbedState,
     nextState: RenderedEmbedSnapshot,
@@ -415,6 +422,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     currentState.handle.setMuted(nextState.muted);
   }
 
+  /** Applies quality changes to an existing embed only when necessary. */
   private _syncQualityState(
     currentState: RenderedEmbedState,
     nextState: RenderedEmbedSnapshot,
@@ -428,6 +436,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     currentState.handle.setQuality(nextState.quality);
   }
 
+  /** Defers expensive embed work while the modal is open or the document is hidden. */
   private _shouldDeferEmbedSync(host: HTMLElement): boolean {
     return this._state.menuOpen() || this._isDocumentHidden(host.ownerDocument);
   }
@@ -436,6 +445,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     return documentRef?.visibilityState === 'hidden';
   }
 
+  /** Reads the viewport size on the browser and falls back to zero during SSR. */
   private _readViewportDimension(dimension: 'innerWidth' | 'innerHeight'): number {
     if (!isPlatformBrowser(this._platformId)) {
       return 0;

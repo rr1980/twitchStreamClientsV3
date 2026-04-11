@@ -180,6 +180,7 @@ export class TwitchEmbedService {
     this._document.getElementById(elementId)?.replaceChildren();
   }
 
+  /** Creates or reuses the Twitch script tag and resolves once Twitch.Embed is available. */
   private _createScriptPromise(): Promise<void> {
     const browserWindow = this._window;
 
@@ -220,6 +221,7 @@ export class TwitchEmbedService {
     });
   }
 
+  /** Attaches one-shot load and error listeners to the Twitch script element. */
   private _attachScriptListeners(
     script: HTMLScriptElement,
     resolve: () => void,
@@ -251,6 +253,7 @@ export class TwitchEmbedService {
     this._scriptPromise = undefined;
   }
 
+  /** Repeatedly tries to apply the requested quality until Twitch exposes usable options. */
   private async _syncRequestedQuality(
     player: TwitchPlayer,
     channel: string,
@@ -309,6 +312,7 @@ export class TwitchEmbedService {
     }
   }
 
+  /** Reads and normalizes quality options from the current Twitch player instance. */
   private _readAvailableQualities(player: TwitchPlayer): StreamQualityOption[] {
     const rawQualities = player.getQualities?.() ?? [];
 
@@ -324,6 +328,7 @@ export class TwitchEmbedService {
     );
   }
 
+  /** Awaits the next animation frame or falls back to a timer outside the browser. */
   private _waitForNextFrame(): Promise<void> {
     return new Promise(resolve => {
       const browserWindow = this._window;
@@ -355,6 +360,7 @@ export class TwitchEmbedService {
     return normalizedValue;
   }
 
+  /** Resolves the best available Twitch quality for the requested normalized value. */
   private _resolveRequestedQuality(requestedQuality: string, availableQualities: string[]): string | null {
     if (availableQualities.includes(requestedQuality)) {
       return requestedQuality;
@@ -379,6 +385,7 @@ export class TwitchEmbedService {
     return this._findNearestResolution(requestedQuality, availableQualities);
   }
 
+  /** Chooses the closest available resolution when the exact requested quality is missing. */
   private _findNearestResolution(requestedQuality: string, availableQualities: string[]): string | null {
     const requestedMatch = requestedQuality.match(/^(\d+)p/);
 
@@ -431,6 +438,7 @@ export class TwitchEmbedService {
     return match?.[0] ?? null;
   }
 
+  /** Sorts same-family quality candidates by how closely they match the request. */
   private _rankQualityMatches(requestedQuality: string, qualityFamily: string, matches: string[]): string[] {
     return [...matches].sort((left, right) => {
       return this._getQualityMatchScore(left, requestedQuality, qualityFamily)
@@ -464,6 +472,7 @@ export class TwitchEmbedService {
       .filter(rate => Number.isFinite(rate) && rate > 0);
   }
 
+  /** Converts Twitch quality descriptors into normalized app quality options. */
   private _normalizeQualityDescriptor(descriptor: TwitchQualityDescriptor): StreamQualityOption | null {
     if (typeof descriptor === 'string') {
       const normalizedValue = this._mapRequestedQuality(descriptor);
@@ -506,6 +515,7 @@ export class TwitchEmbedService {
     };
   }
 
+  /** Re-applies mute and volume until the player reflects the requested audio state. */
   private async _syncRequestedMutedState(
     player: TwitchPlayer,
     getRequestedMuted: () => boolean,
@@ -553,6 +563,7 @@ export class TwitchEmbedService {
     }
   }
 
+  /** Creates the mutable handle abstraction used by the grid to manage one embed instance. */
   private _createHandle(elementId: string, initialMuted: boolean): TwitchEmbedHandle & {
     isDestroyed(): boolean;
     setPlayer(player: TwitchPlayer): void;

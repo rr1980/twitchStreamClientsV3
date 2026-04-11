@@ -510,6 +510,7 @@ export class StreamStateService {
       .slice(0, limit);
   }
 
+  /** Restores persisted and migrated state into the normalized signal model. */
   private _init(): void {
     const persistedState = this._readPersistedState();
     const legacyShowChat = Boolean(persistedState.showChat);
@@ -527,6 +528,7 @@ export class StreamStateService {
     this._lastActiveListId.set(this._normalizeStoredListReference(persistedState.lastActiveListId));
   }
 
+  /** Reads current persisted state or falls back to legacy migration sources. */
   private _readPersistedState(): StoredState {
     if (this._storage.hasKey(this._stateKey)) {
       return this._storage.getJson<StoredState>(this._stateKey, this._createDefaultState());
@@ -535,6 +537,7 @@ export class StreamStateService {
     return this._migrateLegacyState();
   }
 
+  /** Converts older storage keys into the current list-based persisted shape. */
   private _migrateLegacyState(): PersistedStreamState {
     const legacyStreams = this._normalizeStoredStreams(this._storage.getJson<unknown[]>('streams_v2', []));
     const olderStreams = this._normalizeStoredStreams(this._storage.getJson<unknown[]>('streams', []));
@@ -616,6 +619,7 @@ export class StreamStateService {
     return [...uniqueChannels.values()];
   }
 
+  /** Normalizes persisted list data and drops malformed entries. */
   private _normalizeStoredLists(value: unknown, options: NormalizeStoredListsOptions): StreamList[] {
     if (!Array.isArray(value)) {
       return [];
@@ -628,6 +632,7 @@ export class StreamStateService {
       .filter((item): item is StreamList => item !== null);
   }
 
+  /** Normalizes one stored list and fills missing values with safe defaults. */
   private _normalizeStoredList(
     value: unknown,
     index: number,
@@ -698,6 +703,7 @@ export class StreamStateService {
       : 'auto';
   }
 
+  /** Normalizes a stored focused channel and optionally verifies it still exists in the list. */
   private _normalizeStoredFocusedChannel(value: unknown, streams?: StreamChannel[]): string | null {
     if (typeof value !== 'string') {
       return null;
@@ -726,6 +732,7 @@ export class StreamStateService {
     return this._isKnownListId(parsed) ? parsed : null;
   }
 
+  /** Increments the usage counter for a channel or creates it on first use. */
   private _bumpStatistic(channelName: string): void {
     const stats = [...this._statistics()];
     const existingIndex = stats.findIndex(item => item.name === channelName);
@@ -742,6 +749,7 @@ export class StreamStateService {
     this._statistics.set(stats);
   }
 
+  /** Moves a channel to the front of the recent list and enforces the size limit. */
   private _touchRecentChannel(channelName: string): void {
     this._recentChannels.update(values => [
       channelName,
@@ -768,6 +776,7 @@ export class StreamStateService {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   }
 
+  /** Normalizes stored stream entries into unique valid channel objects. */
   private _normalizeStoredStreams(values: unknown[], defaultShowChat = false): StreamChannel[] {
     const channels = new Map<string, StreamChannel>();
 
@@ -831,10 +840,12 @@ export class StreamStateService {
     return this._lists().reduce((maxId, list) => Math.max(maxId, list.id), 0) + 1;
   }
 
+  /** Applies an update function to a specific list by id. */
   private _updateList(listId: number, updater: (list: StreamList) => StreamList): void {
     this._lists.update(values => values.map(list => list.id === listId ? updater(list) : list));
   }
 
+  /** Applies an update function to the currently active list when one exists. */
   private _updateActiveList(updater: (list: StreamList) => StreamList): void {
     const activeList = this.activeList();
 
@@ -845,6 +856,7 @@ export class StreamStateService {
     this._updateList(activeList.id, updater);
   }
 
+  /** Debounces persistence so multiple signal updates collapse into one storage write. */
   private _schedulePersist(state: PersistedStreamState): void {
     this._pendingPersistState = {
       lists: state.lists.map(list => ({
@@ -875,6 +887,7 @@ export class StreamStateService {
     });
   }
 
+  /** Writes the current app state and shows one toast when persistence fails. */
   private _persistState(state: PersistedStreamState): void {
     if (this._storage.setJson(this._stateKey, state)) {
       this._persistFailureVisible = false;
