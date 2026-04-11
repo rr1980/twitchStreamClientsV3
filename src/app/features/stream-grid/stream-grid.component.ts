@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
 import type { GridItemPlacement } from '../../shared/utils/grid.util';
-import type { StreamQuality, StreamQualityOption } from '../../core/models/app-settings.model';
+import type { StreamChannel, StreamQuality, StreamQualityOption } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { TwitchEmbedService } from '../../core/services/twitch-embed.service';
 import type { TwitchEmbedHandle } from '../../core/services/twitch-embed.service';
@@ -28,6 +28,11 @@ interface RenderedEmbedState {
 }
 
 type RenderedEmbedSnapshot = Omit<RenderedEmbedState, 'handle'>;
+
+interface PendingEmbedSync {
+  stream: StreamChannel;
+  nextState: RenderedEmbedSnapshot;
+}
 
 @Component({
   selector: 'app-stream-grid',
@@ -184,38 +189,11 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (this._shouldDeferEmbedStartup(host)) {
-      this._removeStaleEmbeds(activeChannels);
-      return;
-    }
+    const shouldDeferNewEmbeds = this._shouldDeferEmbedStartup(host);
+    const shouldForceMuteSync = this._lastMuteAllStreams !== null && this._lastMuteAllStreams !== muteAllStreams;
+    const pendingEmbedSyncs: PendingEmbedSync[] = [];
 
-    try {
-      await this._twitch.loadScript();
-    } catch {
-      if (runId !== this._syncRunId) {
-        return;
-      }
-
-      if (!this._loadScriptErrorVisible) {
-        this._loadScriptErrorVisible = true;
-        this._toast.show('Twitch-Embed konnte nicht geladen werden. Bitte versuche es erneut.', 'error');
-      }
-
-      return;
-    }
-
-    if (runId !== this._syncRunId) {
-      return;
-    }
-
-    this._loadScriptErrorVisible = false;
     this._removeStaleEmbeds(activeChannels);
-    const shouldRecreateAllEmbeds = this._shouldRecreateAllEmbeds(streams, muteAllStreams);
-
-    if (shouldRecreateAllEmbeds) {
-      this._recreateAllEmbeds();
-    }
-
     this._lastMuteAllStreams = muteAllStreams;
 
     streams.forEach((stream, index) => {
@@ -241,6 +219,62 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
       if (currentState) {
         if (this._canReuseEmbed(currentState, nextState)) {
+          this._syncMutedState(currentState, nextState, shouldForceMuteSync);
+          return;
+        }
+
+        if (shouldDeferNewEmbeds) {
+          this._syncMutedState(currentState, nextState, shouldForceMuteSync);
+          return;
+        }
+      } else if (shouldDeferNewEmbeds) {
+        return;
+      }
+
+      pendingEmbedSyncs.push({ stream, nextState });
+    });
+
+    if (pendingEmbedSyncs.length === 0) {
+      return;
+    }
+
+    try {
+      await this._twitch.loadScript();
+    } catch {
+      if (runId !== this._syncRunId) {
+        return;
+      }
+
+      if (!this._loadScriptErrorVisible) {
+        this._loadScriptErrorVisible = true;
+        this._toast.show('Twitch-Embed konnte nicht geladen werden. Bitte versuche es erneut.', 'error');
+      }
+
+      return;
+    }
+
+    if (runId !== this._syncRunId) {
+      return;
+    }
+
+    this._loadScriptErrorVisible = false;
+
+    pendingEmbedSyncs.forEach(({ stream, nextState }) => {
+      if (runId !== this._syncRunId) {
+        return;
+      }
+
+      const wrapper = host.ownerDocument.getElementById(nextState.elementId);
+
+      if (!(wrapper instanceof HTMLElement) || !host.contains(wrapper)) {
+        return;
+      }
+
+      const currentState = this._renderedEmbeds.get(stream.name);
+
+      if (currentState) {
+        if (this._canReuseEmbed(currentState, nextState)) {
+          this._syncMutedState(currentState, nextState, shouldForceMuteSync);
           return;
         }
 
@@ -248,9 +282,9 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
       }
 
       const handle = this._twitch.createEmbed({
-        elementId: wrapperId,
+        elementId: nextState.elementId,
         channel: stream.name,
-        quality,
+        quality: nextState.quality,
         showChat: stream.showChat,
         muted: nextState.muted,
         onAvailableQualities: qualities => {
@@ -294,16 +328,6 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
       this._syncAvailableQualities();
     }
-  }
-
-  private _recreateAllEmbeds(): void {
-    for (const renderedEmbed of this._renderedEmbeds.values()) {
-      renderedEmbed.handle.destroy();
-    }
-
-    this._renderedEmbeds.clear();
-    this._availableQualitiesByStream.clear();
-    this._syncAvailableQualities();
   }
 
   private _setAvailableQualitiesForStream(stream: string, qualities: StreamQualityOption[]): void {
@@ -356,23 +380,17 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
       && currentState.showChat === nextState.showChat;
   }
 
-  private _shouldRecreateAllEmbeds(
-    streams: readonly { name: string }[],
-    muteAllStreams: boolean,
-  ): boolean {
-    if (this._lastMuteAllStreams !== null && this._lastMuteAllStreams !== muteAllStreams) {
-      return true;
+  private _syncMutedState(
+    currentState: RenderedEmbedState,
+    nextState: RenderedEmbedSnapshot,
+    force: boolean,
+  ): void {
+    if (!force && currentState.muted === nextState.muted) {
+      return;
     }
 
-    return streams.some((stream, index) => {
-      const currentState = this._renderedEmbeds.get(stream.name);
-
-      if (!currentState) {
-        return false;
-      }
-
-      return currentState.muted !== (muteAllStreams || index !== 0);
-    });
+    currentState.muted = nextState.muted;
+    currentState.handle.setMuted(nextState.muted);
   }
 
   private _shouldDeferEmbedStartup(host: HTMLElement): boolean {

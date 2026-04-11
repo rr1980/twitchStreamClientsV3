@@ -71,7 +71,7 @@ describe('StreamGridComponent', () => {
 
     await expect(getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(runId)).resolves.toBeUndefined();
 
-    expect(twitch.loadScript).toHaveBeenCalledTimes(1);
+    expect(twitch.loadScript).not.toHaveBeenCalled();
     expect(twitch.createEmbed).not.toHaveBeenCalled();
   });
 
@@ -106,6 +106,8 @@ describe('StreamGridComponent', () => {
     const component = fixture.componentInstance;
 
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    fixture.detectChanges();
+    await fixture.whenStable();
     twitch.loadScript.mockRejectedValue(new Error('network'));
 
     const firstRunId = getPrivateNumber(component, '_syncRunId') + 1;
@@ -306,7 +308,7 @@ describe('StreamGridComponent', () => {
     expect(syncEmbedsSpy).not.toHaveBeenCalled();
   });
 
-  it('recreates embeds when mute-all mode is enabled or disabled', async () => {
+  it('updates mute-all mode through existing embed handles without recreating streams', async () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
     await syncComponent();
 
@@ -319,37 +321,75 @@ describe('StreamGridComponent', () => {
     state.muteAllStreams.set(true);
     await syncComponent();
 
-    expect(firstHandle?.destroy).toHaveBeenCalledTimes(1);
-    expect(secondHandle?.destroy).toHaveBeenCalledTimes(1);
-    expect(twitch.createEmbed).toHaveBeenCalledTimes(2);
-    expect(twitch.createEmbed).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      elementId: 'twitch-embed-shroud',
-      muted: true,
-    }));
-    expect(twitch.createEmbed).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      elementId: 'twitch-embed-rocketbeanstv',
-      muted: true,
-    }));
+    expect(firstHandle?.destroy).not.toHaveBeenCalled();
+    expect(secondHandle?.destroy).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(firstHandle?.setMuted).toHaveBeenCalledWith(true);
+    expect(secondHandle?.setMuted).toHaveBeenCalledWith(true);
 
-    const mutedFirstHandle = twitch.handles.get('twitch-embed-shroud');
-    const mutedSecondHandle = twitch.handles.get('twitch-embed-rocketbeanstv');
-
-    twitch.createEmbed.mockClear();
-    mutedFirstHandle?.destroy.mockClear();
-    mutedSecondHandle?.destroy.mockClear();
+    firstHandle?.setMuted.mockClear();
+    secondHandle?.setMuted.mockClear();
 
     state.muteAllStreams.set(false);
     await syncComponent();
 
-    expect(mutedFirstHandle?.destroy).toHaveBeenCalledTimes(1);
-    expect(mutedSecondHandle?.destroy).toHaveBeenCalledTimes(1);
-    expect(twitch.createEmbed).toHaveBeenCalledTimes(2);
-    expect(twitch.createEmbed).toHaveBeenNthCalledWith(1, expect.objectContaining({
+    expect(firstHandle?.destroy).not.toHaveBeenCalled();
+    expect(secondHandle?.destroy).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(firstHandle?.setMuted).toHaveBeenCalledWith(false);
+    expect(secondHandle?.setMuted).toHaveBeenCalledWith(true);
+  });
+
+  it('syncs mute changes on existing embeds even while new embeds are deferred', async () => {
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
+    await syncComponent();
+
+    const firstHandle = twitch.handles.get('twitch-embed-shroud');
+    const secondHandle = twitch.handles.get('twitch-embed-rocketbeanstv');
+
+    twitch.loadScript.mockClear();
+    twitch.createEmbed.mockClear();
+    firstHandle?.setMuted.mockClear();
+    secondHandle?.setMuted.mockClear();
+
+    state.menuOpen.set(true);
+    state.muteAllStreams.set(true);
+    await syncComponent();
+
+    expect(twitch.loadScript).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(firstHandle?.setMuted).toHaveBeenCalledWith(true);
+    expect(secondHandle?.setMuted).toHaveBeenCalledWith(true);
+  });
+
+  it('defers recreating changed embeds while still syncing their muted state', async () => {
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    await syncComponent();
+
+    const handle = twitch.handles.get('twitch-embed-shroud');
+
+    twitch.loadScript.mockClear();
+    twitch.createEmbed.mockClear();
+    handle?.destroy.mockClear();
+    handle?.setMuted.mockClear();
+
+    state.menuOpen.set(true);
+    state.quality.set('720p60');
+    state.muteAllStreams.set(true);
+    await syncComponent();
+
+    expect(twitch.loadScript).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(handle?.destroy).not.toHaveBeenCalled();
+    expect(handle?.setMuted).toHaveBeenCalledWith(true);
+
+    state.menuOpen.set(false);
+    await syncComponent();
+
+    expect(handle?.destroy).toHaveBeenCalledTimes(1);
+    expect(twitch.createEmbed).toHaveBeenCalledWith(expect.objectContaining({
       elementId: 'twitch-embed-shroud',
-      muted: false,
-    }));
-    expect(twitch.createEmbed).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      elementId: 'twitch-embed-rocketbeanstv',
+      quality: '720p60',
       muted: true,
     }));
   });
@@ -427,7 +467,7 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).not.toHaveBeenCalled();
   });
 
-  it('recreates embeds on reorder and destroys all handles on component teardown', async () => {
+  it('updates muted state on reorder and destroys all handles on component teardown', async () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
     await syncComponent();
 
@@ -440,17 +480,11 @@ describe('StreamGridComponent', () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('rocketbeanstv'), channel('shroud')] });
     await syncComponent();
 
-    expect(firstHandle?.destroy).toHaveBeenCalledTimes(1);
-    expect(secondHandle?.destroy).toHaveBeenCalledTimes(1);
-    expect(twitch.createEmbed).toHaveBeenCalledTimes(2);
-    expect(twitch.createEmbed).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      elementId: 'twitch-embed-rocketbeanstv',
-      muted: false,
-    }));
-    expect(twitch.createEmbed).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      elementId: 'twitch-embed-shroud',
-      muted: true,
-    }));
+    expect(firstHandle?.destroy).not.toHaveBeenCalled();
+    expect(secondHandle?.destroy).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(firstHandle?.setMuted).toHaveBeenCalledWith(true);
+    expect(secondHandle?.setMuted).toHaveBeenCalledWith(false);
 
     twitch.handles.get('twitch-embed-rocketbeanstv')?.destroy.mockClear();
     twitch.handles.get('twitch-embed-shroud')?.destroy.mockClear();
@@ -473,6 +507,73 @@ describe('StreamGridComponent', () => {
 
     expect(twitch.loadScript).toHaveBeenCalled();
     expect(twitch.createEmbed).not.toHaveBeenCalled();
+  });
+
+  it('skips pending embed creation when the wrapper disappears after the script resolves', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    fixture.detectChanges();
+
+    let resolveLoadScript!: () => void;
+    twitch.loadScript.mockReturnValueOnce(new Promise<undefined>(resolve => {
+      resolveLoadScript = () => resolve(undefined);
+    }));
+
+    const component = fixture.componentInstance;
+    const runId = getPrivateNumber(component, '_syncRunId') + 1;
+
+    setPrivateNumber(component, '_syncRunId', runId);
+    const syncPromise = getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(runId);
+
+    await Promise.resolve();
+    fixture.nativeElement.querySelector('#twitch-embed-shroud')?.remove();
+    resolveLoadScript();
+    await syncPromise;
+
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+  });
+
+  it('rechecks pending embeds after the script resolves and reuses compatible handles', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    fixture.detectChanges();
+
+    let resolveLoadScript!: () => void;
+    twitch.loadScript.mockReturnValueOnce(new Promise<undefined>(resolve => {
+      resolveLoadScript = () => resolve(undefined);
+    }));
+
+    const component = fixture.componentInstance;
+    const runId = getPrivateNumber(component, '_syncRunId') + 1;
+    const handle = new MockTwitchEmbedHandle();
+    const renderedEmbeds = (component as unknown as Record<string, Map<string, {
+      elementId: string;
+      quality: StreamQuality;
+      showChat: boolean;
+      muted: boolean;
+      handle: TwitchEmbedHandle;
+    }>>)['_renderedEmbeds'];
+
+    setPrivateNumber(component, '_syncRunId', runId);
+    const syncPromise = getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(runId);
+
+    await Promise.resolve();
+    renderedEmbeds.set('shroud', {
+      elementId: 'twitch-embed-shroud',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+      handle,
+    });
+    resolveLoadScript();
+    await syncPromise;
+
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(handle.destroy).not.toHaveBeenCalled();
   });
 
   it('recreates embeds when quality or chat layout changes', async () => {
@@ -602,6 +703,20 @@ describe('StreamGridComponent', () => {
 
     expect(displayedStreams[0].name).toBe('b');
     expect(displayedStreams.map(s => s.name)).toEqual(['b', 'a', 'c']);
+  });
+
+  it('toggles the focused channel through the state service', async () => {
+    state.setActiveList({ id: 1, name: 'Test', streams: [channel('streamer')] });
+    await syncComponent();
+
+    const toggleFocusedChannel = getPrivateMethod<(channelName: string) => void>(fixture.componentInstance, '_toggleFocusedChannel');
+
+    toggleFocusedChannel('streamer');
+    expect(state.setFocusedChannel).toHaveBeenLastCalledWith('streamer');
+
+    state.focusedChannel.set('streamer');
+    toggleFocusedChannel('streamer');
+    expect(state.setFocusedChannel).toHaveBeenLastCalledWith(null);
   });
 
   it('falls back to default order when focused stream is not in the list', async () => {
