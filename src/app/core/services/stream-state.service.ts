@@ -572,6 +572,7 @@ export class StreamStateService {
     return migratedState;
   }
 
+  /** Normalizes persisted statistics and drops malformed entries. */
   private _normalizeStoredStatistics(value: unknown): StreamStatistic[] {
     if (!Array.isArray(value)) {
       return [];
@@ -599,6 +600,7 @@ export class StreamStateService {
       .filter((item): item is StreamStatistic => item !== null);
   }
 
+  /** Normalizes a stored channel array into unique valid channel names. */
   private _normalizeStoredChannelList(value: unknown): string[] {
     if (!Array.isArray(value)) {
       return [];
@@ -681,6 +683,7 @@ export class StreamStateService {
     };
   }
 
+  /** Resolves a persisted list id or allocates the next unused positive id. */
   private _normalizeStoredListId(value: unknown, usedIds: Set<number>): number {
     const parsed = typeof value === 'number' ? value : Number(value);
 
@@ -697,6 +700,7 @@ export class StreamStateService {
     return nextId;
   }
 
+  /** Maps unknown persisted layout values to a supported preset. */
   private _normalizeStoredLayoutPreset(value: unknown): StreamLayoutPreset {
     return value === 'balanced' || value === 'stage' || value === 'chat'
       ? value
@@ -722,6 +726,7 @@ export class StreamStateService {
     return name;
   }
 
+  /** Normalizes a persisted list reference and verifies that it still exists. */
   private _normalizeStoredListReference(value: unknown): number | null {
     const parsed = typeof value === 'number' ? value : Number(value);
 
@@ -757,6 +762,7 @@ export class StreamStateService {
     ].slice(0, this._maxRecentChannels));
   }
 
+  /** Normalizes channel names for storage and duplicate checks. */
   private _normalizeChannelName(value: string): string {
     return String(value)
       .trim()
@@ -764,12 +770,14 @@ export class StreamStateService {
       .replace(/,/g, '');
   }
 
+  /** Normalizes list names by trimming and collapsing whitespace. */
   private _normalizeListName(value: string): string {
     return String(value)
       .trim()
       .replace(/\s+/g, ' ');
   }
 
+  /** Parses the legacy focused list id format used during migration. */
   private _normalizeLegacyFocusedListId(value: unknown): number | null {
     const parsed = typeof value === 'number' ? value : Number(value);
 
@@ -804,10 +812,12 @@ export class StreamStateService {
     return [...channels.values()];
   }
 
+  /** Validates a normalized Twitch channel name against app rules. */
   private _isValidChannelName(value: string): boolean {
     return /^[a-z\u00E4\u00F6\u00FC0-9_]{1,25}$/.test(value);
   }
 
+  /** Checks whether another list already uses the provided normalized name. */
   private _hasListName(name: string, ignoredListId?: number): boolean {
     const normalizedName = name.toLocaleLowerCase();
 
@@ -816,6 +826,7 @@ export class StreamStateService {
     );
   }
 
+  /** Builds the next available duplicate list name using the `Kopie` suffix scheme. */
   private _buildDuplicateListName(sourceName: string): string {
     const baseName = `${sourceName} Kopie`;
 
@@ -832,10 +843,12 @@ export class StreamStateService {
     return `${baseName} ${copyNumber}`;
   }
 
+  /** Returns whether the provided id matches an existing list. */
   private _isKnownListId(listId: number): boolean {
     return this._lists().some(list => list.id === listId);
   }
 
+  /** Allocates the next list id from the current maximum id. */
   private _getNextListId(): number {
     return this._lists().reduce((maxId, list) => Math.max(maxId, list.id), 0) + 1;
   }
@@ -902,6 +915,7 @@ export class StreamStateService {
     this._toast.show('\u00C4nderungen konnten nicht gespeichert werden. Pr\u00FCfe den verf\u00FCgbaren Browser-Speicher.', 'error');
   }
 
+  /** Returns the empty persisted state used as the initial fallback. */
   private _createDefaultState(): PersistedStreamState {
     return {
       lists: [],

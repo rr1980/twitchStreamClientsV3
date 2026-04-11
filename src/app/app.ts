@@ -90,6 +90,7 @@ export class App {
     this._pwa.dismissUpdateNotice();
   }
 
+  /** Builds the document title from the active or requested list context. */
   private _buildDocumentTitle(): string {
     const activeList = this._state.activeList();
     const activeListId = this._state.activeListId();
@@ -105,6 +106,7 @@ export class App {
     return 'Twitch Multi-Viewer';
   }
 
+  /** Restores the last active list when the app starts on the null route. */
   private _restoreInitialView(activeListId: number | null): void {
     const lastActiveListId = this._state.lastActiveListId();
 

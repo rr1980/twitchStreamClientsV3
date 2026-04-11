@@ -342,6 +342,7 @@ export class TwitchEmbedService {
     });
   }
 
+  /** Returns the current browser window when Twitch embed APIs are available. */
   private get _window(): Window | null {
     if (!isPlatformBrowser(this._platformId)) {
       return null;
@@ -350,6 +351,7 @@ export class TwitchEmbedService {
     return this._document.defaultView;
   }
 
+  /** Converts app quality values into Twitch player quality identifiers. */
   private _mapRequestedQuality(value: StreamQuality): string | null {
     const normalizedValue = normalizeStreamQuality(value);
 
@@ -432,6 +434,7 @@ export class TwitchEmbedService {
     return bestMatch;
   }
 
+  /** Extracts the resolution family token from a Twitch quality string. */
   private _extractQualityFamily(value: string): string | null {
     const match = value.match(/^\d+p/);
 
@@ -446,6 +449,7 @@ export class TwitchEmbedService {
     });
   }
 
+  /** Scores same-family candidates so the closest Twitch quality wins. */
   private _getQualityMatchScore(candidate: string, requestedQuality: string, qualityFamily: string): number {
     if (candidate === requestedQuality) {
       return 0;
@@ -465,6 +469,7 @@ export class TwitchEmbedService {
     return 3;
   }
 
+  /** Extracts numeric frame-rate hints from a Twitch quality label. */
   private _extractQualityFrameRates(value: string): number[] {
     return (value.match(/\d+/g) ?? [])
       .slice(1)
@@ -575,6 +580,7 @@ export class TwitchEmbedService {
     let muteSyncRunId = 0;
     let qualitySyncRunId = 0;
 
+    /** Starts or restarts mute synchronization for the current player instance. */
     const syncRequestedMutedState = (): void => {
       if (!player || destroyed) {
         return;

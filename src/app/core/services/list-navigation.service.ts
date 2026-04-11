@@ -39,6 +39,7 @@ export class ListNavigationService {
       : canonicalUrlTree;
   }
 
+  /** Extracts the list id from an already parsed UrlTree. */
   private _readListIdFromTree(urlTree: UrlTree): number | null {
     const segments = this._getPrimarySegments(urlTree);
 
@@ -49,6 +50,7 @@ export class ListNavigationService {
     return this._parseListId(segments[1] ?? null);
   }
 
+  /** Parses a raw route segment into a valid positive list id or null. */
   private _parseListId(rawListId: string | null): number | null {
     if (rawListId === 'null') {
       return null;
@@ -63,6 +65,7 @@ export class ListNavigationService {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   }
 
+  /** Returns the primary outlet path segments for a parsed URL. */
   private _getPrimarySegments(urlTree: UrlTree): string[] {
     return urlTree.root.children[PRIMARY_OUTLET]?.segments.map(segment => segment.path) ?? [];
   }

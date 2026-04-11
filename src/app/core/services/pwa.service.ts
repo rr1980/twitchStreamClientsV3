@@ -90,6 +90,7 @@ export class PwaService {
     browserWindow.location.reload();
   }
 
+  /** Registers browser install prompt lifecycle events and their cleanup. */
   private _registerInstallEvents(): void {
     const browserWindow = this._window;
 
@@ -120,6 +121,7 @@ export class PwaService {
     });
   }
 
+  /** Subscribes to service worker version readiness events when enabled. */
   private _registerUpdateEvents(): void {
     if (!this._swUpdate?.isEnabled) {
       return;
@@ -134,6 +136,7 @@ export class PwaService {
     this._destroyRef.onDestroy(() => subscription.unsubscribe());
   }
 
+  /** Detects whether the app already runs in installed standalone mode. */
   private _isStandaloneMode(): boolean {
     const browserWindow = this._window;
 
@@ -145,6 +148,7 @@ export class PwaService {
       || (browserWindow.navigator as NavigatorWithStandalone).standalone === true;
   }
 
+  /** Returns the current browser window when available. */
   private get _window(): Window | null {
     return this._document.defaultView;
   }

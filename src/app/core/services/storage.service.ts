@@ -62,6 +62,7 @@ export class StorageService {
     return this._write(storage => storage.removeItem(key));
   }
 
+  /** Executes a read operation against localStorage with a fallback on failure. */
   private _read<T>(reader: (storage: Storage) => T, fallback: T): T {
     const storage = this._storage;
 
@@ -76,6 +77,7 @@ export class StorageService {
     }
   }
 
+  /** Executes a write operation against localStorage and reports write failures. */
   private _write(writer: (storage: Storage) => void): boolean {
     const storage = this._storage;
 
@@ -95,6 +97,7 @@ export class StorageService {
     }
   }
 
+  /** Resolves the browser localStorage instance when the environment allows it. */
   private get _storage(): Storage | null {
     if (!isPlatformBrowser(this._platformId)) {
       return null;

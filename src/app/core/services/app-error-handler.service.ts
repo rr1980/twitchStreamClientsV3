@@ -18,6 +18,7 @@ export class AppErrorHandler implements ErrorHandler {
     }
   }
 
+  /** Converts unknown thrown values into a standard Error instance. */
   private _normalizeError(error: unknown): Error {
     if (error instanceof Error) {
       return error;

@@ -8,11 +8,14 @@ import { ListNavigationService } from './core/services/list-navigation.service';
 import { AppErrorHandler } from './core/services/app-error-handler.service';
 import { StreamStateService } from './core/services/stream-state.service';
 
+/** Lazy-loads the stream grid route component. */
 const loadStreamGridComponent = (): Promise<Type<unknown>> => import('./features/stream-grid/stream-grid.component')
   .then(module => module.StreamGridComponent);
 
+/** Redirects list routes to the canonical `/List/:listId` shape. */
 const normalizeListRoute: CanActivateFn = (_route, state) => inject(ListNavigationService).ensureCanonicalUrl(state.url);
 
+/** Defines the public route table for the application shell. */
 export const appRoutes: Routes = [
   {
     path: '',
@@ -35,6 +38,7 @@ export const appRoutes: Routes = [
   },
 ];
 
+/** Registers routing, error handling, service worker, and state initialization. */
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),

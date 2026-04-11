@@ -384,6 +384,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     this._state.setAvailableQualities([...this._availableQualitiesByStream.values()].flat());
   }
 
+  /** Builds the DOM id used for a stream's embed host element. */
   private _getEmbedElementId(channel: string): string {
     return `twitch-embed-${channel}`;
   }
@@ -393,6 +394,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     this._state.setFocusedChannel(this._focusedChannel() === channelName ? null : channelName);
   }
 
+  /** Returns whether the provided channel is currently focused. */
   protected _isFocusedChannel(channelName: string): boolean {
     return this._focusedChannel() === channelName;
   }
@@ -441,6 +443,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     return this._state.menuOpen() || this._isDocumentHidden(host.ownerDocument);
   }
 
+  /** Returns whether the referenced document is currently hidden. */
   private _isDocumentHidden(documentRef: Document | undefined): boolean {
     return documentRef?.visibilityState === 'hidden';
   }

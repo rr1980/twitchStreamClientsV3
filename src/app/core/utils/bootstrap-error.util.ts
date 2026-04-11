@@ -5,6 +5,7 @@ export function reportBootstrapError(error: unknown): void {
   console.error('[BootstrapError]', normalizedError);
 }
 
+/** Converts unknown bootstrap failures into a standard Error instance. */
 function normalizeBootstrapError(error: unknown): Error {
   if (error instanceof Error) {
     return error;

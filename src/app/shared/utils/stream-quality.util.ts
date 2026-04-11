@@ -12,6 +12,7 @@ export function normalizeStreamQuality(value: unknown): StreamQuality {
   return isSupportedStreamQuality(storedQuality) ? storedQuality : 'auto';
 }
 
+/** Checks whether a quality string matches the app-supported Twitch formats. */
 function isSupportedStreamQuality(value: string): boolean {
   return value === 'auto'
     || value === 'chunked'
@@ -124,6 +125,7 @@ export function areStreamQualityOptionsEqual(
       quality.value === right[index]?.value && quality.label === right[index]?.label);
 }
 
+/** Prefers more descriptive labels when duplicate quality values are reported. */
 function getStreamQualityLabelScore(option: StreamQualityOption): number {
   if (option.value === 'chunked' && /^\d+p/i.test(option.label)) {
     return 3;
@@ -132,6 +134,7 @@ function getStreamQualityLabelScore(option: StreamQualityOption): number {
   return option.label === getDefaultStreamQualityLabel(option.value) ? 1 : 2;
 }
 
+/** Sorts qualities by semantic priority, resolution, frame rate, and name. */
 function compareStreamQualities(left: StreamQuality, right: StreamQuality): number {
   const leftToken = getQualitySortToken(left);
   const rightToken = getQualitySortToken(right);
@@ -151,6 +154,7 @@ function compareStreamQualities(left: StreamQuality, right: StreamQuality): numb
   return left.localeCompare(right);
 }
 
+/** Converts a quality string into sortable priority tokens. */
 function getQualitySortToken(value: StreamQuality): { group: number; resolution: number; frameRate: number } {
   if (value === 'chunked') {
     return { group: 0, resolution: Number.MAX_SAFE_INTEGER, frameRate: Number.MAX_SAFE_INTEGER };

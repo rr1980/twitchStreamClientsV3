@@ -82,6 +82,7 @@ export function calculateStreamGridLayout(
   return buildUniformLayout(count, calculateOptimalGrid(streams, containerWidth, containerHeight));
 }
 
+/** Builds a layout where every stream occupies one uniform grid cell. */
 function buildUniformLayout(count: number, layout: GridLayout): StreamGridLayout {
   return {
     ...layout,
@@ -89,6 +90,7 @@ function buildUniformLayout(count: number, layout: GridLayout): StreamGridLayout
   };
 }
 
+/** Creates a square-ish grid for the balanced layout preset. */
 function calculateBalancedGrid(count: number): GridLayout {
   const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
   const rows = Math.max(1, Math.ceil(count / cols));
@@ -96,6 +98,7 @@ function calculateBalancedGrid(count: number): GridLayout {
   return { cols, rows };
 }
 
+/** Chooses a narrow chat-friendly grid based on viewport aspect ratio. */
 function calculateChatGrid(count: number, containerWidth: number, containerHeight: number): GridLayout {
   if (count <= 1) {
     return { cols: 1, rows: 1 };
@@ -110,6 +113,7 @@ function calculateChatGrid(count: number, containerWidth: number, containerHeigh
   };
 }
 
+/** Creates the stage-style layout where the first stream gets extra space. */
 function calculateFeaturedGrid(count: number, containerWidth: number, containerHeight: number): StreamGridLayout {
   if (count === 1) {
     return buildUniformLayout(1, { cols: 1, rows: 1 });
@@ -139,6 +143,7 @@ function calculateFeaturedGrid(count: number, containerWidth: number, containerH
   };
 }
 
+/** Estimates the usable video area for one cell, accounting for chat width. */
 function thisCellArea(cellWidth: number, cellHeight: number, showChat: boolean): number {
   const targetRatio = showChat ? 21 / 9 : 16 / 9;
 

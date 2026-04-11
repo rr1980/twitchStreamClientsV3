@@ -33,6 +33,7 @@ export class HotkeyService {
     return false;
   }
 
+  /** Detects whether keyboard input currently targets an editable element. */
   private _isTypingContext(activeElement: Element | null): boolean {
     if (!(activeElement instanceof HTMLElement)) {
       return false;

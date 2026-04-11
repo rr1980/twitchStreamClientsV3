@@ -65,6 +65,7 @@ export class ToastService {
     this._messages.update(items => items.filter(item => item.id !== id));
   }
 
+  /** Schedules automatic removal for a toast and replaces any existing timer. */
   private _scheduleRemoval(id: number): void {
     this._clearRemovalTimer(id);
 
@@ -76,6 +77,7 @@ export class ToastService {
     this._removalTimers.set(id, timeoutId);
   }
 
+  /** Cancels and removes the timer associated with a toast id. */
   private _clearRemovalTimer(id: number): void {
     const timeoutId = this._removalTimers.get(id);
 
