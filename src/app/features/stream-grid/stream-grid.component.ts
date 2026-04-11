@@ -46,6 +46,7 @@ interface PendingEmbedSync {
     '(document:visibilitychange)': '_onDocumentVisibilityChange()',
   },
 })
+/** Computes the visible grid and keeps Twitch embeds synchronized with active state. */
 export class StreamGridComponent implements AfterViewInit, OnDestroy {
   private readonly _platformId = inject(PLATFORM_ID);
   private readonly _state = inject(StreamStateService);
@@ -114,11 +115,13 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  /** Marks the view as ready and kicks off the first embed synchronization. */
   public ngAfterViewInit(): void {
     this._viewReady = true;
     this._scheduleSync();
   }
 
+  /** Destroys rendered embeds and clears derived quality state on teardown. */
   public ngOnDestroy(): void {
     if (this._resizeTimer !== null) {
       globalThis.clearTimeout(this._resizeTimer);
@@ -135,6 +138,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
   private _resizeTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
 
+  /** Debounces viewport changes before recalculating the grid. */
   protected _onResize(): void {
     if (this._resizeTimer !== null) {
       globalThis.clearTimeout(this._resizeTimer);
@@ -147,6 +151,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     }, 150);
   }
 
+  /** Resumes embed synchronization when the document becomes visible again. */
   protected _onDocumentVisibilityChange(): void {
     if (!this._viewReady || this._isDocumentHidden(this._hostRef()?.nativeElement.ownerDocument)) {
       return;
@@ -378,6 +383,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     return `twitch-embed-${channel}`;
   }
 
+  /** Toggles focus mode for a specific channel inside the current list. */
   protected _toggleFocusedChannel(channelName: string): void {
     this._state.setFocusedChannel(this._focusedChannel() === channelName ? null : channelName);
   }
@@ -386,6 +392,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     return this._focusedChannel() === channelName;
   }
 
+  /** Returns the placement override for a rendered tile. */
   protected _getPlacement(index: number): GridItemPlacement {
     return this._grid().placements[index] ?? {};
   }

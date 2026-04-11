@@ -48,6 +48,7 @@ interface ListMutationResult {
 }
 
 @Injectable({ providedIn: 'root' })
+/** Owns the normalized application state and persists it to localStorage. */
 export class StreamStateService {
   private readonly _stateKey = 'app_state_v3';
   private readonly _maxRecentChannels = 24;
@@ -104,6 +105,7 @@ export class StreamStateService {
     });
   }
 
+  /** Loads persisted state once and enables subsequent automatic persistence. */
   public initialize(): void {
     if (this._initialized) {
       return;
@@ -113,18 +115,22 @@ export class StreamStateService {
     this._initialized = true;
   }
 
+  /** Opens the settings menu. */
   public openMenu(): void {
     this._menuOpen.set(true);
   }
 
+  /** Closes the settings menu. */
   public closeMenu(): void {
     this._menuOpen.set(false);
   }
 
+  /** Toggles the settings menu visibility. */
   public toggleMenu(): void {
     this._menuOpen.update(value => !value);
   }
 
+  /** Updates the active list id and tracks it as the last active list when valid. */
   public setActiveListId(listId: number | null): void {
     this._activeListId.set(listId);
 
@@ -133,6 +139,7 @@ export class StreamStateService {
     }
   }
 
+  /** Creates a new empty list after validating and normalizing the requested name. */
   public createList(rawName: string): ListMutationResult {
     const name = this._normalizeListName(rawName);
 
@@ -159,6 +166,7 @@ export class StreamStateService {
     return { ok: true, list };
   }
 
+  /** Renames an existing list when the target name is valid and unique. */
   public renameList(listId: number, rawName: string): ListMutationResult {
     const name = this._normalizeListName(rawName);
 
@@ -186,6 +194,7 @@ export class StreamStateService {
     return { ok: true, list };
   }
 
+  /** Clones the selected list, including stream configuration and list-scoped settings. */
   public duplicateList(listId: number): ListMutationResult {
     const sourceList = this._lists().find(list => list.id === listId);
 
@@ -208,6 +217,7 @@ export class StreamStateService {
     return { ok: true, list };
   }
 
+  /** Deletes a list and clears active references that pointed to it. */
   public deleteList(listId: number): StreamList | null {
     const current = this._lists();
     const removed = current.find(list => list.id === listId) ?? null;
@@ -229,6 +239,7 @@ export class StreamStateService {
     return removed;
   }
 
+  /** Adds a normalized channel to the active list and updates recents and statistics. */
   public addStream(rawName: string): StreamMutationResult {
     const name = this._normalizeChannelName(rawName);
 
@@ -260,6 +271,7 @@ export class StreamStateService {
     return { ok: true, name };
   }
 
+  /** Removes a stream from the active list and clears focus if needed. */
   public removeStream(index: number): string | null {
     const activeList = this.activeList();
 
@@ -284,10 +296,12 @@ export class StreamStateService {
     return removed.name;
   }
 
+  /** Moves a stream one position up or down inside the active list. */
   public moveStream(index: number, direction: -1 | 1): void {
     this.reorderStreams(index, index + direction);
   }
 
+  /** Reorders the active list streams when both indices are within bounds. */
   public reorderStreams(fromIndex: number, toIndex: number): void {
     const activeList = this.activeList();
 
@@ -315,6 +329,7 @@ export class StreamStateService {
     }));
   }
 
+  /** Persists the active list quality after normalizing the requested value. */
   public setQuality(value: StreamQuality): void {
     this._updateActiveList(list => {
       const quality = normalizeStreamQuality(value);
@@ -330,10 +345,12 @@ export class StreamStateService {
     });
   }
 
+  /** Stores the union of qualities currently reported by active embeds. */
   public setAvailableQualities(values: StreamQualityOption[]): void {
     this._reportedAvailableQualities.set(normalizeAvailableStreamQualities(values));
   }
 
+  /** Updates the active list layout preset when it changes. */
   public setLayoutPreset(value: StreamLayoutPreset): void {
     this._updateActiveList(list => {
       const layoutPreset = this._normalizeStoredLayoutPreset(value);
@@ -349,6 +366,7 @@ export class StreamStateService {
     });
   }
 
+  /** Focuses a single stream in the active list or clears the focus state. */
   public setFocusedChannel(rawName: string | null): void {
     const activeList = this.activeList();
 
@@ -369,6 +387,7 @@ export class StreamStateService {
     }));
   }
 
+  /** Toggles whether a normalized channel is stored in the favorites list. */
   public toggleFavoriteChannel(rawName: string): boolean {
     const name = this._normalizeChannelName(rawName);
 
@@ -390,6 +409,7 @@ export class StreamStateService {
     return isFavorite;
   }
 
+  /** Enables or disables chat for a single stream in the active list. */
   public setStreamShowChat(index: number, value: boolean): void {
     const activeList = this.activeList();
 
@@ -411,6 +431,7 @@ export class StreamStateService {
     }));
   }
 
+  /** Updates whether all embeds in the active list should be muted. */
   public setMuteAllStreams(value: boolean): void {
     this._updateActiveList(list => {
       const muteAllStreams = value === true;
@@ -426,6 +447,7 @@ export class StreamStateService {
     });
   }
 
+  /** Disables every enabled chat in the active list and returns how many changed. */
   public disableChatsForActiveList(): number {
     const activeList = this.activeList();
 
@@ -447,6 +469,7 @@ export class StreamStateService {
     return changedCount;
   }
 
+  /** Adds all favorite channels missing from the active list and returns the added names. */
   public addFavoriteChannelsToActiveList(): { ok: boolean; reason?: 'no-list'; added: string[] } {
     const activeList = this.activeList();
 
@@ -480,6 +503,7 @@ export class StreamStateService {
     return { ok: true, added };
   }
 
+  /** Returns the most frequently added channels in descending order. */
   public getTopStatistics(limit = 10): StreamStatistic[] {
     return [...this._statistics()]
       .sort((a, b) => b.value - a.value)

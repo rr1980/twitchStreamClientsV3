@@ -1,7 +1,9 @@
 import { Injectable, signal } from '@angular/core';
 
+/** Enumerates the supported toast variants. */
 export type ToastType = 'success' | 'error' | 'info';
 
+/** Represents one visible toast message instance. */
 export interface ToastMessage {
   id: number;
   text: string;
@@ -10,6 +12,7 @@ export interface ToastMessage {
 }
 
 @Injectable({ providedIn: 'root' })
+/** Manages toast creation, deduplication, visibility limits, and auto-dismiss. */
 export class ToastService {
   private readonly _toastLifetimeMs = 3000;
   private readonly _maxVisibleToasts = 4;
@@ -19,6 +22,7 @@ export class ToastService {
 
   public readonly messages = this._messages.asReadonly();
 
+  /** Shows a toast or increments the counter for an existing matching message. */
   public show(text: string, type: ToastType = 'success'): void {
     const duplicate = this._messages().find(message => message.text === text && message.type === type);
 
@@ -55,6 +59,7 @@ export class ToastService {
     this._scheduleRemoval(message.id);
   }
 
+  /** Removes a toast immediately and clears its pending timer. */
   public remove(id: number): void {
     this._clearRemovalTimer(id);
     this._messages.update(items => items.filter(item => item.id !== id));

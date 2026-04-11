@@ -7,6 +7,7 @@ import { ToastService } from './toast.service';
   styleUrl: './toast-container.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
+/** Renders the current toast stack exposed by the toast service. */
 export class ToastContainerComponent {
   protected readonly _toastService = inject(ToastService);
 }

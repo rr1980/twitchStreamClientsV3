@@ -22,6 +22,7 @@ import { PwaService } from './core/services/pwa.service';
     '(window:keydown)': '_onWindowKeydown($event)',
   },
 })
+/** Coordinates route-driven list state, document title updates, and global shell actions. */
 export class App {
   protected readonly _state = inject(StreamStateService);
   protected readonly _pwa = inject(PwaService);
@@ -57,28 +58,34 @@ export class App {
     });
   }
 
+  /** Delegates global hotkeys and prevents the browser default when consumed. */
   protected _onWindowKeydown(event: KeyboardEvent): void {
     if (this._hotkeys.handleWindowKeydown(event, this._document.activeElement)) {
       event.preventDefault();
     }
   }
 
+  /** Opens the settings menu from shell UI controls. */
   protected _openMenu(): void {
     this._state.openMenu();
   }
 
+  /** Starts the deferred PWA install flow. */
   protected _installApp(): void {
     void this._pwa.install();
   }
 
+  /** Hides the startup install hint. */
   protected _dismissStartupHint(): void {
     this._pwa.dismissStartupHint();
   }
 
+  /** Reloads the app so a ready service worker update becomes active. */
   protected _reloadForUpdate(): void {
     this._pwa.reloadForUpdate();
   }
 
+  /** Hides the current update notice without reloading. */
   protected _dismissUpdateNotice(): void {
     this._pwa.dismissUpdateNotice();
   }
@@ -113,5 +120,4 @@ export class App {
       this._listNavigation.navigateToList(lastActiveListId);
     });
   }
-
 }

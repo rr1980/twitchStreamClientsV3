@@ -1,19 +1,23 @@
 import type { StreamChannel, StreamLayoutPreset } from '../../core/models/app-settings.model';
 
+/** Defines the row and column count for a rendered grid. */
 export interface GridLayout {
   cols: number;
   rows: number;
 }
 
+/** Describes an optional CSS grid placement override for a single tile. */
 export interface GridItemPlacement {
   column?: string;
   row?: string;
 }
 
+/** Combines the grid dimensions with per-stream placement metadata. */
 export interface StreamGridLayout extends GridLayout {
   placements: GridItemPlacement[];
 }
 
+/** Finds the grid with the largest effective video area for the current streams. */
 export function calculateOptimalGrid(
   streams: StreamChannel[],
   containerWidth: number,
@@ -49,6 +53,7 @@ export function calculateOptimalGrid(
   return { cols: bestCols, rows: bestRows };
 }
 
+/** Resolves the grid layout for the selected preset and current focus state. */
 export function calculateStreamGridLayout(
   streams: StreamChannel[],
   containerWidth: number,

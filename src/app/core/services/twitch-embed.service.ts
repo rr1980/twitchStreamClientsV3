@@ -60,6 +60,7 @@ interface TwitchEmbedInstance {
   getPlayer(): TwitchPlayer;
 }
 
+/** Represents a live Twitch embed instance that can be updated or destroyed. */
 export interface TwitchEmbedHandle {
   destroy(): void;
   setMuted(value: boolean): void;
@@ -76,6 +77,7 @@ interface CreateEmbedOptions {
 }
 
 @Injectable({ providedIn: 'root' })
+/** Loads the Twitch embed script and keeps player instances synchronized with app state. */
 export class TwitchEmbedService {
   private readonly _maxQualitySyncFrames = 120;
   private readonly _maxQualitySyncDurationMs = 2000;
@@ -87,6 +89,7 @@ export class TwitchEmbedService {
   private _scriptPromise?: Promise<void>;
   private _didLogQualityDescriptors = false;
 
+  /** Loads the Twitch embed script once and reuses the pending request. */
   public loadScript(): Promise<void> {
     const browserWindow = this._window;
 
@@ -107,6 +110,7 @@ export class TwitchEmbedService {
     return this._scriptPromise;
   }
 
+  /** Creates an embed handle for a stream and wires quality and mute synchronization. */
   public createEmbed(options: CreateEmbedOptions): TwitchEmbedHandle {
     const browserWindow = this._window;
 
@@ -171,6 +175,7 @@ export class TwitchEmbedService {
     return handle;
   }
 
+  /** Clears the embed container for a previously rendered player. */
   public clearEmbed(elementId: string): void {
     this._document.getElementById(elementId)?.replaceChildren();
   }

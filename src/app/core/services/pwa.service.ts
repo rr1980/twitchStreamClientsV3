@@ -19,6 +19,7 @@ type NavigatorWithStandalone = Navigator & {
 };
 
 @Injectable({ providedIn: 'root' })
+/** Manages install prompts, startup hints, and service worker update notices. */
 export class PwaService {
   private readonly _startupHintSeenKey = 'pwa_startup_hint_seen_v1';
   private readonly _document = inject(DOCUMENT);
@@ -45,15 +46,18 @@ export class PwaService {
     this._registerUpdateEvents();
   }
 
+  /** Hides the install hint and records that the user has seen it. */
   public dismissStartupHint(): void {
     this._startupHintVisible.set(false);
     this._storage.setBoolean(this._startupHintSeenKey, true);
   }
 
+  /** Dismisses the currently visible update notice. */
   public dismissUpdateNotice(): void {
     this._updateAvailable.set(false);
   }
 
+  /** Triggers the deferred install prompt when the browser supports it. */
   public async install(): Promise<void> {
     const promptEvent = this._installPromptEvent();
 
@@ -75,6 +79,7 @@ export class PwaService {
     }
   }
 
+  /** Reloads the current page to activate the latest deployed version. */
   public reloadForUpdate(): void {
     const browserWindow = this._window;
 

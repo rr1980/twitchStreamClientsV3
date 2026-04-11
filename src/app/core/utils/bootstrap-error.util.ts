@@ -1,3 +1,4 @@
+/** Normalizes and reports bootstrap failures before the app is interactive. */
 export function reportBootstrapError(error: unknown): void {
   const normalizedError = normalizeBootstrapError(error);
 

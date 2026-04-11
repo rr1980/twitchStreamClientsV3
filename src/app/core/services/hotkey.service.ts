@@ -2,9 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { StreamStateService } from './stream-state.service';
 
 @Injectable({ providedIn: 'root' })
+/** Centralizes global keyboard shortcuts that interact with the settings menu. */
 export class HotkeyService {
   private readonly _state = inject(StreamStateService);
 
+  /** Handles supported window-level shortcuts and returns whether one was consumed. */
   public handleWindowKeydown(event: KeyboardEvent, activeElement: Element | null): boolean {
     if (event.defaultPrevented || event.isComposing || event.key === 'Process') {
       return false;

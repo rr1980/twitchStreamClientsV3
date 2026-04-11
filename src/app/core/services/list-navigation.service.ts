@@ -3,13 +3,16 @@ import { PRIMARY_OUTLET, Router } from '@angular/router';
 import type { UrlTree } from '@angular/router';
 
 @Injectable({ providedIn: 'root' })
+/** Encapsulates list URL creation, parsing, and canonicalization. */
 export class ListNavigationService {
   private readonly _router = inject(Router);
 
+  /** Navigates to the canonical hash route for a given list id. */
   public navigateToList(listId: number | null): void {
     void this._router.navigate(['/List', listId ?? 'null']);
   }
 
+  /** Reads the list id from an arbitrary URL and returns null for invalid routes. */
   public readListId(url: string): number | null {
     const segments = this._getPrimarySegments(this._router.parseUrl(url || '/'));
 
@@ -20,6 +23,7 @@ export class ListNavigationService {
     return this._parseListId(segments[1] ?? null);
   }
 
+  /** Rewrites non-canonical list URLs while preserving query params and fragments. */
   public ensureCanonicalUrl(url: string): true | UrlTree {
     const currentUrlTree = this._router.parseUrl(url || '/');
     const canonicalUrlTree = this._router.createUrlTree(

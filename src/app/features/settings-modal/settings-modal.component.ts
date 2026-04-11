@@ -25,6 +25,7 @@ interface StreamLayoutPresetOption {
   styleUrl: './settings-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
+/** Hosts the list, stream, layout, and quick-action controls inside the settings modal. */
 export class SettingsModalComponent {
   private readonly _document = inject(DOCUMENT);
   private readonly _listNavigation = inject(ListNavigationService);
@@ -108,6 +109,7 @@ export class SettingsModalComponent {
     });
   }
 
+  /** Creates a new list and navigates to it when validation succeeds. */
   protected _createList(): void {
     const result = this._state.createList(this._newListNameControl.getRawValue());
 
@@ -128,11 +130,13 @@ export class SettingsModalComponent {
     this._toast.show(`${result.list?.name} angelegt.`);
   }
 
+  /** Enters inline rename mode for the selected list. */
   protected _startRenameList(list: StreamList): void {
     this._editingListId.set(list.id);
     this._renameListControl.setValue(list.name, { emitEvent: false });
   }
 
+  /** Validates and persists the edited list name. */
   protected _confirmRenameList(listId: number): void {
     const result = this._state.renameList(listId, this._renameListControl.getRawValue());
 
@@ -150,6 +154,7 @@ export class SettingsModalComponent {
     this._toast.show(`${result.list?.name} gespeichert.`);
   }
 
+  /** Leaves inline rename mode without changing the list name. */
   protected _cancelRenameList(): void {
     this._editingListId.set(null);
   }
@@ -158,6 +163,7 @@ export class SettingsModalComponent {
     this._navigateToList(listId);
   }
 
+  /** Creates a duplicate of the given list and switches to it. */
   protected _duplicateList(list: StreamList): void {
     const result = this._state.duplicateList(list.id);
 
@@ -170,6 +176,7 @@ export class SettingsModalComponent {
     this._toast.show(`${result.list.name} angelegt.`);
   }
 
+  /** Removes a list and navigates to the next sensible list when needed. */
   protected _deleteList(list: StreamList): void {
     const listsBeforeDeletion = this._lists();
     const wasActiveList = this._activeListId() === list.id;
@@ -188,6 +195,7 @@ export class SettingsModalComponent {
     this._toast.show(`${removed.name} gelöscht.`, 'info');
   }
 
+  /** Closes the modal. */
   protected _close(): void {
     this._state.closeMenu();
   }
@@ -198,6 +206,7 @@ export class SettingsModalComponent {
     }
   }
 
+  /** Keeps keyboard focus trapped inside the modal while it is open. */
   protected _onDialogKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -238,6 +247,7 @@ export class SettingsModalComponent {
     }
   }
 
+  /** Adds a new stream to the active list after extracting a clean channel name. */
   protected _addStream(): void {
     const channelName = this._extractChannelName(this._channelNameControl.getRawValue());
     const result = this._state.addStream(channelName);
@@ -274,6 +284,7 @@ export class SettingsModalComponent {
     this._streamInputRef()?.nativeElement.focus();
   }
 
+  /** Removes one stream from the active list. */
   protected _removeStream(index: number): void {
     const removed = this._state.removeStream(index);
     if (removed) {
@@ -300,6 +311,7 @@ export class SettingsModalComponent {
     this._state.setLayoutPreset(value);
   }
 
+  /** Disables chat for every stream in the active list and reports the outcome. */
   protected _disableAllChats(): void {
     if (!this._hasActiveList()) {
       this._toast.show('Wähle zuerst eine Liste aus.', 'error');
@@ -321,6 +333,7 @@ export class SettingsModalComponent {
     );
   }
 
+  /** Toggles the global mute flag for the active list and closes the modal. */
   protected _toggleMuteAllStreams(): void {
     if (!this._hasActiveList()) {
       this._toast.show('Wähle zuerst eine Liste aus.', 'error');
@@ -336,8 +349,7 @@ export class SettingsModalComponent {
     );
   }
 
-
-
+  /** Toggles whether a channel belongs to the favorites pool. */
   protected _toggleFavoriteChannel(channelName: string): void {
     const isFavorite = this._state.toggleFavoriteChannel(channelName);
 
@@ -349,6 +361,7 @@ export class SettingsModalComponent {
     );
   }
 
+  /** Starts HTML5 drag-and-drop reordering for a stream entry. */
   protected _onStreamDragStart(index: number, event: DragEvent): void {
     this._draggedStreamIndex.set(index);
     this._dropTargetStreamIndex.set(index);
@@ -401,6 +414,7 @@ export class SettingsModalComponent {
     }
   }
 
+  /** Applies the pending drag-and-drop reorder when a stream is dropped. */
   protected _onStreamDrop(index: number, event: DragEvent): void {
     event.preventDefault();
 

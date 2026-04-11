@@ -1,5 +1,6 @@
 import type { StreamQuality, StreamQualityOption } from '../../core/models/app-settings.model';
 
+/** Normalizes persisted or user-provided quality values to supported Twitch identifiers. */
 export function normalizeStreamQuality(value: unknown): StreamQuality {
   const storedQuality = typeof value === 'string' ? value.trim() : 'auto';
   const sourceQualityMatch = storedQuality.match(/^(\d+p(?:\d+(?:-\d+)?)?)\s*\((?:source|quelle)\)$/i);
@@ -18,6 +19,7 @@ function isSupportedStreamQuality(value: string): boolean {
     || /^\d+p(?:\d+(?:-\d+)?)?$/i.test(value);
 }
 
+/** Produces a stable German label for a normalized quality option. */
 export function normalizeStreamQualityLabel(value: StreamQuality, label?: string): string {
   const normalizedLabel = label?.trim().replace(/\s+/g, ' ');
 
@@ -44,6 +46,7 @@ export function normalizeStreamQualityLabel(value: StreamQuality, label?: string
   return normalizedLabel;
 }
 
+/** Returns the fallback label used when Twitch does not provide one. */
 export function getDefaultStreamQualityLabel(value: StreamQuality): string {
   switch (value) {
     case 'auto':
@@ -57,6 +60,7 @@ export function getDefaultStreamQualityLabel(value: StreamQuality): string {
   }
 }
 
+/** Deduplicates, normalizes, and sorts the qualities reported by Twitch embeds. */
 export function normalizeAvailableStreamQualities(values: StreamQualityOption[]): StreamQualityOption[] {
   const uniqueQualities = new Map<string, StreamQualityOption>();
 
@@ -81,6 +85,7 @@ export function normalizeAvailableStreamQualities(values: StreamQualityOption[])
   return [...uniqueQualities.values()].sort((left, right) => compareStreamQualities(left.value, right.value));
 }
 
+/** Merges the selected value with reported options into the menu-ready quality list. */
 export function buildAvailableStreamQualityOptions(
   reportedQualities: StreamQualityOption[],
   selectedQuality: StreamQuality,
@@ -109,6 +114,7 @@ export function buildAvailableStreamQualityOptions(
   ];
 }
 
+/** Compares two option lists by value and label order. */
 export function areStreamQualityOptionsEqual(
   left: StreamQualityOption[],
   right: StreamQualityOption[],
