@@ -126,14 +126,9 @@ export class TwitchEmbedService {
       parent: [browserWindow.location.hostname || 'localhost'],
     });
     const twitchReadyEvent = browserWindow.Twitch.Embed['VIDEO_READY'];
-    const twitchPlayEvent = browserWindow.Twitch.Embed['VIDEO_PLAY'];
     const readyEvents = new Set([
       typeof twitchReadyEvent === 'string' ? twitchReadyEvent : 'video.ready',
       'video.ready',
-    ]);
-    const playEvents = new Set([
-      typeof twitchPlayEvent === 'string' ? twitchPlayEvent : 'video.play',
-      'video.play',
     ]);
     let didInitializePlayer = false;
 
@@ -170,11 +165,6 @@ export class TwitchEmbedService {
     readyEvents.forEach(eventName => {
       embed.addEventListener(eventName, () => {
         initializePlayer();
-      });
-    });
-    playEvents.forEach(eventName => {
-      embed.addEventListener(eventName, () => {
-        handle.setPlaybackStarted();
       });
     });
 
@@ -560,13 +550,10 @@ export class TwitchEmbedService {
 
   private _createHandle(elementId: string, initialMuted: boolean): TwitchEmbedHandle & {
     isDestroyed(): boolean;
-    setPlaybackStarted(): void;
     setPlayer(player: TwitchPlayer): void;
   } {
     let destroyed = false;
-    let hasPlaybackStarted = false;
     let player: TwitchPlayer | null = null;
-    let shouldDelayInitialUnmute = initialMuted === false;
     let requestedMuted = initialMuted;
     let restoredVolume = 0.5;
     let muteSyncRunId = 0;
@@ -574,10 +561,6 @@ export class TwitchEmbedService {
 
     const syncRequestedMutedState = (): void => {
       if (!player || destroyed) {
-        return;
-      }
-
-      if (shouldDelayInitialUnmute && !hasPlaybackStarted && requestedMuted === false) {
         return;
       }
 
@@ -606,7 +589,6 @@ export class TwitchEmbedService {
         this.clearEmbed(elementId);
       },
       setMuted: (value: boolean) => {
-        shouldDelayInitialUnmute = false;
         requestedMuted = value;
         syncRequestedMutedState();
       },
@@ -624,14 +606,6 @@ export class TwitchEmbedService {
           value,
           () => destroyed || player !== currentPlayer || syncRunId !== qualitySyncRunId,
         );
-      },
-      setPlaybackStarted: () => {
-        if (destroyed || hasPlaybackStarted) {
-          return;
-        }
-
-        hasPlaybackStarted = true;
-        syncRequestedMutedState();
       },
       setPlayer: (nextPlayer: TwitchPlayer) => {
         if (destroyed) {

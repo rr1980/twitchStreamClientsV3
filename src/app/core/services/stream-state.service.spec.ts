@@ -65,6 +65,16 @@ describe('StreamStateService', () => {
     expect(service.streams()).toEqual([channel('rocketbeanstv')]);
   });
 
+  it('accepts umlauts in normalized channel names', () => {
+    service.createList('Liste 1');
+    service.setActiveListId(1);
+
+    const result = service.addStream('\u00C4\u00D6\u00DC_test');
+
+    expect(result).toEqual({ ok: true, name: '\u00E4\u00F6\u00FC_test' });
+    expect(service.streams()).toEqual([channel('\u00E4\u00F6\u00FC_test')]);
+  });
+
   it('rejects duplicate channel names after normalization', () => {
     service.createList('Liste 1');
     service.setActiveListId(1);
@@ -394,7 +404,7 @@ describe('StreamStateService', () => {
 
     expect(toastSpy).toHaveBeenCalledTimes(1);
     expect(toastSpy).toHaveBeenCalledWith(
-      'Ã„nderungen konnten nicht gespeichert werden. PrÃ¼fe den verfÃ¼gbaren Browser-Speicher.',
+      '\u00C4nderungen konnten nicht gespeichert werden. Pr\u00FCfe den verf\u00FCgbaren Browser-Speicher.',
       'error',
     );
 

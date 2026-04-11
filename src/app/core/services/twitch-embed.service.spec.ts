@@ -204,7 +204,7 @@ describe('TwitchEmbedService', () => {
     host.remove();
   });
 
-  it('starts embeds muted so browser autoplay is allowed', async () => {
+  it('starts embeds muted for autoplay and then syncs the requested state on ready', async () => {
     let muted = false;
     let volume = 0.5;
     const player = {
@@ -222,16 +222,11 @@ describe('TwitchEmbedService', () => {
     };
     const readyEvent = 'VIDEO_READY_EVENT';
     let readyCallback: (() => void) | undefined;
-    let playCallback: (() => void) | undefined;
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
           if (event === readyEvent) {
             readyCallback = callback;
-          }
-
-          if (event === 'VIDEO_PLAY_EVENT') {
-            playCallback = callback;
           }
         }),
         getPlayer: vi.fn(() => player),
@@ -254,12 +249,6 @@ describe('TwitchEmbedService', () => {
     }));
 
     readyCallback?.();
-    await Promise.resolve();
-
-    expect(player.setMuted).not.toHaveBeenCalled();
-    expect(player.setVolume).not.toHaveBeenCalled();
-
-    playCallback?.();
     await Promise.resolve();
 
     expect(player.setMuted).toHaveBeenCalledWith(false);

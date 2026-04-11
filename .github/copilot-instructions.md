@@ -59,7 +59,7 @@ AppSettings {
 - Nutzt `window.location.hostname` als Twitch `parent`
 - Quality-Sync: bis zu 120 Frames / 2s — exakte Übereinstimmung, dann Quality-Family (z.B. `"1080p"` aus `"1080p60"`), dann Ranking
 - Mute-Sync: bis zu 600 Frames / 10s — setzt `setMuted()`, `setVolume()`, validiert mit `getMuted()`/`getVolume()`
-- Erster Stream startet unmuted; nachfolgende Unmutes warten auf VIDEO_PLAY
+- Embeds starten browserkompatibel muted und werden danach direkt auf den angeforderten Mute-Status synchronisiert
 - `TwitchEmbedHandle` bietet: `destroy()`, `setMuted(boolean)`, `setQuality(StreamQuality)`
 - Bei Script-Ladefehler wird einmalig ein Error-Toast gezeigt
 
@@ -199,7 +199,7 @@ _availableQualitiesByStream: Map<string, StreamQualityOption[]>
 2. Entfernt veraltete Embeds (nicht mehr in aktiver Stream-Liste)
 3. Für jeden Stream: Falls Element-ID + showChat unverändert → nur Quality/Muted updaten (kein Recreate)
 4. Neue Embeds: Twitch-Script laden → `createEmbed()` mit `onAvailableQualities`-Callback
-5. Erster Stream unmuted, Rest muted
+5. Neue Embeds übernehmen direkt den aktuellen `muteAllStreams`-Status ohne Sonderbehandlung des ersten Streams
 6. `_syncAvailableQualities()`: flattened alle per-Stream-Qualities, dedupliziert, pushed zu State
 
 **Event-Handler:**

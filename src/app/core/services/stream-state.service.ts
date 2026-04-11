@@ -772,7 +772,7 @@ export class StreamStateService {
   }
 
   private _isValidChannelName(value: string): boolean {
-    return /^[a-zÃ¤Ã¶Ã¼0-9_]{1,25}$/.test(value);
+    return /^[a-z\u00E4\u00F6\u00FC0-9_]{1,25}$/.test(value);
   }
 
   private _hasListName(name: string, ignoredListId?: number): boolean {
@@ -862,7 +862,7 @@ export class StreamStateService {
     }
 
     this._persistFailureVisible = true;
-    this._toast.show('Ã„nderungen konnten nicht gespeichert werden. PrÃ¼fe den verfÃ¼gbaren Browser-Speicher.', 'error');
+    this._toast.show('\u00C4nderungen konnten nicht gespeichert werden. Pr\u00FCfe den verf\u00FCgbaren Browser-Speicher.', 'error');
   }
 
   private _createDefaultState(): PersistedStreamState {
