@@ -364,6 +364,13 @@ export class SettingsModalComponent {
 
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', String(index));
+
+    const streamItem = (event.target as HTMLElement | null)?.closest('.stream-item') as HTMLElement | null;
+
+    if (streamItem) {
+      const rect = streamItem.getBoundingClientRect();
+      event.dataTransfer.setDragImage(streamItem, event.clientX - rect.left, event.clientY - rect.top);
+    }
   }
 
   protected _onStreamDragEnter(index: number): void {
