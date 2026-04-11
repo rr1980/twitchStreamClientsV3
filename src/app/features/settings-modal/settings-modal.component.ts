@@ -74,7 +74,7 @@ export class SettingsModalComponent {
   });
   protected readonly _canAddFavoritesToList = computed(() => this._favoriteSuggestions().length > 0);
   protected readonly _audioQuickActionLabel = computed(() => this._muteAllStreams()
-    ? 'Audio zuruecksetzen'
+    ? 'Audio zurücksetzen'
     : 'Alle Streams stummschalten');
   protected readonly _layoutOptions: StreamLayoutPresetOption[] = [
     { value: 'auto', label: 'Auto' },
@@ -322,7 +322,7 @@ export class SettingsModalComponent {
 
   protected _disableAllChats(): void {
     if (!this._hasActiveList()) {
-      this._toast.show('Waehle zuerst eine Liste aus.', 'error');
+      this._toast.show('Wähle zuerst eine Liste aus.', 'error');
       return;
     }
 
@@ -335,15 +335,15 @@ export class SettingsModalComponent {
 
     this._toast.show(
       changedCount === 1
-        ? 'Chat fuer 1 Stream deaktiviert.'
-        : `Chat fuer ${changedCount} Streams deaktiviert.`,
+        ? 'Chat für 1 Stream deaktiviert.'
+        : `Chat für ${changedCount} Streams deaktiviert.`,
       'info',
     );
   }
 
   protected _toggleMuteAllStreams(): void {
     if (!this._hasActiveList()) {
-      this._toast.show('Waehle zuerst eine Liste aus.', 'error');
+      this._toast.show('Wähle zuerst eine Liste aus.', 'error');
       return;
     }
 
@@ -360,19 +360,19 @@ export class SettingsModalComponent {
     const result = this._state.addFavoriteChannelsToActiveList();
 
     if (!result.ok) {
-      this._toast.show('Waehle zuerst eine Liste aus.', 'error');
+      this._toast.show('Wähle zuerst eine Liste aus.', 'error');
       return;
     }
 
     if (result.added.length === 0) {
-      this._toast.show('Keine neuen Favoriten zum Hinzufuegen.', 'info');
+      this._toast.show('Keine neuen Favoriten zum Hinzufügen.', 'info');
       return;
     }
 
     this._toast.show(
       result.added.length === 1
-        ? '1 Favorit hinzugefuegt.'
-        : `${result.added.length} Favoriten hinzugefuegt.`,
+        ? '1 Favorit hinzugefügt.'
+        : `${result.added.length} Favoriten hinzugefügt.`,
       'info',
     );
   }

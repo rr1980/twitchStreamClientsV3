@@ -647,15 +647,15 @@ describe('SettingsModalComponent', () => {
 
     getButtonByText('Alle Chats aus').click();
     getButtonByText('Alle Streams stummschalten').click();
-    getButtonByText('Favoriten zur Liste hinzufuegen').click();
+    getButtonByText('Favoriten zur Liste hinzufügen').click();
 
     expect(state.disableChatsForActiveList).toHaveBeenCalledTimes(1);
     expect(state.setMuteAllStreams).toHaveBeenCalledWith(true);
     expect(state.closeMenu).toHaveBeenCalledTimes(1);
     expect(state.addFavoriteChannelsToActiveList).toHaveBeenCalledTimes(1);
-    expect(toast.show).toHaveBeenCalledWith('Chat fuer 1 Stream deaktiviert.', 'info');
+    expect(toast.show).toHaveBeenCalledWith('Chat für 1 Stream deaktiviert.', 'info');
     expect(toast.show).toHaveBeenCalledWith('Alle Streams stummgeschaltet.', 'info');
-    expect(toast.show).toHaveBeenCalledWith('2 Favoriten hinzugefuegt.', 'info');
+    expect(toast.show).toHaveBeenCalledWith('2 Favoriten hinzugefügt.', 'info');
   });
 
   it('covers quick-action edge cases when nothing changes or no list is active', async () => {
@@ -667,9 +667,9 @@ describe('SettingsModalComponent', () => {
     state.addFavoriteChannelsToActiveList.mockReturnValue({ ok: false, reason: 'no-list', added: [] });
     getComponentMethod<() => void>(component, '_addFavoritesToActiveList')();
 
-    expect(toast.show).toHaveBeenNthCalledWith(1, 'Waehle zuerst eine Liste aus.', 'error');
-    expect(toast.show).toHaveBeenNthCalledWith(2, 'Waehle zuerst eine Liste aus.', 'error');
-    expect(toast.show).toHaveBeenNthCalledWith(3, 'Waehle zuerst eine Liste aus.', 'error');
+    expect(toast.show).toHaveBeenNthCalledWith(1, 'Wähle zuerst eine Liste aus.', 'error');
+    expect(toast.show).toHaveBeenNthCalledWith(2, 'Wähle zuerst eine Liste aus.', 'error');
+    expect(toast.show).toHaveBeenNthCalledWith(3, 'Wähle zuerst eine Liste aus.', 'error');
 
     toast.show.mockClear();
     state.closeMenu.mockClear();
@@ -688,7 +688,7 @@ describe('SettingsModalComponent', () => {
     expect(state.closeMenu).toHaveBeenCalledTimes(1);
     expect(toast.show).toHaveBeenNthCalledWith(1, 'Alle Chats sind bereits deaktiviert.', 'info');
     expect(toast.show).toHaveBeenNthCalledWith(2, 'Standard-Audio wiederhergestellt.', 'info');
-    expect(toast.show).toHaveBeenNthCalledWith(3, 'Keine neuen Favoriten zum Hinzufuegen.', 'info');
+    expect(toast.show).toHaveBeenNthCalledWith(3, 'Keine neuen Favoriten zum Hinzufügen.', 'info');
   });
 
   it('renames and deletes lists through the state service', async () => {
