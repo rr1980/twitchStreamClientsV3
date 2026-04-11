@@ -79,6 +79,7 @@ describe('stream-quality.util', () => {
     ]);
   });
 
+  /** Creates a quality option fixture with a default label matching the value. */
   function quality(value: string, label = value): StreamQualityOption {
     return { value, label };
   }

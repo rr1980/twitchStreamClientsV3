@@ -10,6 +10,7 @@ import { StreamStateService } from './core/services/stream-state.service';
 describe('App', () => {
   let router: Router;
 
+  /** Returns a bound private method from the app instance for white-box assertions. */
   function getAppMethod<T extends (...args: never[]) => unknown>(instance: object, propertyName: string): T {
     return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
   }

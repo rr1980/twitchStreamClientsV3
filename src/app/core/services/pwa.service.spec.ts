@@ -188,6 +188,7 @@ describe('PwaService', () => {
     service.reloadForUpdate();
   });
 
+  /** Creates a fresh PWA service with an optional mocked service worker update source. */
   function createService(
     swUpdateOverride: Pick<SwUpdate, 'isEnabled' | 'versionUpdates'> = {
       isEnabled: true,

@@ -127,6 +127,7 @@ describe('calculateOptimalGrid', () => {
     expect(layout).toMatchObject({ cols: 1, rows: 1 });
   });
 
+  /** Creates a stream test fixture with an optional chat flag. */
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }

@@ -9,10 +9,12 @@ import { StorageService } from './storage.service';
 describe('StreamStateService', () => {
   let service: StreamStateService;
 
+  /** Returns a bound private service method for white-box assertions. */
   function getServiceMethod<T extends (...args: never[]) => unknown>(instance: object, propertyName: string): T {
     return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
   }
 
+  /** Overrides a private service member for targeted test scenarios. */
   function setServiceMember<T>(instance: object, propertyName: string, value: T): void {
     (instance as Record<string, unknown>)[propertyName] = value;
   }
@@ -899,14 +901,17 @@ describe('StreamStateService', () => {
     expect(service.activeList()).toBe(listBefore);
   });
 
+  /** Creates a stream fixture with an optional chat flag. */
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }
 
+  /** Creates a quality option fixture with a default label. */
   function quality(value: string, label = value): StreamQualityOption {
     return { value, label };
   }
 
+  /** Creates a fully populated list fixture with optional overrides. */
   function list(
     id: number,
     name: string,
@@ -925,6 +930,7 @@ describe('StreamStateService', () => {
     };
   }
 
+  /** Returns the empty persisted app state used by migration and persistence tests. */
   function defaultState(): AppSettings {
     return {
       lists: [],
@@ -935,6 +941,7 @@ describe('StreamStateService', () => {
     };
   }
 
+  /** Creates and initializes a fresh service instance from the Angular test injector. */
   function createService(): StreamStateService {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({});
@@ -946,6 +953,7 @@ describe('StreamStateService', () => {
     return instance;
   }
 
+  /** Waits for queued microtasks so debounced persistence can finish. */
   async function flushPersistence(): Promise<void> {
     await Promise.resolve();
     await Promise.resolve();

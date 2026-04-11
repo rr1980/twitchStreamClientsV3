@@ -15,14 +15,17 @@ describe('SettingsModalComponent', () => {
   let state: MockStreamStateService;
   let toast: MockToastService;
 
+  /** Reads a private component member for white-box assertions. */
   function getComponentMember<T>(instance: object, propertyName: string): T {
     return (instance as Record<string, unknown>)[propertyName] as T;
   }
 
+  /** Returns a bound private or protected method from the component instance. */
   function getComponentMethod<T extends (...args: never[]) => unknown>(instance: object, propertyName: string): T {
     return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
   }
 
+  /** Queries a required element from the rendered fixture and asserts it exists. */
   function getElement<T extends Element>(selector: string): T {
     const element = fixture.nativeElement.querySelector(selector) as T | null;
 
@@ -31,6 +34,7 @@ describe('SettingsModalComponent', () => {
     return element as T;
   }
 
+  /** Finds a button by its trimmed text content. */
   function getButtonByText(text: string): HTMLButtonElement {
     const buttons = fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>;
     const button = Array.from(buttons)
@@ -41,6 +45,7 @@ describe('SettingsModalComponent', () => {
     return button as HTMLButtonElement;
   }
 
+  /** Updates an input value in the DOM and dispatches the corresponding input event. */
   function setInputValue(selector: string, value: string): HTMLInputElement {
     const input = getElement<HTMLInputElement>(selector);
 
@@ -904,14 +909,17 @@ describe('SettingsModalComponent', () => {
     expect(setDragImage).toHaveBeenCalledTimes(1);
   });
 
+  /** Creates a stream fixture with an optional chat flag. */
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }
 
+  /** Creates a quality option fixture with a default label. */
   function quality(value: string, label = value): StreamQualityOption {
     return { value, label };
   }
 
+  /** Flushes change detection, timers, and microtasks for the modal fixture. */
   async function syncComponent(): Promise<void> {
     fixture.detectChanges();
     TestBed.tick();
@@ -966,14 +974,17 @@ class MockStreamStateService {
   public readonly setStreamShowChat = vi.fn();
   public readonly toggleFavoriteChannel = vi.fn<(channelName: string) => boolean>(() => true);
 
+  /** Replaces the list fixtures used by the modal tests. */
   public setLists(lists: StreamList[]): void {
     this.lists.set(lists);
   }
 
+  /** Updates the active list id fixture. */
   public setActiveListId(listId: number | null): void {
     this.activeListId.set(listId);
   }
 
+  /** Returns the prepared statistics fixture used by suggestion tests. */
   public getTopStatistics(): StreamStatistic[] {
     return this.statistics;
   }

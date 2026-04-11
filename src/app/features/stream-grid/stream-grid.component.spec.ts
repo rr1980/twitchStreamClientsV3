@@ -15,6 +15,7 @@ describe('StreamGridComponent', () => {
   let twitch: MockTwitchEmbedService;
   let toast: MockToastService;
 
+  /** Returns a bound private method from the component for white-box test access. */
   function getPrivateMethod<T extends (...args: never[]) => unknown>(
     instance: object,
     propertyName: string,
@@ -22,14 +23,17 @@ describe('StreamGridComponent', () => {
     return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
   }
 
+  /** Reads a private numeric field from the component instance. */
   function getPrivateNumber(instance: object, propertyName: string): number {
     return (instance as Record<string, number>)[propertyName];
   }
 
+  /** Writes a private numeric field on the component instance. */
   function setPrivateNumber(instance: object, propertyName: string, value: number): void {
     (instance as Record<string, number>)[propertyName] = value;
   }
 
+  /** Writes an arbitrary private member on the component instance. */
   function setPrivateMember<T>(instance: object, propertyName: string, value: T): void {
     (instance as Record<string, unknown>)[propertyName] = value;
   }
@@ -792,14 +796,17 @@ describe('StreamGridComponent', () => {
     expect(state.setAvailableQualities).toHaveBeenLastCalledWith([]);
   });
 
+  /** Creates a stream fixture with an optional chat flag. */
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }
 
+  /** Creates a quality option fixture for embed quality reporting. */
   function quality(value: string, label = value): StreamQualityOption {
     return { value, label };
   }
 
+  /** Flushes change detection and pending microtasks for the component fixture. */
   async function syncComponent(): Promise<void> {
     fixture.detectChanges();
     TestBed.tick();
@@ -828,6 +835,7 @@ class MockStreamStateService {
   });
   private readonly _activeList = signal<StreamList | null>(null);
 
+  /** Replaces the active list fixture and keeps the active id in sync. */
   public setActiveList(list: StreamList | null): void {
     this._activeList.set(list);
     this.activeListId.set(list?.id ?? null);
@@ -849,6 +857,7 @@ class MockTwitchEmbedService {
     return handle;
   });
 
+  /** Pushes reported qualities into the callback registered for an embed. */
   public reportQualities(elementId: string, qualities: StreamQualityOption[]): void {
     this._qualityCallbacks.get(elementId)?.(qualities);
   }
