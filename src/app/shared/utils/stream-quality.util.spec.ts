@@ -59,6 +59,16 @@ describe('stream-quality.util', () => {
     ]);
   });
 
+  it('sorts low-resolution qualities by their actual frame rate', () => {
+    expect(normalizeAvailableStreamQualities([
+      quality('160p30', '160p30'),
+      quality('160p60', '160p60'),
+    ])).toEqual([
+      quality('160p60'),
+      quality('160p30'),
+    ]);
+  });
+
   it('falls back to locale comparison for qualities with same token', () => {
     expect(normalizeAvailableStreamQualities([
       quality('480p30', '480p30'),

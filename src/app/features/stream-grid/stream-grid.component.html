@@ -24,16 +24,6 @@
         [attr.data-channel]="stream.name"
         [style.gridColumn]="_getPlacement(i).column ?? null"
         [style.gridRow]="_getPlacement(i).row ?? null">
-        <div class="stream-overlay">
-          <span class="stream-overlay__name">{{ stream.name }}</span>
-          <button
-            type="button"
-            class="stream-overlay__action"
-            [attr.aria-label]="_isFocusedChannel(stream.name) ? stream.name + ' aus Fokusmodus lösen' : stream.name + ' fokussieren'"
-            (click)="_toggleFocusedChannel(stream.name)">
-            {{ _isFocusedChannel(stream.name) ? 'Raster' : 'Fokus' }}
-          </button>
-        </div>
         <div class="twitch-embed-slot" [id]="'twitch-embed-' + stream.name"></div>
       </div>
     }

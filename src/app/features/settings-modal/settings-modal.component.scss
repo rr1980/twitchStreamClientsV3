@@ -115,7 +115,6 @@
 
 .settings-toolbar {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -243,10 +242,9 @@
 .primary-btn:focus-visible,
 .icon-btn:focus-visible,
 .quality-btn:focus-visible,
+.quick-action-btn:focus-visible,
 .apply-btn:focus-visible,
-.danger-btn:focus-visible,
 .stream-item__icon-btn:focus-visible,
-.suggestion-chip:focus-visible,
 .list-item__select:focus-visible,
 .toggle-row input:focus-visible {
   outline: 2px solid var(--color-twitch);
@@ -257,7 +255,6 @@
 .icon-btn,
 .quality-btn,
 .apply-btn,
-.danger-btn,
 .list-item__select {
   border: 0;
   border-radius: 12px;
@@ -440,46 +437,25 @@
   font-size: 0.78rem;
 }
 
-.suggestion-groups {
-  display: grid;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.suggestion-group__label {
-  display: block;
-  margin-bottom: 6px;
-  color: rgba(173, 173, 184, 0.72);
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.suggestion-chips {
+.list-item__rename {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
+  min-height: 60px;
+  padding: 0 4px;
 }
 
-.suggestion-chip {
-  padding: 5px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-surface-2);
+.list-item__rename-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-twitch);
+  border-radius: 12px;
+  background: var(--color-bg);
   color: var(--color-text);
-  font-size: 0.84rem;
-  cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease;
-
-  &:hover {
-    border-color: var(--color-twitch);
-    background: rgba(145, 70, 255, 0.15);
-  }
-
-  &--favorite {
-    border-color: rgba(145, 70, 255, 0.4);
-  }
+  outline: none;
+  font-size: 0.92rem;
 }
 
 .stream-item {
@@ -498,6 +474,14 @@
 
 .stream-item--dragging {
   opacity: 0.55;
+}
+
+.stream-item--drag-preview {
+  border: 3px solid var(--color-twitch);
+  box-shadow: 0 0 24px 4px rgba(145, 70, 255, 0.6), 0 8px 24px rgba(0, 0, 0, 0.6);
+  background: linear-gradient(180deg, rgba(25, 20, 35, 0.98), rgba(15, 12, 22, 0.98));
+  opacity: 0.92;
+  transform: scale(1.02);
 }
 
 .stream-item--drop-target {
@@ -704,22 +688,6 @@
   }
 }
 
-.danger-btn {
-  padding: 10px 12px;
-  background: rgba(239, 68, 68, 0.12);
-  color: #f87171;
-}
-
-.danger-btn--compact {
-  padding: 8px 10px;
-  min-width: 78px;
-  font-size: 0.84rem;
-}
-
-.danger-btn:hover {
-  background: rgba(239, 68, 68, 0.22);
-}
-
 .quality-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -737,6 +705,38 @@
 .quality-option {
   display: block;
   min-width: 0;
+}
+
+.quick-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.quick-action-btn {
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  text-align: left;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.quick-action-btn:hover {
+  border-color: var(--color-twitch);
+  background: rgba(145, 70, 255, 0.12);
+}
+
+.quick-action-btn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.quick-action-btn:disabled:hover {
+  border-color: var(--color-border);
+  background: var(--color-bg);
 }
 
 .quality-option input {
@@ -766,6 +766,11 @@
 .quality-option--active .quality-btn {
   border-color: var(--color-twitch);
   color: var(--color-twitch);
+}
+
+.quality-option input:disabled + .quality-btn {
+  opacity: 0.48;
+  cursor: not-allowed;
 }
 
 .quality-option input:focus-visible + .quality-btn {

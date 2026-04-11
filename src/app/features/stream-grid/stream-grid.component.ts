@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
 import type { GridItemPlacement } from '../../shared/utils/grid.util';
-import type { StreamQuality, StreamQualityOption } from '../../core/models/app-settings.model';
+import type { StreamChannel, StreamQuality, StreamQualityOption } from '../../core/models/app-settings.model';
 import { StreamStateService } from '../../core/services/stream-state.service';
 import { TwitchEmbedService } from '../../core/services/twitch-embed.service';
 import type { TwitchEmbedHandle } from '../../core/services/twitch-embed.service';
@@ -29,6 +29,11 @@ interface RenderedEmbedState {
 
 type RenderedEmbedSnapshot = Omit<RenderedEmbedState, 'handle'>;
 
+interface PendingEmbedSync {
+  stream: StreamChannel;
+  nextState: RenderedEmbedSnapshot;
+}
+
 @Component({
   selector: 'app-stream-grid',
   templateUrl: './stream-grid.component.html',
@@ -37,6 +42,8 @@ type RenderedEmbedSnapshot = Omit<RenderedEmbedState, 'handle'>;
   host: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     '(window:resize)': '_onResize()',
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    '(document:visibilitychange)': '_onDocumentVisibilityChange()',
   },
 })
 export class StreamGridComponent implements AfterViewInit, OnDestroy {
@@ -74,6 +81,8 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   private _viewReady = false;
   private _syncRunId = 0;
   private _loadScriptErrorVisible = false;
+  private _lastMuteAllStreams: boolean | null = null;
+  private _lastQuality: StreamQuality | null = null;
 
   private readonly _grid = computed(() => calculateStreamGridLayout(
     this._displayedStreams(),
@@ -83,13 +92,19 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     this._state.focusedChannel() !== null,
   ));
 
-  protected readonly _gridTemplateColumns = computed(() => `repeat(${this._grid().cols}, 1fr)`);
-  protected readonly _gridTemplateRows = computed(() => `repeat(${this._grid().rows}, 1fr)`);
+  protected readonly _gridTemplateColumns = computed(
+    () => `repeat(${this._grid().cols}, minmax(var(--twitch-embed-min-width), 1fr))`,
+  );
+  protected readonly _gridTemplateRows = computed(
+    () => `repeat(${this._grid().rows}, minmax(var(--twitch-embed-min-height), 1fr))`,
+  );
 
   constructor() {
     effect(() => {
       this._displayedStreams();
       this._state.quality();
+      this._state.menuOpen();
+      this._state.muteAllStreams();
 
       if (!this._viewReady) {
         return;
@@ -132,6 +147,14 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     }, 150);
   }
 
+  protected _onDocumentVisibilityChange(): void {
+    if (!this._viewReady || this._isDocumentHidden(this._hostRef()?.nativeElement.ownerDocument)) {
+      return;
+    }
+
+    this._scheduleSync();
+  }
+
   private _scheduleSync(): void {
     const runId = ++this._syncRunId;
 
@@ -157,11 +180,75 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
     const streams = this._displayedStreams();
     const quality = this._state.quality();
+    const muteAllStreams = this._state.muteAllStreams();
 
     const activeChannels = new Set(streams.map(stream => stream.name));
 
     if (streams.length === 0) {
+      this._lastMuteAllStreams = null;
+      this._lastQuality = null;
       this._removeStaleEmbeds(activeChannels);
+      return;
+    }
+
+    const shouldDeferEmbedSync = this._shouldDeferEmbedSync(host);
+    const shouldForceMuteSync = !shouldDeferEmbedSync
+      && this._lastMuteAllStreams !== null
+      && this._lastMuteAllStreams !== muteAllStreams;
+    const shouldForceQualitySync = !shouldDeferEmbedSync
+      && this._lastQuality !== null
+      && this._lastQuality !== quality;
+    const pendingEmbedSyncs: PendingEmbedSync[] = [];
+
+    this._removeStaleEmbeds(activeChannels);
+
+    if (!shouldDeferEmbedSync) {
+      this._lastMuteAllStreams = muteAllStreams;
+      this._lastQuality = quality;
+    }
+
+    streams.forEach((stream, index) => {
+      if (runId !== this._syncRunId) {
+        return;
+      }
+
+      const wrapperId = this._getEmbedElementId(stream.name);
+      const wrapper = host.ownerDocument.getElementById(wrapperId);
+
+      if (!(wrapper instanceof HTMLElement) || !host.contains(wrapper)) {
+        return;
+      }
+
+      const nextState: RenderedEmbedSnapshot = {
+        elementId: wrapperId,
+        quality,
+        showChat: stream.showChat,
+        muted: muteAllStreams,
+      };
+
+      const currentState = this._renderedEmbeds.get(stream.name);
+
+      if (currentState) {
+        if (this._canReuseEmbed(currentState, nextState)) {
+          if (!shouldDeferEmbedSync) {
+            this._syncMutedState(currentState, nextState, shouldForceMuteSync);
+            this._syncQualityState(currentState, nextState, shouldForceQualitySync);
+          }
+
+          return;
+        }
+
+        if (shouldDeferEmbedSync) {
+          return;
+        }
+      } else if (shouldDeferEmbedSync) {
+        return;
+      }
+
+      pendingEmbedSyncs.push({ stream, nextState });
+    });
+
+    if (pendingEmbedSyncs.length === 0) {
       return;
     }
 
@@ -185,37 +272,34 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     }
 
     this._loadScriptErrorVisible = false;
-    this._removeStaleEmbeds(activeChannels);
 
-    streams.forEach((stream, index) => {
+    pendingEmbedSyncs.forEach(({ stream, nextState }) => {
       if (runId !== this._syncRunId) {
         return;
       }
 
-      const wrapperId = this._getEmbedElementId(stream.name);
-      const wrapper = host.ownerDocument.getElementById(wrapperId);
+      const wrapper = host.ownerDocument.getElementById(nextState.elementId);
 
       if (!(wrapper instanceof HTMLElement) || !host.contains(wrapper)) {
         return;
       }
 
-      const nextState: RenderedEmbedSnapshot = {
-        elementId: wrapperId,
-        quality,
-        showChat: stream.showChat,
-        muted: index !== 0,
-      };
+      const currentState = this._renderedEmbeds.get(stream.name);
 
-      if (this._isRenderedStateCurrent(stream.name, nextState)) {
-        return;
+      if (currentState) {
+        if (this._canReuseEmbed(currentState, nextState)) {
+          this._syncMutedState(currentState, nextState, shouldForceMuteSync);
+          this._syncQualityState(currentState, nextState, shouldForceQualitySync);
+          return;
+        }
+
+        currentState.handle.destroy();
       }
 
-      this._renderedEmbeds.get(stream.name)?.handle.destroy();
-
       const handle = this._twitch.createEmbed({
-        elementId: wrapperId,
+        elementId: nextState.elementId,
         channel: stream.name,
-        quality,
+        quality: nextState.quality,
         showChat: stream.showChat,
         muted: nextState.muted,
         onAvailableQualities: qualities => {
@@ -253,6 +337,11 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     }
 
     if (removedEmbed || activeChannels.size === 0) {
+      if (activeChannels.size === 0) {
+        this._lastMuteAllStreams = null;
+        this._lastQuality = null;
+      }
+
       this._syncAvailableQualities();
     }
   }
@@ -301,17 +390,43 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     return this._grid().placements[index] ?? {};
   }
 
-  private _isRenderedStateCurrent(stream: string, nextState: RenderedEmbedSnapshot): boolean {
-    const currentState = this._renderedEmbeds.get(stream);
+  private _canReuseEmbed(currentState: RenderedEmbedState, nextState: RenderedEmbedSnapshot): boolean {
+    return currentState.elementId === nextState.elementId
+      && currentState.showChat === nextState.showChat;
+  }
 
-    if (!currentState) {
-      return false;
+  private _syncMutedState(
+    currentState: RenderedEmbedState,
+    nextState: RenderedEmbedSnapshot,
+    force: boolean,
+  ): void {
+    if (!force && currentState.muted === nextState.muted) {
+      return;
     }
 
-    return currentState.elementId === nextState.elementId
-      && currentState.quality === nextState.quality
-      && currentState.showChat === nextState.showChat
-      && currentState.muted === nextState.muted;
+    currentState.muted = nextState.muted;
+    currentState.handle.setMuted(nextState.muted);
+  }
+
+  private _syncQualityState(
+    currentState: RenderedEmbedState,
+    nextState: RenderedEmbedSnapshot,
+    force: boolean,
+  ): void {
+    if (!force && currentState.quality === nextState.quality) {
+      return;
+    }
+
+    currentState.quality = nextState.quality;
+    currentState.handle.setQuality(nextState.quality);
+  }
+
+  private _shouldDeferEmbedSync(host: HTMLElement): boolean {
+    return this._state.menuOpen() || this._isDocumentHidden(host.ownerDocument);
+  }
+
+  private _isDocumentHidden(documentRef: Document | undefined): boolean {
+    return documentRef?.visibilityState === 'hidden';
   }
 
   private _readViewportDimension(dimension: 'innerWidth' | 'innerHeight'): number {

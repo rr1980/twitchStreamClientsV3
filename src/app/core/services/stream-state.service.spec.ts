@@ -27,7 +27,7 @@ describe('StreamStateService', () => {
 
     expect(created).toEqual({
       ok: true,
-      list: { id: 1, name: 'Esports', streams: [] },
+      list: list(1, 'Esports', []),
     });
 
     service.setActiveListId(1);
@@ -36,7 +36,7 @@ describe('StreamStateService', () => {
 
     expect(renamed).toEqual({
       ok: true,
-      list: { id: 1, name: 'Main Stage', streams: [] },
+      list: list(1, 'Main Stage', []),
     });
     expect(service.activeListId()).toBe(1);
     expect(service.activeList()?.name).toBe('Main Stage');
@@ -63,6 +63,16 @@ describe('StreamStateService', () => {
 
     expect(result).toEqual({ ok: true, name: 'rocketbeanstv' });
     expect(service.streams()).toEqual([channel('rocketbeanstv')]);
+  });
+
+  it('accepts umlauts in normalized channel names', () => {
+    service.createList('Liste 1');
+    service.setActiveListId(1);
+
+    const result = service.addStream('\u00C4\u00D6\u00DC_test');
+
+    expect(result).toEqual({ ok: true, name: '\u00E4\u00F6\u00FC_test' });
+    expect(service.streams()).toEqual([channel('\u00E4\u00F6\u00FC_test')]);
   });
 
   it('rejects duplicate channel names after normalization', () => {
@@ -102,6 +112,9 @@ describe('StreamStateService', () => {
   });
 
   it('builds dynamic quality options from Twitch qualities and keeps the current selection visible', () => {
+    service.createList('Liste 1');
+    service.setActiveListId(1);
+
     service.setAvailableQualities([
       quality('720p60'),
       quality('1080p60'),
@@ -197,10 +210,10 @@ describe('StreamStateService', () => {
     service.setActiveListId(2);
 
     expect(service.lists()).toEqual([
-      { id: 1, name: 'Favoriten', streams: [channel('shroud', true)] },
-      { id: 2, name: 'Liste 2', streams: [channel('rocketbeanstv')] },
-      { id: 3, name: 'Liste 3', streams: [channel('gronkh')] },
-      { id: 4, name: 'Weekend', streams: [] },
+      list(1, 'Favoriten', [channel('shroud', true)], { quality: 'chunked' }),
+      list(2, 'Liste 2', [channel('rocketbeanstv')], { quality: 'chunked' }),
+      list(3, 'Liste 3', [channel('gronkh')], { quality: 'chunked' }),
+      list(4, 'Weekend', [], { quality: 'chunked' }),
     ]);
     expect(service.listCount()).toBe(4);
     expect(service.streamCount()).toBe(1);
@@ -219,21 +232,14 @@ describe('StreamStateService', () => {
 
     expect(JSON.parse(localStorage.getItem('app_state_v3') ?? '{}')).toEqual({
       lists: [
-        {
-          id: 1,
-          name: 'Liste 1',
-          streams: [channel('second_channel', true), channel('first_channel')],
-        },
+        list(1, 'Liste 1', [channel('second_channel', true), channel('first_channel')], { quality: '720p60' }),
       ],
-      quality: '720p60',
       statistics: [
         { name: 'first_channel', value: 1 },
         { name: 'second_channel', value: 1 },
       ],
       favoriteChannels: [],
       recentChannels: ['second_channel', 'first_channel'],
-      layoutPreset: 'auto',
-      focusedChannel: null,
       lastActiveListId: 1,
     });
   });
@@ -245,11 +251,11 @@ describe('StreamStateService', () => {
 
     expect(service.duplicateList(1)).toEqual({
       ok: true,
-      list: { id: 2, name: 'Favoriten Kopie', streams: [channel('shroud')] },
+      list: list(2, 'Favoriten Kopie', [channel('shroud')]),
     });
     expect(service.duplicateList(1)).toEqual({
       ok: true,
-      list: { id: 3, name: 'Favoriten Kopie 2', streams: [channel('shroud')] },
+      list: list(3, 'Favoriten Kopie 2', [channel('shroud')]),
     });
   });
 
@@ -271,6 +277,74 @@ describe('StreamStateService', () => {
 
     expect(service.toggleFavoriteChannel('shroud')).toBe(false);
     expect(service.favoriteChannels()).toEqual([]);
+  });
+
+  it('stores quality, layout and focus per list', () => {
+    service.createList('Liste 1');
+    service.createList('Liste 2');
+
+    service.setActiveListId(1);
+    service.addStream('shroud');
+    service.setQuality('720p60');
+    service.setLayoutPreset('stage');
+    service.setFocusedChannel('shroud');
+
+    service.setActiveListId(2);
+    service.addStream('gronkh');
+    service.setQuality('480p');
+    service.setLayoutPreset('chat');
+    service.setFocusedChannel('gronkh');
+
+    expect(service.quality()).toBe('480p');
+    expect(service.layoutPreset()).toBe('chat');
+    expect(service.focusedChannel()).toBe('gronkh');
+
+    service.setActiveListId(1);
+
+    expect(service.quality()).toBe('720p60');
+    expect(service.layoutPreset()).toBe('stage');
+    expect(service.focusedChannel()).toBe('shroud');
+  });
+
+  it('supports quick actions for chat, favorites and mute state', () => {
+    service.createList('Liste 1');
+    service.setActiveListId(1);
+    service.addStream('shroud');
+    service.addStream('gronkh');
+    service.setStreamShowChat(0, true);
+    service.toggleFavoriteChannel('papaplatte');
+    service.toggleFavoriteChannel('bonjwa');
+
+    expect(service.disableChatsForActiveList()).toBe(1);
+    expect(service.streams()).toEqual([channel('shroud'), channel('gronkh')]);
+
+    expect(service.addFavoriteChannelsToActiveList()).toEqual({
+      ok: true,
+      added: ['bonjwa', 'papaplatte'],
+    });
+    expect(service.streams()).toEqual([
+      channel('shroud'),
+      channel('gronkh'),
+      channel('bonjwa'),
+      channel('papaplatte'),
+    ]);
+
+    service.setMuteAllStreams(true);
+    expect(service.muteAllStreams()).toBe(true);
+
+    service.setMuteAllStreams(false);
+    expect(service.muteAllStreams()).toBe(false);
+  });
+
+  it('returns neutral quick-action results when no active list or no changes exist', () => {
+    expect(service.disableChatsForActiveList()).toBe(0);
+    expect(service.addFavoriteChannelsToActiveList()).toEqual({ ok: false, reason: 'no-list', added: [] });
+
+    service.createList('Liste 1');
+    service.setActiveListId(1);
+
+    expect(service.disableChatsForActiveList()).toBe(0);
+    expect(service.addFavoriteChannelsToActiveList()).toEqual({ ok: true, added: [] });
   });
 
   it('initializes only once even when called repeatedly', () => {
@@ -330,7 +404,7 @@ describe('StreamStateService', () => {
 
     expect(toastSpy).toHaveBeenCalledTimes(1);
     expect(toastSpy).toHaveBeenCalledWith(
-      'Änderungen konnten nicht gespeichert werden. Prüfe den verfügbaren Browser-Speicher.',
+      '\u00C4nderungen konnten nicht gespeichert werden. Pr\u00FCfe den verf\u00FCgbaren Browser-Speicher.',
       'error',
     );
 
@@ -428,9 +502,9 @@ describe('StreamStateService', () => {
     service.createList('Liste 2');
     service.setActiveListId(2);
 
-    expect(service.deleteList(2)).toEqual({ id: 2, name: 'Liste 2', streams: [] });
+    expect(service.deleteList(2)).toEqual(list(2, 'Liste 2', []));
     expect(service.activeListId()).toBeNull();
-    expect(service.lists()).toEqual([{ id: 1, name: 'Liste 1', streams: [] }]);
+    expect(service.lists()).toEqual([list(1, 'Liste 1', [])]);
     expect(service.lastActiveListId()).toBe(1);
   });
 
@@ -478,7 +552,9 @@ describe('StreamStateService', () => {
 
     expect(service.streams()).toEqual([channel('legacy_channel', true)]);
     expect(service.quality()).toBe('480p');
-    expect(service.lists()).toEqual([{ id: 1, name: 'Liste 1', streams: [channel('legacy_channel', true)] }]);
+    expect(service.lists()).toEqual([
+      list(1, 'Liste 1', [channel('legacy_channel', true)], { quality: '480p' }),
+    ]);
     expect(service.lastActiveListId()).toBe(1);
   });
 
@@ -513,7 +589,7 @@ describe('StreamStateService', () => {
     expect(service.renameList(999, 'Main')).toEqual({ ok: false, reason: 'not-found' });
     expect(service.renameList(1, 'favoriten')).toEqual({
       ok: true,
-      list: { id: 1, name: 'favoriten', streams: [] },
+      list: list(1, 'favoriten', []),
     });
   });
 
@@ -549,12 +625,30 @@ describe('StreamStateService', () => {
   it('returns empty lists for invalid list payloads and skips non-object entries', () => {
     const normalizeStoredLists = getServiceMethod<(
       value: unknown,
-      defaultShowChat?: boolean,
+      options: {
+        defaultShowChat: boolean;
+        defaultQuality: string;
+        defaultLayoutPreset: 'auto' | 'balanced' | 'stage' | 'chat';
+        defaultFocusedChannel: string | null;
+        defaultFocusedListId: number | null;
+      },
     ) => { id: number; name: string; streams: StreamChannel[] }[]>(service, '_normalizeStoredLists');
 
-    expect(normalizeStoredLists(null)).toEqual([]);
-    expect(normalizeStoredLists([null, 'broken', { id: 2, name: 'Main', streams: ['shroud'] }], true)).toEqual([
-      { id: 2, name: 'Main', streams: [channel('shroud', true)] },
+    const defaults = {
+      defaultShowChat: true,
+      defaultQuality: '720p60',
+      defaultLayoutPreset: 'stage' as const,
+      defaultFocusedChannel: 'shroud',
+      defaultFocusedListId: 2,
+    };
+
+    expect(normalizeStoredLists(null, defaults)).toEqual([]);
+    expect(normalizeStoredLists([null, 'broken', { id: 2, name: 'Main', streams: ['shroud'] }], defaults)).toEqual([
+      list(2, 'Main', [channel('shroud', true)], {
+        quality: '720p60',
+        layoutPreset: 'stage',
+        focusedChannel: 'shroud',
+      }),
     ]);
   });
 
@@ -563,15 +657,30 @@ describe('StreamStateService', () => {
       value: unknown,
       index: number,
       usedIds: Set<number>,
-      defaultShowChat: boolean,
+      options: {
+        defaultShowChat: boolean;
+        defaultQuality: string;
+        defaultLayoutPreset: 'auto' | 'balanced' | 'stage' | 'chat';
+        defaultFocusedChannel: string | null;
+        defaultFocusedListId: number | null;
+      },
     ) => { id: number; name: string; streams: StreamChannel[] } | null>(service, '_normalizeStoredList');
 
-    expect(normalizeStoredList('broken', 0, new Set<number>(), false)).toBeNull();
-    expect(normalizeStoredList({ id: '5', name: ' Main ', streams: 'broken' }, 0, new Set<number>(), true)).toEqual({
-      id: 5,
-      name: 'Main',
-      streams: [],
-    });
+    const defaults = {
+      defaultShowChat: true,
+      defaultQuality: 'chunked',
+      defaultLayoutPreset: 'chat' as const,
+      defaultFocusedChannel: 'missing',
+      defaultFocusedListId: 5,
+    };
+
+    expect(normalizeStoredList('broken', 0, new Set<number>(), defaults)).toBeNull();
+    expect(normalizeStoredList({ id: '5', name: ' Main ', streams: 'broken' }, 0, new Set<number>(), defaults)).toEqual(
+      list(5, 'Main', [], {
+        quality: 'chunked',
+        layoutPreset: 'chat',
+      }),
+    );
   });
 
   it('normalizes non-string qualities, default statistic values and legacy stream ids', () => {
@@ -602,8 +711,8 @@ describe('StreamStateService', () => {
     updateList(1, list => ({ ...list, name: 'Main Stage' }));
 
     expect(service.lists()).toEqual([
-      { id: 1, name: 'Main Stage', streams: [] },
-      { id: 2, name: 'Liste 2', streams: [] },
+      list(1, 'Main Stage', []),
+      list(2, 'Liste 2', []),
     ]);
 
     service.deleteList(2);
@@ -732,12 +841,13 @@ describe('StreamStateService', () => {
   it('generates unique duplicate names when collisions exist', () => {
     service.createList('Test');
     service.createList('Test Kopie');
+    service.createList('Test Kopie 2');
     service.setActiveListId(1);
 
     const result = service.duplicateList(1);
 
     expect(result.ok).toBe(true);
-    expect(result.list?.name).toBe('Test Kopie 2');
+    expect(result.list?.name).toBe('Test Kopie 3');
   });
 
   it('clears focused channel when switching to a list without that stream', () => {
@@ -754,6 +864,41 @@ describe('StreamStateService', () => {
     expect(service.focusedChannel()).toBeNull();
   });
 
+  it('does not update when setting the same quality, layout preset or mute state', () => {
+    service.createList('Test');
+    service.setActiveListId(1);
+    service.setQuality('720p60');
+    service.setLayoutPreset('stage');
+    service.setMuteAllStreams(true);
+
+    const listBefore = service.activeList();
+
+    service.setQuality('720p60');
+    service.setLayoutPreset('stage');
+    service.setMuteAllStreams(true);
+
+    expect(service.activeList()).toBe(listBefore);
+  });
+
+  it('does nothing when setting focused channel without an active list', () => {
+    service.setFocusedChannel('someone');
+
+    expect(service.focusedChannel()).toBeNull();
+  });
+
+  it('does not update when setting the same focused channel', () => {
+    service.createList('Test');
+    service.setActiveListId(1);
+    service.addStream('streamer_a');
+    service.setFocusedChannel('streamer_a');
+
+    const listBefore = service.activeList();
+
+    service.setFocusedChannel('streamer_a');
+
+    expect(service.activeList()).toBe(listBefore);
+  });
+
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }
@@ -762,15 +907,30 @@ describe('StreamStateService', () => {
     return { value, label };
   }
 
+  function list(
+    id: number,
+    name: string,
+    streams: StreamChannel[],
+    overrides: Partial<Pick<AppSettings['lists'][number], 'quality' | 'layoutPreset' | 'focusedChannel' | 'muteAllStreams'>> = {},
+  ): AppSettings['lists'][number] {
+    return {
+      id,
+      name,
+      streams,
+      quality: 'auto',
+      layoutPreset: 'auto',
+      focusedChannel: null,
+      muteAllStreams: false,
+      ...overrides,
+    };
+  }
+
   function defaultState(): AppSettings {
     return {
       lists: [],
-      quality: 'auto',
       statistics: [],
       favoriteChannels: [],
       recentChannels: [],
-      layoutPreset: 'auto',
-      focusedChannel: null,
       lastActiveListId: null,
     };
   }

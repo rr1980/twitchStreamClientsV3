@@ -50,6 +50,21 @@ describe('AppErrorHandler', () => {
 
     consoleSpy.mockRestore();
   });
+
+  it('shows an error toast in production mode', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const originalNgDevMode = (globalThis as Record<string, unknown>)['ngDevMode'];
+    (globalThis as Record<string, unknown>)['ngDevMode'] = 0;
+
+    try {
+      handler.handleError('production error');
+
+      expect(toast.show).toHaveBeenCalledWith('Unerwarteter Fehler. Bitte versuche es erneut.', 'error');
+    } finally {
+      (globalThis as Record<string, unknown>)['ngDevMode'] = originalNgDevMode;
+      consoleSpy.mockRestore();
+    }
+  });
 });
 
 class MockToastService {

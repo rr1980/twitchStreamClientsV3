@@ -34,15 +34,15 @@ export class SettingsModalComponent {
   private _wasOpen = false;
   private readonly _draggedStreamIndex = signal<number | null>(null);
   private readonly _dropTargetStreamIndex = signal<number | null>(null);
+  protected readonly _editingListId = signal<number | null>(null);
 
   private readonly _listInputRef = viewChild<ElementRef<HTMLInputElement>>('listInput');
   private readonly _streamInputRef = viewChild<ElementRef<HTMLInputElement>>('streamInput');
-  private readonly _renameListInputRef = viewChild<ElementRef<HTMLInputElement>>('renameListInput');
   private readonly _modalPanelRef = viewChild<ElementRef<HTMLElement>>('modalPanel');
 
   protected readonly _qualityOptions = this._state.availableQualities;
   protected readonly _newListNameControl = new FormControl('', { nonNullable: true });
-  protected readonly _activeListNameControl = new FormControl('', { nonNullable: true });
+  protected readonly _renameListControl = new FormControl('', { nonNullable: true });
   protected readonly _channelNameControl = new FormControl('', { nonNullable: true });
   protected readonly _isOpen = this._state.menuOpen;
   protected readonly _lists = this._state.lists;
@@ -51,24 +51,16 @@ export class SettingsModalComponent {
   protected readonly _streams = this._state.streams;
   protected readonly _selectedQuality = this._state.quality;
   protected readonly _selectedLayoutPreset = this._state.layoutPreset;
+  protected readonly _muteAllStreams = this._state.muteAllStreams;
   protected readonly _favoriteChannels = this._state.favoriteChannels;
   protected readonly _hasActiveList = computed(() => this._activeList() !== null);
+  protected readonly _hasStreams = computed(() => this._streams().length > 0);
+  protected readonly _hasChatsEnabled = computed(() => this._streams().some(stream => stream.showChat));
   protected readonly _favoriteChannelSet = computed(() => new Set(this._favoriteChannels()));
-  protected readonly _favoriteSuggestions = computed(() => {
-    const activeChannels = new Set(this._streams().map(stream => stream.name));
 
-    return this._favoriteChannels()
-      .filter(channel => !activeChannels.has(channel))
-      .slice(0, 8);
-  });
-  protected readonly _recentSuggestions = computed(() => {
-    const activeChannels = new Set(this._streams().map(stream => stream.name));
-    const favoriteChannels = new Set(this._favoriteChannels());
-
-    return this._state.recentChannels()
-      .filter(channel => !activeChannels.has(channel) && !favoriteChannels.has(channel))
-      .slice(0, 8);
-  });
+  protected readonly _audioQuickActionLabel = computed(() => this._muteAllStreams()
+    ? 'Audio zurücksetzen'
+    : 'Alle Streams stummschalten');
   protected readonly _layoutOptions: StreamLayoutPresetOption[] = [
     { value: 'auto', label: 'Auto' },
     { value: 'balanced', label: 'Grid' },
@@ -77,10 +69,6 @@ export class SettingsModalComponent {
   ];
 
   constructor() {
-    effect(() => {
-      this._activeListNameControl.setValue(this._activeList()?.name ?? '', { emitEvent: false });
-    });
-
     effect(() => {
       if (this._hasActiveList()) {
         this._channelNameControl.enable({ emitEvent: false });
@@ -140,31 +128,30 @@ export class SettingsModalComponent {
     this._toast.show(`${result.list?.name} angelegt.`);
   }
 
-  protected _renameActiveList(): void {
-    const activeList = this._activeList();
+  protected _startRenameList(list: StreamList): void {
+    this._editingListId.set(list.id);
+    this._renameListControl.setValue(list.name, { emitEvent: false });
+  }
 
-    if (!activeList) {
-      this._focusInput(this._listInputRef);
-      this._toast.show('Wähle zuerst eine Liste aus.', 'error');
-      return;
-    }
-
-    const result = this._state.renameList(activeList.id, this._activeListNameControl.getRawValue());
+  protected _confirmRenameList(listId: number): void {
+    const result = this._state.renameList(listId, this._renameListControl.getRawValue());
 
     if (!result.ok) {
       if (result.reason === 'duplicate') {
-        this._focusInput(this._renameListInputRef, true);
         this._toast.show('Eine Liste mit diesem Namen gibt es bereits.', 'error');
         return;
       }
 
-      this._focusInput(this._renameListInputRef, true);
       this._toast.show('Der Listenname darf nicht leer sein.', 'error');
       return;
     }
 
+    this._editingListId.set(null);
     this._toast.show(`${result.list?.name} gespeichert.`);
-    this._renameListInputRef()?.nativeElement.focus();
+  }
+
+  protected _cancelRenameList(): void {
+    this._editingListId.set(null);
   }
 
   protected _selectList(listId: number): void {
@@ -306,16 +293,50 @@ export class SettingsModalComponent {
 
   protected _setQuality(value: StreamQuality): void {
     this._state.setQuality(value);
+    this._close();
   }
 
   protected _setLayoutPreset(value: StreamLayoutPreset): void {
     this._state.setLayoutPreset(value);
   }
 
-  protected _applySuggestedChannel(channelName: string): void {
-    this._channelNameControl.setValue(channelName);
-    this._focusInput(this._streamInputRef);
+  protected _disableAllChats(): void {
+    if (!this._hasActiveList()) {
+      this._toast.show('Wähle zuerst eine Liste aus.', 'error');
+      return;
+    }
+
+    const changedCount = this._state.disableChatsForActiveList();
+
+    if (changedCount === 0) {
+      this._toast.show('Alle Chats sind bereits deaktiviert.', 'info');
+      return;
+    }
+
+    this._toast.show(
+      changedCount === 1
+        ? 'Chat für 1 Stream deaktiviert.'
+        : `Chat für ${changedCount} Streams deaktiviert.`,
+      'info',
+    );
   }
+
+  protected _toggleMuteAllStreams(): void {
+    if (!this._hasActiveList()) {
+      this._toast.show('Wähle zuerst eine Liste aus.', 'error');
+      return;
+    }
+
+    const nextValue = !this._muteAllStreams();
+    this._state.setMuteAllStreams(nextValue);
+    this._close();
+    this._toast.show(
+      nextValue ? 'Alle Streams stummgeschaltet.' : 'Standard-Audio wiederhergestellt.',
+      'info',
+    );
+  }
+
+
 
   protected _toggleFavoriteChannel(channelName: string): void {
     const isFavorite = this._state.toggleFavoriteChannel(channelName);
@@ -338,6 +359,22 @@ export class SettingsModalComponent {
 
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', String(index));
+
+    const streamItem = (event.target as HTMLElement | null)?.closest('.stream-item') as HTMLElement | null;
+
+    if (streamItem) {
+      const rect = streamItem.getBoundingClientRect();
+      const clone = streamItem.cloneNode(true) as HTMLElement;
+      clone.classList.add('stream-item--drag-preview');
+      clone.style.position = 'fixed';
+      clone.style.top = '-9999px';
+      clone.style.left = '-9999px';
+      clone.style.width = `${rect.width}px`;
+      clone.style.pointerEvents = 'none';
+      this._document.body.appendChild(clone);
+      event.dataTransfer.setDragImage(clone, event.clientX - rect.left, event.clientY - rect.top);
+      requestAnimationFrame(() => clone.remove());
+    }
   }
 
   protected _onStreamDragEnter(index: number): void {

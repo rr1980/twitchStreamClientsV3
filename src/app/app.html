@@ -30,6 +30,7 @@
 
 <button
   class="menu-trigger"
+  [class.menu-trigger--open]="_state.menuOpen()"
   type="button"
   title="Menü (Hotkey: M)"
   aria-label="Menü"
@@ -37,7 +38,7 @@
   aria-controls="settings-modal"
   [attr.aria-expanded]="_state.menuOpen()"
   (click)="_openMenu()">
-  ⚙
+  Menü
 </button>
 
 <router-outlet />

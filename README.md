@@ -68,7 +68,7 @@ Persistence details:
 - Focus a single stream temporarily without losing the rest of the setup
 - Support dynamic quality options reported by the Twitch player
 - Preserve the selected quality even when Twitch reports a different option set
-- Mute all but the first rendered stream on initial sync
+- Mute or unmute all streams at once via a single toggle
 
 ### Interaction and Accessibility
 

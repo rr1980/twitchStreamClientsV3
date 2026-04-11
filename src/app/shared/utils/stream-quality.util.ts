@@ -11,7 +11,7 @@ export function normalizeStreamQuality(value: unknown): StreamQuality {
   return isSupportedStreamQuality(storedQuality) ? storedQuality : 'auto';
 }
 
-export function isSupportedStreamQuality(value: string): boolean {
+function isSupportedStreamQuality(value: string): boolean {
   return value === 'auto'
     || value === 'chunked'
     || value === 'audio_only'
@@ -159,6 +159,6 @@ function getQualitySortToken(value: StreamQuality): { group: number; resolution:
   return {
     group: 1,
     resolution: qualityMatch ? Number(qualityMatch[1]) : -1,
-    frameRate: value.includes('60') ? 60 : qualityMatch?.[2] ? Number(qualityMatch[2]) : 0,
+    frameRate: qualityMatch?.[2] ? Number(qualityMatch[2]) : 0,
   };
 }

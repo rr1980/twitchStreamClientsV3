@@ -20,6 +20,15 @@ describe('TwitchEmbedService', () => {
     window.Twitch = twitchApi;
   }
 
+  function setWindowTwitchEmbedWithReadyEvent(embed: ReturnType<typeof vi.fn>, readyEvent = 'VIDEO_READY_EVENT'): void {
+    const twitchApi = {} as NonNullable<Window['Twitch']>;
+    const embedConstructor = embed as ReturnType<typeof vi.fn> & Record<string, string | undefined>;
+    embedConstructor['VIDEO_PLAY'] = 'VIDEO_PLAY_EVENT';
+    embedConstructor['VIDEO_READY'] = readyEvent;
+    twitchApi.Embed = embedConstructor as never;
+    window.Twitch = twitchApi;
+  }
+
   function getServiceMethod<T extends (...args: never[]) => unknown>(propertyName: string): T {
     return ((service as unknown as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(service) as T;
   }
@@ -186,12 +195,64 @@ describe('TwitchEmbedService', () => {
     });
 
     expect(typeof handle.destroy).toBe('function');
+    expect(typeof handle.setMuted).toBe('function');
 
     handle.destroy();
 
     expect(host.childElementCount).toBe(0);
 
     host.remove();
+  });
+
+  it('starts embeds muted for autoplay and then syncs the requested state on ready', async () => {
+    let muted = false;
+    let volume = 0.5;
+    const player = {
+      getQualities: vi.fn(() => []),
+      getQuality: vi.fn(() => 'auto'),
+      getMuted: vi.fn(() => muted),
+      getVolume: vi.fn(() => volume),
+      setMuted: vi.fn((value: boolean) => {
+        muted = value;
+      }),
+      setVolume: vi.fn((value: number) => {
+        volume = value;
+      }),
+      setQuality: vi.fn(),
+    };
+    const readyEvent = 'VIDEO_READY_EVENT';
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === readyEvent) {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
+
+    service.createEmbed({
+      elementId: 'twitch-embed-autoplay',
+      channel: 'autoplay',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+    });
+
+    expect(EmbedMock).toHaveBeenCalledWith('twitch-embed-autoplay', expect.objectContaining({
+      autoplay: true,
+      muted: true,
+    }));
+
+    readyCallback?.();
+    await Promise.resolve();
+
+    expect(player.setMuted).toHaveBeenCalledWith(false);
+    expect(player.setVolume).toHaveBeenCalledWith(0.5);
   });
 
   it('returns a no-op handle when Twitch is unavailable', () => {
@@ -208,6 +269,7 @@ describe('TwitchEmbedService', () => {
       muted: false,
     });
 
+    handle.setMuted(true);
     handle.destroy();
     handle.destroy();
 
@@ -232,7 +294,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -259,6 +321,313 @@ describe('TwitchEmbedService', () => {
       { value: '1080p60', label: '1080p60' },
       { value: 'audio_only', label: 'Nur Audio' },
     ]);
+  });
+
+  it('syncs the requested muted state through the player API when the embed is ready', async () => {
+    let muted = false;
+    let volume = 0.5;
+    const player = {
+      getQualities: vi.fn(() => []),
+      getQuality: vi.fn(() => 'auto'),
+      getMuted: vi.fn(() => muted),
+      getVolume: vi.fn(() => volume),
+      setMuted: vi.fn((value: boolean) => {
+        muted = value;
+      }),
+      setVolume: vi.fn((value: number) => {
+        volume = value;
+      }),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const readyEvent = 'VIDEO_READY_EVENT';
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === readyEvent) {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
+
+    service.createEmbed({
+      elementId: 'twitch-embed-muted',
+      channel: 'muted',
+      quality: 'auto',
+      showChat: false,
+      muted: true,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+
+    expect(player.setMuted).toHaveBeenCalledWith(true);
+    expect(player.setVolume).toHaveBeenCalledWith(0);
+  });
+
+  it('applies queued mute changes once the player becomes ready', async () => {
+    let muted = false;
+    let volume = 0.5;
+    const player = {
+      getQualities: vi.fn(() => []),
+      getQuality: vi.fn(() => 'auto'),
+      getMuted: vi.fn(() => muted),
+      getVolume: vi.fn(() => volume),
+      setMuted: vi.fn((value: boolean) => {
+        muted = value;
+      }),
+      setVolume: vi.fn((value: number) => {
+        volume = value;
+      }),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const readyEvent = 'VIDEO_READY_EVENT';
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === readyEvent) {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
+
+    const handle = service.createEmbed({
+      elementId: 'twitch-embed-queued-muted',
+      channel: 'queued-muted',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+    });
+
+    handle.setMuted(true);
+    readyCallback?.();
+    await Promise.resolve();
+
+    expect(player.setMuted).toHaveBeenCalledWith(true);
+    expect(player.setVolume).toHaveBeenCalledWith(0);
+  });
+
+  it('updates the player mute state directly after the embed is ready', async () => {
+    let muted = false;
+    let volume = 0.5;
+    const player = {
+      getQualities: vi.fn(() => []),
+      getQuality: vi.fn(() => 'auto'),
+      getMuted: vi.fn(() => muted),
+      getVolume: vi.fn(() => volume),
+      setMuted: vi.fn((value: boolean) => {
+        muted = value;
+      }),
+      setVolume: vi.fn((value: number) => {
+        volume = value;
+      }),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const readyEvent = 'VIDEO_READY_EVENT';
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === readyEvent) {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
+
+    const handle = service.createEmbed({
+      elementId: 'twitch-embed-direct-muted',
+      channel: 'direct-muted',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+    player.setMuted.mockClear();
+    player.setVolume.mockClear();
+
+    handle.setMuted(true);
+
+    expect(player.setMuted).toHaveBeenCalledWith(true);
+    expect(player.setVolume).toHaveBeenCalledWith(0);
+  });
+
+  it('restores the previous volume when a muted player is unmuted again', async () => {
+    let muted = true;
+    let volume = 0;
+    const player = {
+      getQualities: vi.fn(() => []),
+      getQuality: vi.fn(() => 'auto'),
+      getMuted: vi.fn(() => muted),
+      getVolume: vi.fn(() => volume),
+      setMuted: vi.fn((value: boolean) => {
+        muted = value;
+      }),
+      setVolume: vi.fn((value: number) => {
+        volume = value;
+      }),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const readyEvent = 'VIDEO_READY_EVENT';
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === readyEvent) {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
+
+    const handle = service.createEmbed({
+      elementId: 'twitch-embed-restored-volume',
+      channel: 'restored-volume',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+    handle.setMuted(true);
+    await Promise.resolve();
+    player.setMuted.mockClear();
+    player.setVolume.mockClear();
+
+    handle.setMuted(false);
+
+    expect(player.setMuted).toHaveBeenCalledWith(false);
+    expect(player.setVolume).toHaveBeenCalledWith(0.5);
+  });
+
+  it('reapplies the muted state even when the player already reports the same value', async () => {
+    const syncRequestedMutedState = getServiceMethod<(
+      player: {
+        setMuted?: (value: boolean) => void;
+        getMuted?: () => boolean;
+        setVolume?: (value: number) => void;
+        getVolume?: () => number;
+      },
+      getRequestedMuted: () => boolean,
+      getRestoredVolume: () => number,
+      setRestoredVolume: (value: number) => void,
+      isCancelled: () => boolean,
+    ) => Promise<void>>(
+      '_syncRequestedMutedState',
+    );
+    let muted = true;
+    let volume = 0;
+    const player = {
+      getMuted: vi.fn(() => muted),
+      getVolume: vi.fn(() => volume),
+      setMuted: vi.fn((value: boolean) => {
+        muted = value;
+      }),
+      setVolume: vi.fn((value: number) => {
+        volume = value;
+      }),
+    };
+
+    await syncRequestedMutedState(player, () => true, () => 0.5, () => undefined, () => false);
+
+    expect(player.setMuted).toHaveBeenCalledWith(true);
+    expect(player.setVolume).toHaveBeenCalledWith(0);
+  });
+
+  it('keeps reapplying mute commands for a short burst even when Twitch already reports the requested state', async () => {
+    const syncRequestedMutedState = getServiceMethod<(
+      player: {
+        setMuted?: (value: boolean) => void;
+        getMuted?: () => boolean;
+        setVolume?: (value: number) => void;
+        getVolume?: () => number;
+      },
+      getRequestedMuted: () => boolean,
+      getRestoredVolume: () => number,
+      setRestoredVolume: (value: number) => void,
+      isCancelled: () => boolean,
+    ) => Promise<void>>(
+      '_syncRequestedMutedState',
+    );
+    const player = {
+      getMuted: vi.fn(() => true),
+      getVolume: vi.fn(() => 0),
+      setMuted: vi.fn(),
+      setVolume: vi.fn(),
+    };
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      callback(0);
+      return 1;
+    });
+
+    setServiceMember('_minMuteSyncFrames', 2);
+
+    try {
+      await syncRequestedMutedState(player, () => true, () => 0.5, () => undefined, () => false);
+
+      expect(player.setMuted).toHaveBeenCalledTimes(3);
+      expect(player.setVolume).toHaveBeenCalledTimes(3);
+    } finally {
+      rafSpy.mockRestore();
+    }
+  });
+
+  it('stops mute syncing immediately when the run is already cancelled', async () => {
+    const syncRequestedMutedState = getServiceMethod<(
+      player: { setMuted?: (value: boolean) => void; getMuted?: () => boolean },
+      getRequestedMuted: () => boolean,
+      getRestoredVolume: () => number,
+      setRestoredVolume: (value: number) => void,
+      isCancelled: () => boolean,
+    ) => Promise<void>>(
+      '_syncRequestedMutedState',
+    );
+    const player = {
+      getMuted: vi.fn(() => false),
+      setMuted: vi.fn(),
+    };
+
+    await syncRequestedMutedState(player, () => true, () => 0.5, () => undefined, () => true);
+
+    expect(player.setMuted).not.toHaveBeenCalled();
+  });
+
+  it('skips mute syncing when the player does not expose setMuted', async () => {
+    const syncRequestedMutedState = getServiceMethod<(
+      player: { getMuted?: () => boolean; setVolume?: (value: number) => void; getVolume?: () => number },
+      getRequestedMuted: () => boolean,
+      getRestoredVolume: () => number,
+      setRestoredVolume: (value: number) => void,
+      isCancelled: () => boolean,
+    ) => Promise<void>>(
+      '_syncRequestedMutedState',
+    );
+    const player = {
+      getMuted: vi.fn(() => false),
+      getVolume: vi.fn(() => 0.5),
+      setVolume: vi.fn(),
+    };
+
+    await expect(syncRequestedMutedState(player, () => true, () => 0.5, () => undefined, () => false)).resolves.toBeUndefined();
+    expect(player.setVolume).not.toHaveBeenCalled();
   });
 
   it('normalizes Twitch quality descriptors from labels and prefers the richest source label', () => {
@@ -310,7 +679,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -359,7 +728,7 @@ describe('TwitchEmbedService', () => {
       const EmbedMock = vi.fn(function MockEmbed() {
         return {
           addEventListener: vi.fn((event: string, callback: () => void) => {
-            if (event === 'ready') {
+            if (event === 'video.ready') {
               readyCallback = callback;
             }
           }),
@@ -400,10 +769,11 @@ describe('TwitchEmbedService', () => {
       setQuality: vi.fn(),
     };
     let readyCallback: (() => void) | undefined;
+    const readyEvent = 'VIDEO_READY_EVENT';
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === readyEvent) {
             readyCallback = callback;
           }
         }),
@@ -411,7 +781,7 @@ describe('TwitchEmbedService', () => {
       };
     });
 
-    setWindowTwitchEmbed(EmbedMock);
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
 
     service.createEmbed({
       elementId: 'fallback-720',
@@ -437,7 +807,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -461,7 +831,7 @@ describe('TwitchEmbedService', () => {
     expect(player.setQuality).toHaveBeenCalledWith('480p30');
   });
 
-  it('skips quality changes for auto mode and unsupported quality values', async () => {
+  it('explicitly sets quality to auto for auto mode and unsupported quality values', async () => {
     const player = {
       getQualities: vi.fn(() => ['chunked']),
       getQuality: vi.fn(() => 'auto'),
@@ -471,7 +841,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -489,7 +859,9 @@ describe('TwitchEmbedService', () => {
     readyCallback?.();
     await Promise.resolve();
 
-    expect(player.setQuality).not.toHaveBeenCalled();
+    expect(player.setQuality).toHaveBeenCalledTimes(2);
+    expect(player.setQuality).toHaveBeenNthCalledWith(1, 'auto');
+    expect(player.setQuality).toHaveBeenNthCalledWith(2, 'auto');
   });
 
   it('keeps polling qualities in auto mode until Twitch reports them', async () => {
@@ -506,7 +878,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -537,7 +909,7 @@ describe('TwitchEmbedService', () => {
       { value: 'chunked', label: 'Quelle' },
       { value: '1080p60', label: '1080p60' },
     ]);
-    expect(player.setQuality).not.toHaveBeenCalled();
+    expect(player.setQuality).toHaveBeenCalledWith('auto');
 
     rafSpy.mockRestore();
   });
@@ -552,7 +924,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -588,7 +960,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -613,11 +985,14 @@ describe('TwitchEmbedService', () => {
     readyCallback?.();
     await Promise.resolve();
 
-    expect(rafCallbacks).toHaveLength(1);
+    expect(rafCallbacks.length).toBeGreaterThanOrEqual(1);
 
     handle.destroy();
-    rafCallbacks.shift()?.(0);
-    await Promise.resolve();
+
+    while (rafCallbacks.length > 0) {
+      rafCallbacks.shift()?.(0);
+      await Promise.resolve();
+    }
 
     expect(player.setQuality).not.toHaveBeenCalled();
 
@@ -627,15 +1002,15 @@ describe('TwitchEmbedService', () => {
   it('warns when the requested quality never becomes available', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const player = {
-      getQualities: vi.fn(() => ['480p']),
-      getQuality: vi.fn(() => '480p'),
+      getQualities: vi.fn(() => ['audio_only']),
+      getQuality: vi.fn(() => 'auto'),
       setQuality: vi.fn(),
     };
     let readyCallback: (() => void) | undefined;
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -666,7 +1041,7 @@ describe('TwitchEmbedService', () => {
 
     expect(warnSpy).toHaveBeenCalledWith(
       "[Twitch] Quality '720p60' für Channel 'missing-quality' nicht verfügbar.",
-      ['480p'],
+      ['audio_only'],
     );
 
     rafSpy.mockRestore();
@@ -686,7 +1061,7 @@ describe('TwitchEmbedService', () => {
     const EmbedMock = vi.fn(function MockEmbed() {
       return {
         addEventListener: vi.fn((event: string, callback: () => void) => {
-          if (event === 'ready') {
+          if (event === 'video.ready') {
             readyCallback = callback;
           }
         }),
@@ -729,14 +1104,23 @@ describe('TwitchEmbedService', () => {
     }
   });
 
-  it('returns null when a requested quality has no family match', () => {
+  it('returns null when a requested quality has no family match and no resolution match', () => {
     const resolveRequestedQuality = getServiceMethod<(requestedQuality: string, availableQualities: string[]) => string | null>('_resolveRequestedQuality');
 
     expect(resolveRequestedQuality('audio_only', ['chunked', '480p'])).toBeNull();
-    expect(resolveRequestedQuality('720p60', ['480p', '360p'])).toBeNull();
+    expect(resolveRequestedQuality('720p60', ['audio_only'])).toBeNull();
   });
 
-  it('scores and ranks quality candidates in the expected order', () => {
+  it('falls back to the nearest available resolution when no family match exists', () => {
+    const resolveRequestedQuality = getServiceMethod<(requestedQuality: string, availableQualities: string[]) => string | null>('_resolveRequestedQuality');
+
+    expect(resolveRequestedQuality('160p', ['360p', '480p', '720p60'])).toBe('360p');
+    expect(resolveRequestedQuality('720p60', ['480p', '360p'])).toBe('480p');
+    expect(resolveRequestedQuality('1080p60', ['720p30', '720p60'])).toBe('720p60');
+    expect(resolveRequestedQuality('300p', ['240p', '360p'])).toBe('360p');
+  });
+
+  it('scores and ranks quality candidates by actual frame rate', () => {
     const getQualityMatchScore = getServiceMethod<(
       candidate: string,
       requestedQuality: string,
@@ -752,11 +1136,100 @@ describe('TwitchEmbedService', () => {
     expect(getQualityMatchScore('720p', '720p60', '720p')).toBe(1);
     expect(getQualityMatchScore('720p30-60', '720p60', '720p')).toBe(2);
     expect(getQualityMatchScore('720p30', '720p60', '720p')).toBe(3);
+    expect(getQualityMatchScore('360p30', '360p60', '360p')).toBe(3);
     expect(rankQualityMatches('720p60', '720p', ['720p30', '720p', '720p30-60', '720p60'])).toEqual([
       '720p60',
       '720p',
       '720p30-60',
       '720p30',
     ]);
+    expect(rankQualityMatches('360p60', '360p', ['360p30', '360p', '360p30-60'])).toEqual([
+      '360p',
+      '360p30-60',
+      '360p30',
+    ]);
+  });
+
+  it('applies quality changes through the handle after the player is ready', async () => {
+    const player = {
+      getQualities: vi.fn(() => ['720p60', '480p']),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'video.ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      callback(0);
+      return 1;
+    });
+
+    setWindowTwitchEmbed(EmbedMock);
+
+    const handle = service.createEmbed({
+      elementId: 'twitch-embed-handle-quality',
+      channel: 'handle-quality',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+    player.setQuality.mockClear();
+
+    handle.setQuality('480p');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(player.setQuality).toHaveBeenCalledWith('480p');
+
+    rafSpy.mockRestore();
+  });
+
+  it('ignores quality changes on the handle after destruction', async () => {
+    const player = {
+      getQualities: vi.fn(() => ['720p60']),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === 'video.ready') {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbed(EmbedMock);
+
+    const handle = service.createEmbed({
+      elementId: 'twitch-embed-destroyed-quality',
+      channel: 'destroyed-quality',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+    });
+
+    readyCallback?.();
+    await Promise.resolve();
+    player.setQuality.mockClear();
+
+    handle.destroy();
+    handle.setQuality('720p60');
+
+    expect(player.setQuality).not.toHaveBeenCalled();
   });
 });

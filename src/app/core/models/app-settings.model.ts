@@ -20,15 +20,16 @@ export interface StreamList {
   id: number;
   name: string;
   streams: StreamChannel[];
+  quality?: StreamQuality;
+  layoutPreset?: StreamLayoutPreset;
+  focusedChannel?: string | null;
+  muteAllStreams?: boolean;
 }
 
 export interface AppSettings {
   lists: StreamList[];
-  quality: StreamQuality;
   statistics: StreamStatistic[];
   favoriteChannels: string[];
   recentChannels: string[];
-  layoutPreset: StreamLayoutPreset;
-  focusedChannel: string | null;
   lastActiveListId: number | null;
 }

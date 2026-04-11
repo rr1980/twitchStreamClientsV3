@@ -41,7 +41,7 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelector('h1')?.textContent).toContain('Dein Setup ist leer');
-    expect(compiled.querySelector('.menu-trigger')?.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(compiled.querySelector('.menu-trigger')?.textContent?.trim()).toBe('Menü');
   });
 
   it('delegates window keydown handling to the hotkey service', () => {
@@ -104,9 +104,28 @@ describe('App', () => {
     await fixture.whenStable();
 
     const trigger = fixture.nativeElement.querySelector('.menu-trigger') as HTMLButtonElement;
+
+    expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
+
     trigger.click();
 
     expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks the menu trigger as open while the menu is open', async () => {
+    const fixture = TestBed.createComponent(App);
+    const state = TestBed.inject(StreamStateService);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    state.openMenu();
+    fixture.detectChanges();
+
+    const trigger = fixture.nativeElement.querySelector('.menu-trigger') as HTMLButtonElement;
+
+    expect(trigger.classList.contains('menu-trigger--open')).toBe(true);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('renders and dismisses the startup hint on first load', async () => {
@@ -219,6 +238,46 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(router.url).toBe('/List/2');
+  });
+
+  it('does not restore a missing last active list on the initial null route', async () => {
+    localStorage.setItem('app_state_v3', JSON.stringify({
+      lists: [{ id: 2, name: 'Esports', streams: [] }],
+      quality: 'auto',
+      statistics: [],
+      favoriteChannels: [],
+      recentChannels: [],
+      layoutPreset: 'auto',
+      focusedChannel: null,
+      lastActiveListId: 9,
+    }));
+
+    const state = TestBed.inject(StreamStateService);
+    state.initialize();
+    const fixture = TestBed.createComponent(App);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    TestBed.tick();
+    await fixture.whenStable();
+
+    expect(router.url).toBe('/List/null');
+  });
+
+  it('does not navigate when the stored last active list is no longer present', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    const navigateToList = vi.fn();
+
+    (app as unknown as Record<string, unknown>)['_state'] = {
+      lastActiveListId: () => 9,
+      lists: () => [],
+    };
+    (app as unknown as Record<string, unknown>)['_listNavigation'] = { navigateToList };
+
+    getAppMethod<(activeListId: number | null) => void>(app, '_restoreInitialView')(null);
+
+    expect(navigateToList).not.toHaveBeenCalled();
   });
 
   it('renders and dismisses the update notice', async () => {

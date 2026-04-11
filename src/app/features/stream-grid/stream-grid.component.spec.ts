@@ -71,7 +71,7 @@ describe('StreamGridComponent', () => {
 
     await expect(getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(runId)).resolves.toBeUndefined();
 
-    expect(twitch.loadScript).toHaveBeenCalledTimes(1);
+    expect(twitch.loadScript).not.toHaveBeenCalled();
     expect(twitch.createEmbed).not.toHaveBeenCalled();
   });
 
@@ -106,6 +106,8 @@ describe('StreamGridComponent', () => {
     const component = fixture.componentInstance;
 
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    fixture.detectChanges();
+    await fixture.whenStable();
     twitch.loadScript.mockRejectedValue(new Error('network'));
 
     const firstRunId = getPrivateNumber(component, '_syncRunId') + 1;
@@ -217,9 +219,186 @@ describe('StreamGridComponent', () => {
       channel: 'rocketbeanstv',
       quality: 'auto',
       showChat: false,
-      muted: true,
+      muted: false,
       onAvailableQualities: expect.any(Function),
     }));
+  });
+
+  it('uses Twitch-compatible minimum grid tracks for autoplay', async () => {
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
+    await syncComponent();
+
+    const component = fixture.componentInstance;
+
+    expect(getPrivateMethod<() => string>(component, '_gridTemplateColumns')()).toContain(
+      'minmax(var(--twitch-embed-min-width), 1fr)',
+    );
+    expect(getPrivateMethod<() => string>(component, '_gridTemplateRows')()).toContain(
+      'minmax(var(--twitch-embed-min-height), 1fr)',
+    );
+  });
+
+  it('defers embed startup while the menu overlay is open', async () => {
+    state.menuOpen.set(true);
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
+    await syncComponent();
+
+    expect(twitch.loadScript).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+
+    state.menuOpen.set(false);
+    await syncComponent();
+
+    expect(twitch.loadScript).toHaveBeenCalledTimes(1);
+    expect(twitch.createEmbed).toHaveBeenCalledTimes(2);
+    expect(twitch.createEmbed).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      elementId: 'twitch-embed-shroud',
+      muted: false,
+    }));
+    expect(twitch.createEmbed).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      elementId: 'twitch-embed-rocketbeanstv',
+      muted: false,
+    }));
+  });
+
+  it('defers embed startup while the document is hidden and retries when it becomes visible', async () => {
+    const visibilitySpy = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+
+    try {
+      state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+      await syncComponent();
+
+      expect(twitch.loadScript).not.toHaveBeenCalled();
+      expect(twitch.createEmbed).not.toHaveBeenCalled();
+
+      visibilitySpy.mockReturnValue('visible');
+      getPrivateMethod<() => void>(fixture.componentInstance, '_onDocumentVisibilityChange')();
+      await syncComponent();
+
+      expect(twitch.loadScript).toHaveBeenCalledTimes(1);
+      expect(twitch.createEmbed).toHaveBeenCalledWith(expect.objectContaining({
+        elementId: 'twitch-embed-shroud',
+      }));
+    } finally {
+      visibilitySpy.mockRestore();
+    }
+  });
+
+  it('ignores visibility changes before the view is ready or while the document is still hidden', async () => {
+    const component = fixture.componentInstance;
+    const syncEmbedsSpy = vi.spyOn(
+      component as unknown as Record<string, (...args: never[]) => Promise<void>>,
+      '_syncEmbeds',
+    ).mockResolvedValue(undefined);
+
+    getPrivateMethod<() => void>(component, '_onDocumentVisibilityChange')();
+    await Promise.resolve();
+
+    expect(syncEmbedsSpy).not.toHaveBeenCalled();
+
+    component.ngAfterViewInit();
+    TestBed.tick();
+    await Promise.resolve();
+    syncEmbedsSpy.mockClear();
+    setPrivateMember(component, '_hostRef', () => ({ nativeElement: { ownerDocument: { visibilityState: 'hidden' } } }));
+
+    getPrivateMethod<() => void>(component, '_onDocumentVisibilityChange')();
+    await Promise.resolve();
+
+    expect(syncEmbedsSpy).not.toHaveBeenCalled();
+  });
+
+  it('updates mute-all mode through existing embed handles without recreating streams', async () => {
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
+    await syncComponent();
+
+    const firstHandle = twitch.handles.get('twitch-embed-shroud');
+    const secondHandle = twitch.handles.get('twitch-embed-rocketbeanstv');
+
+    twitch.createEmbed.mockClear();
+    firstHandle?.destroy.mockClear();
+    secondHandle?.destroy.mockClear();
+    state.muteAllStreams.set(true);
+    await syncComponent();
+
+    expect(firstHandle?.destroy).not.toHaveBeenCalled();
+    expect(secondHandle?.destroy).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(firstHandle?.setMuted).toHaveBeenCalledWith(true);
+    expect(secondHandle?.setMuted).toHaveBeenCalledWith(true);
+
+    firstHandle?.setMuted.mockClear();
+    secondHandle?.setMuted.mockClear();
+
+    state.muteAllStreams.set(false);
+    await syncComponent();
+
+    expect(firstHandle?.destroy).not.toHaveBeenCalled();
+    expect(secondHandle?.destroy).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(firstHandle?.setMuted).toHaveBeenCalledWith(false);
+    expect(secondHandle?.setMuted).toHaveBeenCalledWith(false);
+  });
+
+  it('defers mute changes while the menu is open and applies them after closing', async () => {
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
+    await syncComponent();
+
+    const firstHandle = twitch.handles.get('twitch-embed-shroud');
+    const secondHandle = twitch.handles.get('twitch-embed-rocketbeanstv');
+
+    twitch.loadScript.mockClear();
+    twitch.createEmbed.mockClear();
+    firstHandle?.setMuted.mockClear();
+    secondHandle?.setMuted.mockClear();
+
+    state.menuOpen.set(true);
+    state.muteAllStreams.set(true);
+    await syncComponent();
+
+    expect(twitch.loadScript).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(firstHandle?.setMuted).not.toHaveBeenCalled();
+    expect(secondHandle?.setMuted).not.toHaveBeenCalled();
+
+    state.menuOpen.set(false);
+    await syncComponent();
+
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(firstHandle?.setMuted).toHaveBeenCalledWith(true);
+    expect(secondHandle?.setMuted).toHaveBeenCalledWith(true);
+  });
+
+  it('defers quality and mute changes while the menu is open and applies them after closing', async () => {
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    await syncComponent();
+
+    const handle = twitch.handles.get('twitch-embed-shroud');
+
+    twitch.loadScript.mockClear();
+    twitch.createEmbed.mockClear();
+    handle?.destroy.mockClear();
+    handle?.setMuted.mockClear();
+    handle?.setQuality.mockClear();
+
+    state.menuOpen.set(true);
+    state.quality.set('720p60');
+    state.muteAllStreams.set(true);
+    await syncComponent();
+
+    expect(twitch.loadScript).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(handle?.destroy).not.toHaveBeenCalled();
+    expect(handle?.setMuted).not.toHaveBeenCalled();
+    expect(handle?.setQuality).not.toHaveBeenCalled();
+
+    state.menuOpen.set(false);
+    await syncComponent();
+
+    expect(handle?.destroy).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(handle?.setMuted).toHaveBeenCalledWith(true);
+    expect(handle?.setQuality).toHaveBeenCalledWith('720p60');
   });
 
   it('publishes Twitch quality options from active embeds and clears them when no streams remain', async () => {
@@ -243,6 +422,15 @@ describe('StreamGridComponent', () => {
       quality('720p60'),
       quality('audio_only', 'Nur Audio'),
     ]);
+    state.setAvailableQualities.mockClear();
+
+    twitch.reportQualities('twitch-embed-shroud', [
+      quality('chunked', '1080p60 (Quelle)'),
+      quality('1080p60'),
+      quality('720p60'),
+    ]);
+
+    expect(state.setAvailableQualities).not.toHaveBeenCalled();
 
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [] });
     await syncComponent();
@@ -267,7 +455,7 @@ describe('StreamGridComponent', () => {
       channel: 'rocketbeanstv',
       quality: 'auto',
       showChat: false,
-      muted: true,
+      muted: false,
     }));
   });
 
@@ -286,7 +474,7 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).not.toHaveBeenCalled();
   });
 
-  it('recreates affected embeds on reorder and destroys all handles on component teardown', async () => {
+  it('preserves muted state on reorder and destroys all handles on component teardown', async () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
     await syncComponent();
 
@@ -299,9 +487,11 @@ describe('StreamGridComponent', () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('rocketbeanstv'), channel('shroud')] });
     await syncComponent();
 
-    expect(firstHandle?.destroy).toHaveBeenCalledTimes(1);
-    expect(secondHandle?.destroy).toHaveBeenCalledTimes(1);
-    expect(twitch.createEmbed).toHaveBeenCalledTimes(2);
+    expect(firstHandle?.destroy).not.toHaveBeenCalled();
+    expect(secondHandle?.destroy).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(firstHandle?.setMuted).not.toHaveBeenCalled();
+    expect(secondHandle?.setMuted).not.toHaveBeenCalled();
 
     twitch.handles.get('twitch-embed-rocketbeanstv')?.destroy.mockClear();
     twitch.handles.get('twitch-embed-shroud')?.destroy.mockClear();
@@ -326,15 +516,82 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).not.toHaveBeenCalled();
   });
 
-  it('recreates embeds when quality or chat layout changes', async () => {
+  it('skips pending embed creation when the wrapper disappears after the script resolves', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    fixture.detectChanges();
+
+    let resolveLoadScript!: () => void;
+    twitch.loadScript.mockReturnValueOnce(new Promise<undefined>(resolve => {
+      resolveLoadScript = () => resolve(undefined);
+    }));
+
+    const component = fixture.componentInstance;
+    const runId = getPrivateNumber(component, '_syncRunId') + 1;
+
+    setPrivateNumber(component, '_syncRunId', runId);
+    const syncPromise = getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(runId);
+
+    await Promise.resolve();
+    fixture.nativeElement.querySelector('#twitch-embed-shroud')?.remove();
+    resolveLoadScript();
+    await syncPromise;
+
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+  });
+
+  it('rechecks pending embeds after the script resolves and reuses compatible handles', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    fixture.detectChanges();
+
+    let resolveLoadScript!: () => void;
+    twitch.loadScript.mockReturnValueOnce(new Promise<undefined>(resolve => {
+      resolveLoadScript = () => resolve(undefined);
+    }));
+
+    const component = fixture.componentInstance;
+    const runId = getPrivateNumber(component, '_syncRunId') + 1;
+    const handle = new MockTwitchEmbedHandle();
+    const renderedEmbeds = (component as unknown as Record<string, Map<string, {
+      elementId: string;
+      quality: StreamQuality;
+      showChat: boolean;
+      muted: boolean;
+      handle: TwitchEmbedHandle;
+    }>>)['_renderedEmbeds'];
+
+    setPrivateNumber(component, '_syncRunId', runId);
+    const syncPromise = getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(runId);
+
+    await Promise.resolve();
+    renderedEmbeds.set('shroud', {
+      elementId: 'twitch-embed-shroud',
+      quality: 'auto',
+      showChat: false,
+      muted: false,
+      handle,
+    });
+    resolveLoadScript();
+    await syncPromise;
+
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(handle.destroy).not.toHaveBeenCalled();
+  });
+
+  it('recreates embeds when chat layout changes and syncs quality without recreation', async () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
     await syncComponent();
 
     const initialHandle = twitch.handles.get('twitch-embed-shroud');
     initialHandle?.destroy.mockClear();
+    initialHandle?.setQuality.mockClear();
     twitch.createEmbed.mockClear();
 
-    state.quality.set('720p60');
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud', true)] });
     await syncComponent();
 
@@ -342,10 +599,22 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).toHaveBeenCalledWith(expect.objectContaining({
       elementId: 'twitch-embed-shroud',
       channel: 'shroud',
-      quality: '720p60',
+      quality: 'auto',
       showChat: true,
       muted: false,
     }));
+
+    const newHandle = twitch.handles.get('twitch-embed-shroud');
+    newHandle?.destroy.mockClear();
+    newHandle?.setQuality.mockClear();
+    twitch.createEmbed.mockClear();
+
+    state.quality.set('720p60');
+    await syncComponent();
+
+    expect(newHandle?.destroy).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(newHandle?.setQuality).toHaveBeenCalledWith('720p60');
   });
 
   it('stops creating further embeds when the run becomes stale during iteration', async () => {
@@ -364,27 +633,23 @@ describe('StreamGridComponent', () => {
     twitch.handles.get('twitch-embed-shroud')?.destroy.mockClear();
     twitch.handles.get('twitch-embed-rocketbeanstv')?.destroy.mockClear();
 
-    state.quality.set('720p60');
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud', true), channel('rocketbeanstv', true)] });
     setPrivateNumber(component, '_syncRunId', nextRunId);
     await expect(getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(nextRunId)).resolves.toBeUndefined();
 
     expect(twitch.createEmbed).toHaveBeenCalledTimes(1);
   });
 
-  it('renders featured placements and toggles the focused channel through the overlay action', async () => {
+  it('renders featured placements without player overlays', async () => {
     state.layoutPreset.set('stage');
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv'), channel('gronkh')] });
     await syncComponent();
 
     const wrappers = fixture.nativeElement.querySelectorAll('.twitch-embed-wrapper') as NodeListOf<HTMLElement>;
-    const focusButton = fixture.nativeElement.querySelector('[aria-label="shroud fokussieren"]') as HTMLButtonElement;
 
     expect(wrappers[0].style.gridColumn).toBe('span 2');
     expect(wrappers[0].style.gridRow).toBe('span 2');
-
-    focusButton.click();
-
-    expect(state.setFocusedChannel).toHaveBeenCalledWith('shroud');
+    expect(fixture.nativeElement.querySelector('.stream-overlay')).toBeNull();
   });
 
   it('updates the viewport signals on resize', () => {
@@ -457,6 +722,20 @@ describe('StreamGridComponent', () => {
 
     expect(displayedStreams[0].name).toBe('b');
     expect(displayedStreams.map(s => s.name)).toEqual(['b', 'a', 'c']);
+  });
+
+  it('toggles the focused channel through the state service', async () => {
+    state.setActiveList({ id: 1, name: 'Test', streams: [channel('streamer')] });
+    await syncComponent();
+
+    const toggleFocusedChannel = getPrivateMethod<(channelName: string) => void>(fixture.componentInstance, '_toggleFocusedChannel');
+
+    toggleFocusedChannel('streamer');
+    expect(state.setFocusedChannel).toHaveBeenLastCalledWith('streamer');
+
+    state.focusedChannel.set('streamer');
+    toggleFocusedChannel('streamer');
+    expect(state.setFocusedChannel).toHaveBeenLastCalledWith(null);
   });
 
   it('falls back to default order when focused stream is not in the list', async () => {
@@ -537,7 +816,9 @@ class MockStreamStateService {
   public readonly streams = computed(() => this._activeList()?.streams ?? []);
   public readonly quality = signal<StreamQuality>('auto');
   public readonly layoutPreset = signal<StreamLayoutPreset>('auto');
+  public readonly menuOpen = signal(false);
   public readonly focusedChannel = signal<string | null>(null);
+  public readonly muteAllStreams = signal(false);
   public readonly availableQualities = signal<StreamQualityOption[]>([{ value: 'auto', label: 'Auto' }]);
   public readonly setAvailableQualities = vi.fn((values: StreamQualityOption[]) => {
     this.availableQualities.set([{ value: 'auto', label: 'Auto' }, ...values]);
@@ -575,6 +856,8 @@ class MockTwitchEmbedService {
 
 class MockTwitchEmbedHandle implements TwitchEmbedHandle {
   public readonly destroy = vi.fn();
+  public readonly setMuted = vi.fn();
+  public readonly setQuality = vi.fn();
 }
 
 class MockToastService {

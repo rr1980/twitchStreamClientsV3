@@ -113,4 +113,5 @@ export class App {
       this._listNavigation.navigateToList(lastActiveListId);
     });
   }
+
 }

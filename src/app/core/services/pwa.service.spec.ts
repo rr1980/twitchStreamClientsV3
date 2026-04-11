@@ -1,3 +1,4 @@
+import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { VersionEvent } from '@angular/service-worker';
 import { SwUpdate } from '@angular/service-worker';
@@ -167,6 +168,24 @@ describe('PwaService', () => {
     const service = createService();
 
     expect(service.startupHintVisible()).toBe(false);
+  });
+
+  it('returns safely on the server platform without registering any events', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: PLATFORM_ID, useValue: 'server' },
+        { provide: SwUpdate, useValue: { isEnabled: false, versionUpdates: new Subject<VersionEvent>().asObservable() } },
+      ],
+    });
+
+    const service = TestBed.inject(PwaService);
+
+    expect(service.startupHintVisible()).toBe(false);
+    expect(service.canInstall()).toBe(false);
+    expect(service.updateAvailable()).toBe(false);
+
+    service.reloadForUpdate();
   });
 
   function createService(

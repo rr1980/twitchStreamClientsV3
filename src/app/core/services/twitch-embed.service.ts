@@ -14,24 +14,31 @@ declare global {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     Twitch?: {
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      Embed: new (
-        elementId: string,
-        options: {
-          width: string;
-          height: string;
-          channel: string;
-          layout: 'video' | 'video-with-chat';
-          autoplay: boolean;
-          muted: boolean;
-          parent: string[];
-        },
-      ) => TwitchEmbedInstance;
+      Embed: {
+        new (
+          elementId: string,
+          options: {
+            width: string;
+            height: string;
+            channel: string;
+            layout: 'video' | 'video-with-chat';
+            autoplay: boolean;
+            muted: boolean;
+            parent: string[];
+          },
+        ): TwitchEmbedInstance;
+        [eventConstant: string]: unknown;
+      };
     };
   }
 }
 
 interface TwitchPlayer {
   setQuality(value: string): void;
+  setMuted?(value: boolean): void;
+  getMuted?(): boolean;
+  setVolume?(value: number): void;
+  getVolume?(): number;
   getQualities(): TwitchQualityDescriptor[];
   getQuality(): string;
 }
@@ -55,6 +62,8 @@ interface TwitchEmbedInstance {
 
 export interface TwitchEmbedHandle {
   destroy(): void;
+  setMuted(value: boolean): void;
+  setQuality(value: StreamQuality): void;
 }
 
 interface CreateEmbedOptions {
@@ -70,6 +79,9 @@ interface CreateEmbedOptions {
 export class TwitchEmbedService {
   private readonly _maxQualitySyncFrames = 120;
   private readonly _maxQualitySyncDurationMs = 2000;
+  private readonly _minMuteSyncFrames = 30;
+  private readonly _maxMuteSyncFrames = 600;
+  private readonly _maxMuteSyncDurationMs = 10000;
   private readonly _document = inject(DOCUMENT);
   private readonly _platformId = inject(PLATFORM_ID);
   private _scriptPromise?: Promise<void>;
@@ -99,10 +111,10 @@ export class TwitchEmbedService {
     const browserWindow = this._window;
 
     if (!browserWindow?.Twitch?.Embed) {
-      return this._createHandle(options.elementId);
+      return this._createHandle(options.elementId, options.muted);
     }
 
-    const handle = this._createHandle(options.elementId);
+    const handle = this._createHandle(options.elementId, options.muted);
 
     const embed = new browserWindow.Twitch.Embed(options.elementId, {
       width: '100%',
@@ -110,16 +122,35 @@ export class TwitchEmbedService {
       channel: options.channel,
       layout: options.showChat ? 'video-with-chat' : 'video',
       autoplay: true,
-      muted: options.muted,
+      muted: true,
       parent: [browserWindow.location.hostname || 'localhost'],
     });
+    const twitchReadyEvent = browserWindow.Twitch.Embed['VIDEO_READY'];
+    const readyEvents = new Set([
+      typeof twitchReadyEvent === 'string' ? twitchReadyEvent : 'video.ready',
+      'video.ready',
+    ]);
+    let didInitializePlayer = false;
 
-    embed.addEventListener('ready', () => {
-      if (handle.isDestroyed()) {
-        return;
+    const initializePlayer = (): boolean => {
+      if (didInitializePlayer) {
+        return true;
       }
 
-      const player = embed.getPlayer();
+      if (handle.isDestroyed()) {
+        return true;
+      }
+
+      let player: TwitchPlayer;
+
+      try {
+        player = embed.getPlayer();
+      } catch {
+        return false;
+      }
+
+      didInitializePlayer = true;
+      handle.setPlayer(player);
       void this._syncRequestedQuality(
         player,
         options.channel,
@@ -127,6 +158,14 @@ export class TwitchEmbedService {
         () => handle.isDestroyed(),
         options.onAvailableQualities,
       );
+
+      return true;
+    };
+
+    readyEvents.forEach(eventName => {
+      embed.addEventListener(eventName, () => {
+        initializePlayer();
+      });
     });
 
     return handle;
@@ -234,6 +273,7 @@ export class TwitchEmbedService {
 
         if (!requestedQuality) {
           if (availableQualities.length > 0) {
+            player.setQuality('auto');
             return;
           }
 
@@ -327,11 +367,57 @@ export class TwitchEmbedService {
 
     const familyMatches = availableQualities.filter(quality => this._extractQualityFamily(quality) === qualityFamily);
 
-    if (familyMatches.length === 0) {
+    if (familyMatches.length > 0) {
+      return this._rankQualityMatches(requestedQuality, qualityFamily, familyMatches)[0] ?? null;
+    }
+
+    return this._findNearestResolution(requestedQuality, availableQualities);
+  }
+
+  private _findNearestResolution(requestedQuality: string, availableQualities: string[]): string | null {
+    const requestedMatch = requestedQuality.match(/^(\d+)p/);
+
+    if (!requestedMatch) {
       return null;
     }
 
-    return this._rankQualityMatches(requestedQuality, qualityFamily, familyMatches)[0] ?? null;
+    const requestedResolution = Number(requestedMatch[1]);
+    const requestedFrameRates = this._extractQualityFrameRates(requestedQuality);
+    const requestedFrameRate = requestedFrameRates[0] ?? 0;
+    let bestMatch: string | null = null;
+    let bestDistance = Infinity;
+    let bestResolution = -1;
+    let bestFrameRate = -1;
+
+    for (const quality of availableQualities) {
+      if (quality === 'chunked' || quality === 'audio_only') {
+        continue;
+      }
+
+      const resolutionMatch = quality.match(/^(\d+)p/);
+
+      if (!resolutionMatch) {
+        continue;
+      }
+
+      const resolution = Number(resolutionMatch[1]);
+      const distance = Math.abs(resolution - requestedResolution);
+      const candidateFrameRate = this._extractQualityFrameRates(quality)[0] ?? 0;
+
+      if (
+        distance < bestDistance
+        || (distance === bestDistance && resolution > bestResolution)
+        || (distance === bestDistance && resolution === bestResolution
+          && Math.abs(candidateFrameRate - requestedFrameRate) < Math.abs(bestFrameRate - requestedFrameRate))
+      ) {
+        bestDistance = distance;
+        bestMatch = quality;
+        bestResolution = resolution;
+        bestFrameRate = candidateFrameRate;
+      }
+    }
+
+    return bestMatch;
   }
 
   private _extractQualityFamily(value: string): string | null {
@@ -356,11 +442,21 @@ export class TwitchEmbedService {
       return 1;
     }
 
-    if (requestedQuality.endsWith('60') && candidate.includes('60')) {
+    const requestedFrameRate = this._extractQualityFrameRates(requestedQuality)[0] ?? 0;
+    const candidateFrameRates = this._extractQualityFrameRates(candidate);
+
+    if (requestedFrameRate > 0 && candidateFrameRates.includes(requestedFrameRate)) {
       return 2;
     }
 
     return 3;
+  }
+
+  private _extractQualityFrameRates(value: string): number[] {
+    return (value.match(/\d+/g) ?? [])
+      .slice(1)
+      .map(rate => Number(rate))
+      .filter(rate => Number.isFinite(rate) && rate > 0);
   }
 
   private _normalizeQualityDescriptor(descriptor: TwitchQualityDescriptor): StreamQualityOption | null {
@@ -405,8 +501,82 @@ export class TwitchEmbedService {
     };
   }
 
-  private _createHandle(elementId: string): TwitchEmbedHandle & { isDestroyed(): boolean } {
+  private async _syncRequestedMutedState(
+    player: TwitchPlayer,
+    getRequestedMuted: () => boolean,
+    getRestoredVolume: () => number,
+    setRestoredVolume: (value: number) => void,
+    isCancelled: () => boolean,
+  ): Promise<void> {
+    if (typeof player.setMuted !== 'function') {
+      return;
+    }
+
+    const syncDeadline = Date.now() + this._maxMuteSyncDurationMs;
+
+    for (let frame = 0; frame < this._maxMuteSyncFrames && Date.now() < syncDeadline; frame++) {
+      if (isCancelled()) {
+        return;
+      }
+
+      const muted = getRequestedMuted();
+      const currentVolume = typeof player.getVolume === 'function'
+        ? player.getVolume()
+        : null;
+
+      if (typeof currentVolume === 'number' && Number.isFinite(currentVolume) && currentVolume > 0) {
+        setRestoredVolume(currentVolume);
+      }
+
+      player.setMuted(muted);
+
+      if (typeof player.setVolume === 'function') {
+        player.setVolume(muted ? 0 : getRestoredVolume());
+      }
+
+      const mutedMatches = typeof player.getMuted !== 'function' || player.getMuted() === muted;
+      const volumeMatches = typeof player.getVolume !== 'function'
+        || (muted
+          ? player.getVolume() === 0
+          : player.getVolume() > 0);
+
+      if (mutedMatches && volumeMatches && frame >= this._minMuteSyncFrames) {
+        return;
+      }
+
+      await this._waitForNextFrame();
+    }
+  }
+
+  private _createHandle(elementId: string, initialMuted: boolean): TwitchEmbedHandle & {
+    isDestroyed(): boolean;
+    setPlayer(player: TwitchPlayer): void;
+  } {
     let destroyed = false;
+    let player: TwitchPlayer | null = null;
+    let requestedMuted = initialMuted;
+    let restoredVolume = 0.5;
+    let muteSyncRunId = 0;
+    let qualitySyncRunId = 0;
+
+    const syncRequestedMutedState = (): void => {
+      if (!player || destroyed) {
+        return;
+      }
+
+      const currentPlayer = player;
+      const syncRunId = ++muteSyncRunId;
+
+      void this._syncRequestedMutedState(
+        currentPlayer,
+        () => requestedMuted,
+        () => restoredVolume,
+        value => {
+          restoredVolume = value;
+        },
+        () => destroyed || player !== currentPlayer || syncRunId !== muteSyncRunId,
+      );
+    };
 
     return {
       destroy: () => {
@@ -415,7 +585,35 @@ export class TwitchEmbedService {
         }
 
         destroyed = true;
+        muteSyncRunId += 1;
         this.clearEmbed(elementId);
+      },
+      setMuted: (value: boolean) => {
+        requestedMuted = value;
+        syncRequestedMutedState();
+      },
+      setQuality: (value: StreamQuality) => {
+        if (!player || destroyed) {
+          return;
+        }
+
+        const currentPlayer = player;
+        const syncRunId = ++qualitySyncRunId;
+
+        void this._syncRequestedQuality(
+          currentPlayer,
+          '',
+          value,
+          () => destroyed || player !== currentPlayer || syncRunId !== qualitySyncRunId,
+        );
+      },
+      setPlayer: (nextPlayer: TwitchPlayer) => {
+        if (destroyed) {
+          return;
+        }
+
+        player = nextPlayer;
+        syncRequestedMutedState();
       },
       isDestroyed: () => destroyed,
     };

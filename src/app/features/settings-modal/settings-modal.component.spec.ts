@@ -23,6 +23,33 @@ describe('SettingsModalComponent', () => {
     return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
   }
 
+  function getElement<T extends Element>(selector: string): T {
+    const element = fixture.nativeElement.querySelector(selector) as T | null;
+
+    expect(element).not.toBeNull();
+
+    return element as T;
+  }
+
+  function getButtonByText(text: string): HTMLButtonElement {
+    const buttons = fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>;
+    const button = Array.from(buttons)
+      .find(candidate => candidate.textContent?.trim() === text);
+
+    expect(button).toBeDefined();
+
+    return button as HTMLButtonElement;
+  }
+
+  function setInputValue(selector: string, value: string): HTMLInputElement {
+    const input = getElement<HTMLInputElement>(selector);
+
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    return input;
+  }
+
   beforeEach(async () => {
     listNavigation = new MockListNavigationService();
     state = new MockStreamStateService();
@@ -62,7 +89,7 @@ describe('SettingsModalComponent', () => {
     opener.remove();
   });
 
-  it('renders suggestion chips, lists, correct stream count labels and quality options', async () => {
+  it('renders lists, correct stream count labels and quality options', async () => {
     state.menuOpen.set(true);
     state.setLists([
       { id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] },
@@ -78,7 +105,6 @@ describe('SettingsModalComponent', () => {
     state.setActiveListId(1);
     state.quality.set('chunked');
     state.favoriteChannels.set(['gronkh']);
-    state.recentChannels.set(['papaplatte']);
     state.statistics = [
       { name: 'gronkh', value: 3 },
       { name: 'papaplatte', value: 2 },
@@ -91,11 +117,7 @@ describe('SettingsModalComponent', () => {
     const qualityButtons = fixture.nativeElement.querySelectorAll('.quality-btn') as NodeListOf<HTMLElement>;
     const qualityLabels = Array.from(qualityButtons, element => element.textContent?.trim());
     const listNames = Array.from(fixture.nativeElement.querySelectorAll('.list-item__name'), (element: Element) => element.textContent?.trim());
-    const suggestionChips = Array.from(fixture.nativeElement.querySelectorAll('.suggestion-chip'), (element: Element) => element.textContent?.trim());
-    const datalist = fixture.nativeElement.querySelector('#history-datalist') as HTMLDataListElement | null;
 
-    expect(suggestionChips).toEqual(['gronkh', 'papaplatte']);
-    expect(datalist).toBeNull();
     expect(countLabel).toBe('2 Listen');
     expect(checkedRadio).not.toBeNull();
     expect(qualityLabels).toContain('Auto');
@@ -162,14 +184,15 @@ describe('SettingsModalComponent', () => {
     state.addStream.mockReturnValue({ ok: true, name: 'shroud' });
     await syncComponent();
 
-    getComponentMember<{ setValue(value: string): void; value: string }>(component, '_channelNameControl').setValue('Shroud');
-    fixture.nativeElement.querySelector('[aria-label="Kanal hinzufügen"]')?.click();
+    const input = setInputValue('#stream-input', 'Shroud');
+
+    getElement<HTMLButtonElement>('[aria-label="Kanal hinzufügen"]').click();
     await syncComponent();
 
     expect(state.addStream).toHaveBeenCalledWith('Shroud');
-    expect(getComponentMember<{ value: string }>(component, '_channelNameControl').value).toBe('');
+    expect(input.value).toBe('');
     expect(toast.show).toHaveBeenCalledWith('shroud hinzugefügt.');
-    expect(document.activeElement).toBe(fixture.nativeElement.querySelector('#stream-input'));
+    expect(document.activeElement).toBe(input);
   });
 
   it('adds a stream via enter on the input field', async () => {
@@ -234,14 +257,17 @@ describe('SettingsModalComponent', () => {
     expect(toast.show).toHaveBeenCalledWith('Esports angelegt.');
   });
 
-  it('renames the active list via enter on the rename input', async () => {
+  it('renames a list inline via enter on the rename input', async () => {
     state.menuOpen.set(true);
     state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
     state.setActiveListId(1);
     state.renameList.mockReturnValue({ ok: true, list: { id: 1, name: 'Main', streams: [] } });
     await syncComponent();
 
-    const input = fixture.nativeElement.querySelector('#rename-list-input') as HTMLInputElement;
+    getComponentMethod<(list: StreamList) => void>(component, '_startRenameList')({ id: 1, name: 'Liste 1', streams: [] });
+    await syncComponent();
+
+    const input = fixture.nativeElement.querySelector('.list-item__rename-input') as HTMLInputElement;
 
     input.value = 'Main';
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -250,7 +276,65 @@ describe('SettingsModalComponent', () => {
 
     expect(state.renameList).toHaveBeenCalledWith(1, 'Main');
     expect(toast.show).toHaveBeenCalledWith('Main gespeichert.');
-    expect(document.activeElement).toBe(input);
+    expect(getComponentMember<() => number | null>(component, '_editingListId')()).toBeNull();
+  });
+
+  it('starts inline rename via dblclick and cancels with escape', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
+    state.setActiveListId(1);
+    await syncComponent();
+
+    const selectButton = fixture.nativeElement.querySelector('.list-item__select') as HTMLButtonElement;
+    selectButton.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    await syncComponent();
+
+    const renameInput = fixture.nativeElement.querySelector('.list-item__rename-input') as HTMLInputElement;
+    expect(renameInput).not.toBeNull();
+    expect(renameInput.value).toBe('Liste 1');
+
+    renameInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await syncComponent();
+
+    expect(getComponentMember<() => number | null>(component, '_editingListId')()).toBeNull();
+    expect(fixture.nativeElement.querySelector('.list-item__rename-input')).toBeNull();
+  });
+
+  it('starts inline rename via the edit button and confirms with OK', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
+    state.setActiveListId(1);
+    state.renameList.mockReturnValue({ ok: true, list: { id: 1, name: 'Neuer Name', streams: [] } });
+    await syncComponent();
+
+    const editButton = fixture.nativeElement.querySelector('[aria-label="Liste 1 umbenennen"]') as HTMLButtonElement;
+    editButton.click();
+    await syncComponent();
+
+    const renameInput = fixture.nativeElement.querySelector('.list-item__rename-input') as HTMLInputElement;
+    renameInput.value = 'Neuer Name';
+    renameInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const okButton = fixture.nativeElement.querySelector('[aria-label="Listenname speichern"]') as HTMLButtonElement;
+    okButton.click();
+    await syncComponent();
+
+    expect(state.renameList).toHaveBeenCalledWith(1, 'Neuer Name');
+    expect(toast.show).toHaveBeenCalledWith('Neuer Name gespeichert.');
+  });
+
+  it('hides the edit button while inline rename is active', async () => {
+    state.menuOpen.set(true);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
+    state.setActiveListId(1);
+    await syncComponent();
+
+    expect(fixture.nativeElement.querySelector('[aria-label="Liste 1 umbenennen"]')).not.toBeNull();
+
+    getComponentMethod<(list: StreamList) => void>(component, '_startRenameList')({ id: 1, name: 'Liste 1', streams: [] });
+    await syncComponent();
+
+    expect(fixture.nativeElement.querySelector('[aria-label="Liste 1 umbenennen"]')).toBeNull();
   });
 
   it('keeps focus trapped inside the dialog on tab from the last element', async () => {
@@ -383,7 +467,7 @@ describe('SettingsModalComponent', () => {
     expect(toast.show).toHaveBeenNthCalledWith(2, 'shroud ist bereits aktiv.', 'error');
   });
 
-  it('ignores empty add results without showing a toast', async () => {
+  it('shows an error toast for empty channel names and refocuses the input', async () => {
     state.menuOpen.set(true);
     state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
     state.setActiveListId(1);
@@ -432,42 +516,33 @@ describe('SettingsModalComponent', () => {
     expect(selectSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('requires an active list before renaming and selecting a list navigates directly', async () => {
+  it('selecting a list navigates directly', async () => {
     state.menuOpen.set(true);
     await syncComponent();
 
-    const listInput = fixture.nativeElement.querySelector('#list-input') as HTMLInputElement;
-
-    getComponentMethod<() => void>(component, '_renameActiveList')();
-    await Promise.resolve();
     getComponentMethod<(listId: number) => void>(component, '_selectList')(5);
 
-    expect(toast.show).toHaveBeenCalledWith('Wähle zuerst eine Liste aus.', 'error');
-    expect(document.activeElement).toBe(listInput);
     expect(listNavigation.navigateToList).toHaveBeenCalledWith(5);
   });
 
-  it('shows duplicate and empty errors when renaming the active list fails', async () => {
+  it('shows duplicate and empty errors when renaming a list inline fails', async () => {
     state.menuOpen.set(true);
     state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
     state.setActiveListId(1);
     await syncComponent();
 
-    const input = fixture.nativeElement.querySelector('#rename-list-input') as HTMLInputElement;
-    const selectSpy = vi.spyOn(input, 'select');
+    getComponentMethod<(list: StreamList) => void>(component, '_startRenameList')({ id: 1, name: 'Liste 1', streams: [] });
+    await syncComponent();
 
     state.renameList.mockReturnValueOnce({ ok: false, reason: 'duplicate' });
-    getComponentMethod<() => void>(component, '_renameActiveList')();
-    await Promise.resolve();
+    getComponentMethod<(listId: number) => void>(component, '_confirmRenameList')(1);
 
     state.renameList.mockReturnValueOnce({ ok: false, reason: 'empty' });
-    getComponentMethod<() => void>(component, '_renameActiveList')();
-    await Promise.resolve();
+    getComponentMethod<(listId: number) => void>(component, '_confirmRenameList')(1);
 
     expect(toast.show).toHaveBeenNthCalledWith(1, 'Eine Liste mit diesem Namen gibt es bereits.', 'error');
     expect(toast.show).toHaveBeenNthCalledWith(2, 'Der Listenname darf nicht leer sein.', 'error');
-    expect(document.activeElement).toBe(input);
-    expect(selectSpy).toHaveBeenCalledTimes(2);
+    expect(getComponentMember<() => number | null>(component, '_editingListId')()).toBe(1);
   });
 
   it('returns without navigation when a list deletion did not remove anything', () => {
@@ -518,6 +593,7 @@ describe('SettingsModalComponent', () => {
 
     expect(toast.show).toHaveBeenCalledWith('shroud entfernt.', 'info');
     expect(state.setQuality).toHaveBeenCalledWith('720p60');
+    expect(state.closeMenu).toHaveBeenCalledTimes(1);
     expect(state.setStreamShowChat).toHaveBeenCalledTimes(1);
     expect(state.setStreamShowChat).toHaveBeenCalledWith(0, true);
   });
@@ -548,6 +624,7 @@ describe('SettingsModalComponent', () => {
 
     expect(state.removeStream).toHaveBeenCalledWith(0);
     expect(state.setQuality).toHaveBeenCalledWith('720p60');
+    expect(state.closeMenu).toHaveBeenCalledTimes(1);
     expect(state.setStreamShowChat).toHaveBeenCalledWith(0, true);
     expect(toast.show).toHaveBeenCalledWith('shroud entfernt.', 'info');
   });
@@ -569,17 +646,15 @@ describe('SettingsModalComponent', () => {
     expect(getComponentMethod<(index: number, direction: -1 | 1) => boolean>(component, '_canMoveStream')(1, 1)).toBe(false);
   });
 
-  it('applies suggestions, toggles favorites, changes layout and delegates drag-and-drop reordering', async () => {
+  it('toggles favorites, changes layout and delegates drag-and-drop reordering', async () => {
     state.menuOpen.set(true);
     state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('gronkh')] }]);
     state.setActiveListId(1);
     state.favoriteChannels.set(['papaplatte']);
-    state.recentChannels.set(['bonjwa']);
     state.toggleFavoriteChannel.mockReturnValue(true);
     await syncComponent();
 
-    const suggestionButton = fixture.nativeElement.querySelector('.suggestion-chip') as HTMLButtonElement;
-    const favoriteButton = fixture.nativeElement.querySelector('[aria-label="shroud als Favorit speichern"]') as HTMLButtonElement;
+    const favoriteButton = getElement<HTMLButtonElement>('[aria-label="shroud als Favorit speichern"]');
     const layoutRadios = fixture.nativeElement.querySelectorAll('input[name="stream-layout"]') as NodeListOf<HTMLInputElement>;
     const dragEvent = new Event('dragstart') as DragEvent;
     const dropEvent = new Event('drop', { bubbles: true, cancelable: true }) as DragEvent;
@@ -592,30 +667,60 @@ describe('SettingsModalComponent', () => {
     });
     vi.spyOn(dropEvent, 'preventDefault');
 
-    suggestionButton.click();
     favoriteButton.click();
     layoutRadios[2].checked = true;
     layoutRadios[2].dispatchEvent(new Event('change', { bubbles: true }));
     getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
     getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDrop')(1, dropEvent);
 
-    expect(getComponentMember<{ value: string }>(component, '_channelNameControl').value).toBe('papaplatte');
     expect(state.toggleFavoriteChannel).toHaveBeenCalledWith('shroud');
     expect(state.setLayoutPreset).toHaveBeenCalledWith('stage');
     expect(state.reorderStreams).toHaveBeenCalledWith(0, 1);
   });
 
-  it('creates a list, navigates via the router service and shows a toast', async () => {
+  it('wires quick actions through the UI and shows feedback', async () => {
     state.menuOpen.set(true);
-    state.createList.mockReturnValue({ ok: true, list: { id: 4, name: 'Esports', streams: [] } });
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud', true)] }]);
+    state.setActiveListId(1);
+    state.favoriteChannels.set(['papaplatte']);
+    state.disableChatsForActiveList.mockReturnValue(1);
     await syncComponent();
 
-    getComponentMember<{ setValue(value: string): void }>(component, '_newListNameControl').setValue('Esports');
-    getComponentMethod<() => void>(component, '_createList')();
+    getButtonByText('Alle Chats aus').click();
+    getButtonByText('Alle Streams stummschalten').click();
 
-    expect(state.createList).toHaveBeenCalledWith('Esports');
-    expect(listNavigation.navigateToList).toHaveBeenCalledWith(4);
-    expect(toast.show).toHaveBeenCalledWith('Esports angelegt.');
+    expect(state.disableChatsForActiveList).toHaveBeenCalledTimes(1);
+    expect(state.setMuteAllStreams).toHaveBeenCalledWith(true);
+    expect(state.closeMenu).toHaveBeenCalledTimes(1);
+    expect(toast.show).toHaveBeenCalledWith('Chat für 1 Stream deaktiviert.', 'info');
+    expect(toast.show).toHaveBeenCalledWith('Alle Streams stummgeschaltet.', 'info');
+  });
+
+  it('covers quick-action edge cases when nothing changes or no list is active', async () => {
+    state.menuOpen.set(true);
+    await syncComponent();
+
+    getComponentMethod<() => void>(component, '_disableAllChats')();
+    getComponentMethod<() => void>(component, '_toggleMuteAllStreams')();
+
+    expect(toast.show).toHaveBeenNthCalledWith(1, 'Wähle zuerst eine Liste aus.', 'error');
+    expect(toast.show).toHaveBeenNthCalledWith(2, 'Wähle zuerst eine Liste aus.', 'error');
+
+    toast.show.mockClear();
+    state.closeMenu.mockClear();
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud')] }]);
+    state.setActiveListId(1);
+    state.disableChatsForActiveList.mockReturnValue(0);
+    state.muteAllStreams.set(true);
+    await syncComponent();
+
+    getComponentMethod<() => void>(component, '_disableAllChats')();
+    getComponentMethod<() => void>(component, '_toggleMuteAllStreams')();
+
+    expect(state.setMuteAllStreams).toHaveBeenCalledWith(false);
+    expect(state.closeMenu).toHaveBeenCalledTimes(1);
+    expect(toast.show).toHaveBeenNthCalledWith(1, 'Alle Chats sind bereits deaktiviert.', 'info');
+    expect(toast.show).toHaveBeenNthCalledWith(2, 'Standard-Audio wiederhergestellt.', 'info');
   });
 
   it('renames and deletes lists through the state service', async () => {
@@ -629,8 +734,9 @@ describe('SettingsModalComponent', () => {
     state.deleteList.mockReturnValue({ id: 1, name: 'Main', streams: [channel('shroud')] });
     await syncComponent();
 
-    getComponentMember<{ setValue(value: string): void }>(component, '_activeListNameControl').setValue('Main');
-    getComponentMethod<() => void>(component, '_renameActiveList')();
+    getComponentMethod<(list: StreamList) => void>(component, '_startRenameList')({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    getComponentMember<{ setValue(value: string): void }>(component, '_renameListControl').setValue('Main');
+    getComponentMethod<(listId: number) => void>(component, '_confirmRenameList')(1);
     getComponentMethod<(list: StreamList) => void>(component, '_deleteList')({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
 
     expect(state.renameList).toHaveBeenCalledWith(1, 'Main');
@@ -775,50 +881,27 @@ describe('SettingsModalComponent', () => {
     expect(getComponentMember<() => number | null>(component, '_draggedStreamIndex')()).toBe(0);
   });
 
-  it('traps focus within the modal on Tab key', async () => {
+  it('sets drag image from the closest stream-item element during drag start', async () => {
     state.menuOpen.set(true);
-    state.setLists([]);
+    state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('gronkh')] }]);
+    state.setActiveListId(1);
     await syncComponent();
 
-    const modalPanel = fixture.nativeElement.querySelector('.modal');
+    const streamItem = fixture.nativeElement.querySelector('.stream-item') as HTMLElement;
+    const dragHandle = streamItem.querySelector('.stream-item__drag-handle') as HTMLElement;
+    const dragEvent = new Event('dragstart', { bubbles: true }) as DragEvent;
+    const setDragImage = vi.fn();
 
-    if (modalPanel) {
-      const focusableElements = modalPanel.querySelectorAll('button, input, [tabindex]:not([tabindex="-1"])') as NodeListOf<HTMLElement>;
-      const lastElement = focusableElements[focusableElements.length - 1];
+    Object.defineProperty(dragEvent, 'dataTransfer', {
+      value: { effectAllowed: '', setData: vi.fn(), setDragImage },
+    });
+    Object.defineProperty(dragEvent, 'target', { value: dragHandle });
+    Object.defineProperty(dragEvent, 'clientX', { value: 100 });
+    Object.defineProperty(dragEvent, 'clientY', { value: 50 });
 
-      if (lastElement) {
-        lastElement.focus();
-        const tabEvent = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true });
-        const preventSpy = vi.spyOn(tabEvent, 'preventDefault');
+    getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
 
-        getComponentMethod<(event: KeyboardEvent) => void>(component, '_onDialogKeydown')(tabEvent);
-
-        expect(preventSpy).toHaveBeenCalled();
-      }
-    }
-  });
-
-  it('traps focus backward within the modal on Shift+Tab', async () => {
-    state.menuOpen.set(true);
-    state.setLists([]);
-    await syncComponent();
-
-    const modalPanel = fixture.nativeElement.querySelector('.modal');
-
-    if (modalPanel) {
-      const focusableElements = modalPanel.querySelectorAll('button, input, [tabindex]:not([tabindex="-1"])') as NodeListOf<HTMLElement>;
-      const firstElement = focusableElements[0];
-
-      if (firstElement) {
-        firstElement.focus();
-        const tabEvent = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true });
-        const preventSpy = vi.spyOn(tabEvent, 'preventDefault');
-
-        getComponentMethod<(event: KeyboardEvent) => void>(component, '_onDialogKeydown')(tabEvent);
-
-        expect(preventSpy).toHaveBeenCalled();
-      }
-    }
+    expect(setDragImage).toHaveBeenCalledTimes(1);
   });
 
   function channel(name: string, showChat = false): StreamChannel {
@@ -846,6 +929,7 @@ class MockStreamStateService {
   public readonly streams = computed(() => this.activeList()?.streams ?? []);
   public readonly quality = signal<StreamQuality>('auto');
   public readonly layoutPreset = signal<StreamLayoutPreset>('auto');
+  public readonly muteAllStreams = signal(false);
   public readonly availableQualities = signal<StreamQualityOption[]>([
     { value: 'auto', label: 'Auto' },
     { value: 'chunked', label: 'Quelle' },
@@ -866,8 +950,15 @@ class MockStreamStateService {
   public readonly removeStream = vi.fn<(index: number) => string | null>(() => null);
   public readonly reorderStreams = vi.fn();
   public readonly renameList = vi.fn<(listId: number, rawName: string) => { ok: boolean; reason?: string; list?: StreamList }>();
+  public readonly disableChatsForActiveList = vi.fn(() => 0);
+  public readonly addFavoriteChannelsToActiveList = vi.fn<() => { ok: boolean; reason?: 'no-list'; added: string[] }>(
+    () => ({ ok: true, added: [] }),
+  );
   public readonly setLayoutPreset = vi.fn((value: StreamLayoutPreset) => {
     this.layoutPreset.set(value);
+  });
+  public readonly setMuteAllStreams = vi.fn((value: boolean) => {
+    this.muteAllStreams.set(value);
   });
   public readonly setQuality = vi.fn((value: StreamQuality) => {
     this.quality.set(value);
