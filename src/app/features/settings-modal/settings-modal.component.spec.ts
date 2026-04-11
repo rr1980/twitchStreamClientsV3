@@ -546,6 +546,7 @@ describe('SettingsModalComponent', () => {
 
     expect(toast.show).toHaveBeenCalledWith('shroud entfernt.', 'info');
     expect(state.setQuality).toHaveBeenCalledWith('720p60');
+    expect(state.closeMenu).toHaveBeenCalledTimes(1);
     expect(state.setStreamShowChat).toHaveBeenCalledTimes(1);
     expect(state.setStreamShowChat).toHaveBeenCalledWith(0, true);
   });
@@ -576,6 +577,7 @@ describe('SettingsModalComponent', () => {
 
     expect(state.removeStream).toHaveBeenCalledWith(0);
     expect(state.setQuality).toHaveBeenCalledWith('720p60');
+    expect(state.closeMenu).toHaveBeenCalledTimes(1);
     expect(state.setStreamShowChat).toHaveBeenCalledWith(0, true);
     expect(toast.show).toHaveBeenCalledWith('shroud entfernt.', 'info');
   });

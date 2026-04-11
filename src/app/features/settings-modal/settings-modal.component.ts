@@ -313,6 +313,7 @@ export class SettingsModalComponent {
 
   protected _setQuality(value: StreamQuality): void {
     this._state.setQuality(value);
+    this._close();
   }
 
   protected _setLayoutPreset(value: StreamLayoutPreset): void {

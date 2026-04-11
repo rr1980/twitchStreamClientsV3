@@ -82,6 +82,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   private _syncRunId = 0;
   private _loadScriptErrorVisible = false;
   private _lastMuteAllStreams: boolean | null = null;
+  private _lastQuality: StreamQuality | null = null;
 
   private readonly _grid = computed(() => calculateStreamGridLayout(
     this._displayedStreams(),
@@ -185,6 +186,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
     if (streams.length === 0) {
       this._lastMuteAllStreams = null;
+      this._lastQuality = null;
       this._removeStaleEmbeds(activeChannels);
       return;
     }
@@ -193,12 +195,16 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     const shouldForceMuteSync = !shouldDeferEmbedSync
       && this._lastMuteAllStreams !== null
       && this._lastMuteAllStreams !== muteAllStreams;
+    const shouldForceQualitySync = !shouldDeferEmbedSync
+      && this._lastQuality !== null
+      && this._lastQuality !== quality;
     const pendingEmbedSyncs: PendingEmbedSync[] = [];
 
     this._removeStaleEmbeds(activeChannels);
 
     if (!shouldDeferEmbedSync) {
       this._lastMuteAllStreams = muteAllStreams;
+      this._lastQuality = quality;
     }
 
     streams.forEach((stream, index) => {
@@ -226,6 +232,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
         if (this._canReuseEmbed(currentState, nextState)) {
           if (!shouldDeferEmbedSync) {
             this._syncMutedState(currentState, nextState, shouldForceMuteSync);
+            this._syncQualityState(currentState, nextState, shouldForceQualitySync);
           }
 
           return;
@@ -282,6 +289,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
       if (currentState) {
         if (this._canReuseEmbed(currentState, nextState)) {
           this._syncMutedState(currentState, nextState, shouldForceMuteSync);
+          this._syncQualityState(currentState, nextState, shouldForceQualitySync);
           return;
         }
 
@@ -331,6 +339,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     if (removedEmbed || activeChannels.size === 0) {
       if (activeChannels.size === 0) {
         this._lastMuteAllStreams = null;
+        this._lastQuality = null;
       }
 
       this._syncAvailableQualities();
@@ -383,7 +392,6 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
   private _canReuseEmbed(currentState: RenderedEmbedState, nextState: RenderedEmbedSnapshot): boolean {
     return currentState.elementId === nextState.elementId
-      && currentState.quality === nextState.quality
       && currentState.showChat === nextState.showChat;
   }
 
@@ -398,6 +406,19 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
 
     currentState.muted = nextState.muted;
     currentState.handle.setMuted(nextState.muted);
+  }
+
+  private _syncQualityState(
+    currentState: RenderedEmbedState,
+    nextState: RenderedEmbedSnapshot,
+    force: boolean,
+  ): void {
+    if (!force && currentState.quality === nextState.quality) {
+      return;
+    }
+
+    currentState.quality = nextState.quality;
+    currentState.handle.setQuality(nextState.quality);
   }
 
   private _shouldDeferEmbedSync(host: HTMLElement): boolean {

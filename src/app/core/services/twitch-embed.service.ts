@@ -63,6 +63,7 @@ interface TwitchEmbedInstance {
 export interface TwitchEmbedHandle {
   destroy(): void;
   setMuted(value: boolean): void;
+  setQuality(value: StreamQuality): void;
 }
 
 interface CreateEmbedOptions {
@@ -522,6 +523,7 @@ export class TwitchEmbedService {
     let requestedMuted = initialMuted;
     let restoredVolume = 0.5;
     let muteSyncRunId = 0;
+    let qualitySyncRunId = 0;
 
     const syncRequestedMutedState = (): void => {
       if (!player || destroyed) {
@@ -560,6 +562,21 @@ export class TwitchEmbedService {
         shouldDelayInitialUnmute = false;
         requestedMuted = value;
         syncRequestedMutedState();
+      },
+      setQuality: (value: StreamQuality) => {
+        if (!player || destroyed) {
+          return;
+        }
+
+        const currentPlayer = player;
+        const syncRunId = ++qualitySyncRunId;
+
+        void this._syncRequestedQuality(
+          currentPlayer,
+          '',
+          value,
+          () => destroyed || player !== currentPlayer || syncRunId !== qualitySyncRunId,
+        );
       },
       setPlaybackStarted: () => {
         if (destroyed || hasPlaybackStarted) {

@@ -369,7 +369,7 @@ describe('StreamGridComponent', () => {
     expect(secondHandle?.setMuted).toHaveBeenCalledWith(true);
   });
 
-  it('defers recreating changed embeds and mute changes while the menu is open', async () => {
+  it('defers quality and mute changes while the menu is open and applies them after closing', async () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
     await syncComponent();
 
@@ -379,6 +379,7 @@ describe('StreamGridComponent', () => {
     twitch.createEmbed.mockClear();
     handle?.destroy.mockClear();
     handle?.setMuted.mockClear();
+    handle?.setQuality.mockClear();
 
     state.menuOpen.set(true);
     state.quality.set('720p60');
@@ -389,16 +390,15 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).not.toHaveBeenCalled();
     expect(handle?.destroy).not.toHaveBeenCalled();
     expect(handle?.setMuted).not.toHaveBeenCalled();
+    expect(handle?.setQuality).not.toHaveBeenCalled();
 
     state.menuOpen.set(false);
     await syncComponent();
 
-    expect(handle?.destroy).toHaveBeenCalledTimes(1);
-    expect(twitch.createEmbed).toHaveBeenCalledWith(expect.objectContaining({
-      elementId: 'twitch-embed-shroud',
-      quality: '720p60',
-      muted: true,
-    }));
+    expect(handle?.destroy).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(handle?.setMuted).toHaveBeenCalledWith(true);
+    expect(handle?.setQuality).toHaveBeenCalledWith('720p60');
   });
 
   it('publishes Twitch quality options from active embeds and clears them when no streams remain', async () => {
@@ -583,15 +583,15 @@ describe('StreamGridComponent', () => {
     expect(handle.destroy).not.toHaveBeenCalled();
   });
 
-  it('recreates embeds when quality or chat layout changes', async () => {
+  it('recreates embeds when chat layout changes and syncs quality without recreation', async () => {
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
     await syncComponent();
 
     const initialHandle = twitch.handles.get('twitch-embed-shroud');
     initialHandle?.destroy.mockClear();
+    initialHandle?.setQuality.mockClear();
     twitch.createEmbed.mockClear();
 
-    state.quality.set('720p60');
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud', true)] });
     await syncComponent();
 
@@ -599,10 +599,22 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).toHaveBeenCalledWith(expect.objectContaining({
       elementId: 'twitch-embed-shroud',
       channel: 'shroud',
-      quality: '720p60',
+      quality: 'auto',
       showChat: true,
       muted: false,
     }));
+
+    const newHandle = twitch.handles.get('twitch-embed-shroud');
+    newHandle?.destroy.mockClear();
+    newHandle?.setQuality.mockClear();
+    twitch.createEmbed.mockClear();
+
+    state.quality.set('720p60');
+    await syncComponent();
+
+    expect(newHandle?.destroy).not.toHaveBeenCalled();
+    expect(twitch.createEmbed).not.toHaveBeenCalled();
+    expect(newHandle?.setQuality).toHaveBeenCalledWith('720p60');
   });
 
   it('stops creating further embeds when the run becomes stale during iteration', async () => {
@@ -621,7 +633,7 @@ describe('StreamGridComponent', () => {
     twitch.handles.get('twitch-embed-shroud')?.destroy.mockClear();
     twitch.handles.get('twitch-embed-rocketbeanstv')?.destroy.mockClear();
 
-    state.quality.set('720p60');
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud', true), channel('rocketbeanstv', true)] });
     setPrivateNumber(component, '_syncRunId', nextRunId);
     await expect(getPrivateMethod<(runId: number) => Promise<void>>(component, '_syncEmbeds')(nextRunId)).resolves.toBeUndefined();
 
@@ -845,6 +857,7 @@ class MockTwitchEmbedService {
 class MockTwitchEmbedHandle implements TwitchEmbedHandle {
   public readonly destroy = vi.fn();
   public readonly setMuted = vi.fn();
+  public readonly setQuality = vi.fn();
 }
 
 class MockToastService {
