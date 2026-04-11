@@ -520,20 +520,16 @@ describe('StreamGridComponent', () => {
     expect(twitch.createEmbed).toHaveBeenCalledTimes(1);
   });
 
-  it('renders featured placements and toggles the focused channel through the overlay action', async () => {
+  it('renders featured placements without player overlays', async () => {
     state.layoutPreset.set('stage');
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv'), channel('gronkh')] });
     await syncComponent();
 
     const wrappers = fixture.nativeElement.querySelectorAll('.twitch-embed-wrapper') as NodeListOf<HTMLElement>;
-    const focusButton = fixture.nativeElement.querySelector('[aria-label="shroud fokussieren"]') as HTMLButtonElement;
 
     expect(wrappers[0].style.gridColumn).toBe('span 2');
     expect(wrappers[0].style.gridRow).toBe('span 2');
-
-    focusButton.click();
-
-    expect(state.setFocusedChannel).toHaveBeenCalledWith('shroud');
+    expect(fixture.nativeElement.querySelector('.stream-overlay')).toBeNull();
   });
 
   it('updates the viewport signals on resize', () => {
