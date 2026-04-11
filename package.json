@@ -37,6 +37,7 @@
     "http-server": "^14.1.1",
     "jsdom": "^29.0.2",
     "prettier": "^3.8.1",
+    "ts-unused-exports": "^11.0.1",
     "typescript": "~6.0.2",
     "typescript-eslint": "8.58.1",
     "vitest": "^4.1.4"
