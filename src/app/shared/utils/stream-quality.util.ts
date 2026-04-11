@@ -11,7 +11,7 @@ export function normalizeStreamQuality(value: unknown): StreamQuality {
   return isSupportedStreamQuality(storedQuality) ? storedQuality : 'auto';
 }
 
-export function isSupportedStreamQuality(value: string): boolean {
+function isSupportedStreamQuality(value: string): boolean {
   return value === 'auto'
     || value === 'chunked'
     || value === 'audio_only'

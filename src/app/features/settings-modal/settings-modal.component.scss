@@ -245,7 +245,6 @@
 .quality-btn:focus-visible,
 .quick-action-btn:focus-visible,
 .apply-btn:focus-visible,
-.danger-btn:focus-visible,
 .stream-item__icon-btn:focus-visible,
 .list-item__select:focus-visible,
 .toggle-row input:focus-visible {
@@ -257,7 +256,6 @@
 .icon-btn,
 .quality-btn,
 .apply-btn,
-.danger-btn,
 .list-item__select {
   border: 0;
   border-radius: 12px;
@@ -668,22 +666,6 @@
   .list-item {
     grid-template-columns: minmax(0, 1fr) auto;
   }
-}
-
-.danger-btn {
-  padding: 10px 12px;
-  background: rgba(239, 68, 68, 0.12);
-  color: #f87171;
-}
-
-.danger-btn--compact {
-  padding: 8px 10px;
-  min-width: 78px;
-  font-size: 0.84rem;
-}
-
-.danger-btn:hover {
-  background: rgba(239, 68, 68, 0.22);
 }
 
 .quality-grid {
