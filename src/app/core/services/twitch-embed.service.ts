@@ -283,6 +283,7 @@ export class TwitchEmbedService {
 
         if (!requestedQuality) {
           if (availableQualities.length > 0) {
+            player.setQuality('auto');
             return;
           }
 
@@ -376,11 +377,57 @@ export class TwitchEmbedService {
 
     const familyMatches = availableQualities.filter(quality => this._extractQualityFamily(quality) === qualityFamily);
 
-    if (familyMatches.length === 0) {
+    if (familyMatches.length > 0) {
+      return this._rankQualityMatches(requestedQuality, qualityFamily, familyMatches)[0] ?? null;
+    }
+
+    return this._findNearestResolution(requestedQuality, availableQualities);
+  }
+
+  private _findNearestResolution(requestedQuality: string, availableQualities: string[]): string | null {
+    const requestedMatch = requestedQuality.match(/^(\d+)p/);
+
+    if (!requestedMatch) {
       return null;
     }
 
-    return this._rankQualityMatches(requestedQuality, qualityFamily, familyMatches)[0] ?? null;
+    const requestedResolution = Number(requestedMatch[1]);
+    const requestedFrameRates = this._extractQualityFrameRates(requestedQuality);
+    const requestedFrameRate = requestedFrameRates[0] ?? 0;
+    let bestMatch: string | null = null;
+    let bestDistance = Infinity;
+    let bestResolution = -1;
+    let bestFrameRate = -1;
+
+    for (const quality of availableQualities) {
+      if (quality === 'chunked' || quality === 'audio_only') {
+        continue;
+      }
+
+      const resolutionMatch = quality.match(/^(\d+)p/);
+
+      if (!resolutionMatch) {
+        continue;
+      }
+
+      const resolution = Number(resolutionMatch[1]);
+      const distance = Math.abs(resolution - requestedResolution);
+      const candidateFrameRate = this._extractQualityFrameRates(quality)[0] ?? 0;
+
+      if (
+        distance < bestDistance
+        || (distance === bestDistance && resolution > bestResolution)
+        || (distance === bestDistance && resolution === bestResolution
+          && Math.abs(candidateFrameRate - requestedFrameRate) < Math.abs(bestFrameRate - requestedFrameRate))
+      ) {
+        bestDistance = distance;
+        bestMatch = quality;
+        bestResolution = resolution;
+        bestFrameRate = candidateFrameRate;
+      }
+    }
+
+    return bestMatch;
   }
 
   private _extractQualityFamily(value: string): string | null {

@@ -842,7 +842,7 @@ describe('TwitchEmbedService', () => {
     expect(player.setQuality).toHaveBeenCalledWith('480p30');
   });
 
-  it('skips quality changes for auto mode and unsupported quality values', async () => {
+  it('explicitly sets quality to auto for auto mode and unsupported quality values', async () => {
     const player = {
       getQualities: vi.fn(() => ['chunked']),
       getQuality: vi.fn(() => 'auto'),
@@ -870,7 +870,9 @@ describe('TwitchEmbedService', () => {
     readyCallback?.();
     await Promise.resolve();
 
-    expect(player.setQuality).not.toHaveBeenCalled();
+    expect(player.setQuality).toHaveBeenCalledTimes(2);
+    expect(player.setQuality).toHaveBeenNthCalledWith(1, 'auto');
+    expect(player.setQuality).toHaveBeenNthCalledWith(2, 'auto');
   });
 
   it('keeps polling qualities in auto mode until Twitch reports them', async () => {
@@ -918,7 +920,7 @@ describe('TwitchEmbedService', () => {
       { value: 'chunked', label: 'Quelle' },
       { value: '1080p60', label: '1080p60' },
     ]);
-    expect(player.setQuality).not.toHaveBeenCalled();
+    expect(player.setQuality).toHaveBeenCalledWith('auto');
 
     rafSpy.mockRestore();
   });
@@ -1011,8 +1013,8 @@ describe('TwitchEmbedService', () => {
   it('warns when the requested quality never becomes available', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const player = {
-      getQualities: vi.fn(() => ['480p']),
-      getQuality: vi.fn(() => '480p'),
+      getQualities: vi.fn(() => ['audio_only']),
+      getQuality: vi.fn(() => 'auto'),
       setQuality: vi.fn(),
     };
     let readyCallback: (() => void) | undefined;
@@ -1050,7 +1052,7 @@ describe('TwitchEmbedService', () => {
 
     expect(warnSpy).toHaveBeenCalledWith(
       "[Twitch] Quality '720p60' für Channel 'missing-quality' nicht verfügbar.",
-      ['480p'],
+      ['audio_only'],
     );
 
     rafSpy.mockRestore();
@@ -1113,11 +1115,20 @@ describe('TwitchEmbedService', () => {
     }
   });
 
-  it('returns null when a requested quality has no family match', () => {
+  it('returns null when a requested quality has no family match and no resolution match', () => {
     const resolveRequestedQuality = getServiceMethod<(requestedQuality: string, availableQualities: string[]) => string | null>('_resolveRequestedQuality');
 
     expect(resolveRequestedQuality('audio_only', ['chunked', '480p'])).toBeNull();
-    expect(resolveRequestedQuality('720p60', ['480p', '360p'])).toBeNull();
+    expect(resolveRequestedQuality('720p60', ['audio_only'])).toBeNull();
+  });
+
+  it('falls back to the nearest available resolution when no family match exists', () => {
+    const resolveRequestedQuality = getServiceMethod<(requestedQuality: string, availableQualities: string[]) => string | null>('_resolveRequestedQuality');
+
+    expect(resolveRequestedQuality('160p', ['360p', '480p', '720p60'])).toBe('360p');
+    expect(resolveRequestedQuality('720p60', ['480p', '360p'])).toBe('480p');
+    expect(resolveRequestedQuality('1080p60', ['720p30', '720p60'])).toBe('720p60');
+    expect(resolveRequestedQuality('300p', ['240p', '360p'])).toBe('360p');
   });
 
   it('scores and ranks quality candidates by actual frame rate', () => {
