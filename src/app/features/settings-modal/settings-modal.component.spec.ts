@@ -89,7 +89,7 @@ describe('SettingsModalComponent', () => {
     opener.remove();
   });
 
-  it('renders suggestion chips, lists, correct stream count labels and quality options', async () => {
+  it('renders lists, correct stream count labels and quality options', async () => {
     state.menuOpen.set(true);
     state.setLists([
       { id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] },
@@ -105,7 +105,6 @@ describe('SettingsModalComponent', () => {
     state.setActiveListId(1);
     state.quality.set('chunked');
     state.favoriteChannels.set(['gronkh']);
-    state.recentChannels.set(['papaplatte']);
     state.statistics = [
       { name: 'gronkh', value: 3 },
       { name: 'papaplatte', value: 2 },
@@ -118,11 +117,7 @@ describe('SettingsModalComponent', () => {
     const qualityButtons = fixture.nativeElement.querySelectorAll('.quality-btn') as NodeListOf<HTMLElement>;
     const qualityLabels = Array.from(qualityButtons, element => element.textContent?.trim());
     const listNames = Array.from(fixture.nativeElement.querySelectorAll('.list-item__name'), (element: Element) => element.textContent?.trim());
-    const suggestionChips = Array.from(fixture.nativeElement.querySelectorAll('.suggestion-chip'), (element: Element) => element.textContent?.trim());
-    const datalist = fixture.nativeElement.querySelector('#history-datalist') as HTMLDataListElement | null;
 
-    expect(suggestionChips).toEqual(['gronkh', 'papaplatte']);
-    expect(datalist).toBeNull();
     expect(countLabel).toBe('2 Listen');
     expect(checkedRadio).not.toBeNull();
     expect(qualityLabels).toContain('Auto');
@@ -599,17 +594,14 @@ describe('SettingsModalComponent', () => {
     expect(getComponentMethod<(index: number, direction: -1 | 1) => boolean>(component, '_canMoveStream')(1, 1)).toBe(false);
   });
 
-  it('applies suggestions, toggles favorites, changes layout and delegates drag-and-drop reordering', async () => {
+  it('toggles favorites, changes layout and delegates drag-and-drop reordering', async () => {
     state.menuOpen.set(true);
     state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('gronkh')] }]);
     state.setActiveListId(1);
     state.favoriteChannels.set(['papaplatte']);
-    state.recentChannels.set(['bonjwa']);
     state.toggleFavoriteChannel.mockReturnValue(true);
     await syncComponent();
 
-    const streamInput = getElement<HTMLInputElement>('#stream-input');
-    const suggestionButton = getElement<HTMLButtonElement>('.suggestion-chip');
     const favoriteButton = getElement<HTMLButtonElement>('[aria-label="shroud als Favorit speichern"]');
     const layoutRadios = fixture.nativeElement.querySelectorAll('input[name="stream-layout"]') as NodeListOf<HTMLInputElement>;
     const dragEvent = new Event('dragstart') as DragEvent;
@@ -623,14 +615,12 @@ describe('SettingsModalComponent', () => {
     });
     vi.spyOn(dropEvent, 'preventDefault');
 
-    suggestionButton.click();
     favoriteButton.click();
     layoutRadios[2].checked = true;
     layoutRadios[2].dispatchEvent(new Event('change', { bubbles: true }));
     getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDragStart')(0, dragEvent);
     getComponentMethod<(index: number, event: DragEvent) => void>(component, '_onStreamDrop')(1, dropEvent);
 
-    expect(streamInput.value).toBe('papaplatte');
     expect(state.toggleFavoriteChannel).toHaveBeenCalledWith('shroud');
     expect(state.setLayoutPreset).toHaveBeenCalledWith('stage');
     expect(state.reorderStreams).toHaveBeenCalledWith(0, 1);
@@ -642,20 +632,16 @@ describe('SettingsModalComponent', () => {
     state.setActiveListId(1);
     state.favoriteChannels.set(['papaplatte']);
     state.disableChatsForActiveList.mockReturnValue(1);
-    state.addFavoriteChannelsToActiveList.mockReturnValue({ ok: true, added: ['papaplatte', 'gronkh'] });
     await syncComponent();
 
     getButtonByText('Alle Chats aus').click();
     getButtonByText('Alle Streams stummschalten').click();
-    getButtonByText('Favoriten zur Liste hinzufügen').click();
 
     expect(state.disableChatsForActiveList).toHaveBeenCalledTimes(1);
     expect(state.setMuteAllStreams).toHaveBeenCalledWith(true);
     expect(state.closeMenu).toHaveBeenCalledTimes(1);
-    expect(state.addFavoriteChannelsToActiveList).toHaveBeenCalledTimes(1);
     expect(toast.show).toHaveBeenCalledWith('Chat für 1 Stream deaktiviert.', 'info');
     expect(toast.show).toHaveBeenCalledWith('Alle Streams stummgeschaltet.', 'info');
-    expect(toast.show).toHaveBeenCalledWith('2 Favoriten hinzugefügt.', 'info');
   });
 
   it('covers quick-action edge cases when nothing changes or no list is active', async () => {
@@ -664,31 +650,25 @@ describe('SettingsModalComponent', () => {
 
     getComponentMethod<() => void>(component, '_disableAllChats')();
     getComponentMethod<() => void>(component, '_toggleMuteAllStreams')();
-    state.addFavoriteChannelsToActiveList.mockReturnValue({ ok: false, reason: 'no-list', added: [] });
-    getComponentMethod<() => void>(component, '_addFavoritesToActiveList')();
 
     expect(toast.show).toHaveBeenNthCalledWith(1, 'Wähle zuerst eine Liste aus.', 'error');
     expect(toast.show).toHaveBeenNthCalledWith(2, 'Wähle zuerst eine Liste aus.', 'error');
-    expect(toast.show).toHaveBeenNthCalledWith(3, 'Wähle zuerst eine Liste aus.', 'error');
 
     toast.show.mockClear();
     state.closeMenu.mockClear();
     state.setLists([{ id: 1, name: 'Liste 1', streams: [channel('shroud')] }]);
     state.setActiveListId(1);
     state.disableChatsForActiveList.mockReturnValue(0);
-    state.addFavoriteChannelsToActiveList.mockReturnValue({ ok: true, added: [] });
     state.muteAllStreams.set(true);
     await syncComponent();
 
     getComponentMethod<() => void>(component, '_disableAllChats')();
     getComponentMethod<() => void>(component, '_toggleMuteAllStreams')();
-    getComponentMethod<() => void>(component, '_addFavoritesToActiveList')();
 
     expect(state.setMuteAllStreams).toHaveBeenCalledWith(false);
     expect(state.closeMenu).toHaveBeenCalledTimes(1);
     expect(toast.show).toHaveBeenNthCalledWith(1, 'Alle Chats sind bereits deaktiviert.', 'info');
     expect(toast.show).toHaveBeenNthCalledWith(2, 'Standard-Audio wiederhergestellt.', 'info');
-    expect(toast.show).toHaveBeenNthCalledWith(3, 'Keine neuen Favoriten zum Hinzufügen.', 'info');
   });
 
   it('renames and deletes lists through the state service', async () => {

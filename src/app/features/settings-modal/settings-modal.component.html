@@ -127,31 +127,6 @@
                     <button type="button" class="primary-btn" [disabled]="!_hasActiveList()" aria-label="Kanal hinzufügen" (click)="_addStream()">+</button>
                   </div>
 
-                  @if (_favoriteSuggestions().length || _recentSuggestions().length) {
-                    <div class="suggestion-groups">
-                      @if (_favoriteSuggestions().length) {
-                        <div class="suggestion-group">
-                          <span class="suggestion-group__label">Favoriten</span>
-                          <div class="suggestion-chips">
-                            @for (channel of _favoriteSuggestions(); track channel) {
-                              <button type="button" class="suggestion-chip suggestion-chip--favorite" (click)="_applySuggestedChannel(channel)">{{ channel }}</button>
-                            }
-                          </div>
-                        </div>
-                      }
-
-                      @if (_recentSuggestions().length) {
-                        <div class="suggestion-group">
-                          <span class="suggestion-group__label">Zuletzt genutzt</span>
-                          <div class="suggestion-chips">
-                            @for (channel of _recentSuggestions(); track channel) {
-                              <button type="button" class="suggestion-chip" (click)="_applySuggestedChannel(channel)">{{ channel }}</button>
-                            }
-                          </div>
-                        </div>
-                      }
-                    </div>
-                  }
 
                 </div>
 
@@ -267,13 +242,7 @@
                 (click)="_toggleMuteAllStreams()">
                 {{ _audioQuickActionLabel() }}
               </button>
-              <button
-                type="button"
-                class="quick-action-btn"
-                [disabled]="!_hasActiveList() || !_canAddFavoritesToList()"
-                (click)="_addFavoritesToActiveList()">
-                Favoriten zur Liste hinzufügen
-              </button>
+
             </div>
           </div>
           <div class="option-block panel-card panel-card--compact panel-card--subtle" [class.panel-card--muted]="!_hasActiveList()">

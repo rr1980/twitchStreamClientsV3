@@ -57,22 +57,7 @@ export class SettingsModalComponent {
   protected readonly _hasStreams = computed(() => this._streams().length > 0);
   protected readonly _hasChatsEnabled = computed(() => this._streams().some(stream => stream.showChat));
   protected readonly _favoriteChannelSet = computed(() => new Set(this._favoriteChannels()));
-  protected readonly _favoriteSuggestions = computed(() => {
-    const activeChannels = new Set(this._streams().map(stream => stream.name));
 
-    return this._favoriteChannels()
-      .filter(channel => !activeChannels.has(channel))
-      .slice(0, 8);
-  });
-  protected readonly _recentSuggestions = computed(() => {
-    const activeChannels = new Set(this._streams().map(stream => stream.name));
-    const favoriteChannels = new Set(this._favoriteChannels());
-
-    return this._state.recentChannels()
-      .filter(channel => !activeChannels.has(channel) && !favoriteChannels.has(channel))
-      .slice(0, 8);
-  });
-  protected readonly _canAddFavoritesToList = computed(() => this._favoriteSuggestions().length > 0);
   protected readonly _audioQuickActionLabel = computed(() => this._muteAllStreams()
     ? 'Audio zurücksetzen'
     : 'Alle Streams stummschalten');
@@ -356,31 +341,7 @@ export class SettingsModalComponent {
     );
   }
 
-  protected _addFavoritesToActiveList(): void {
-    const result = this._state.addFavoriteChannelsToActiveList();
 
-    if (!result.ok) {
-      this._toast.show('Wähle zuerst eine Liste aus.', 'error');
-      return;
-    }
-
-    if (result.added.length === 0) {
-      this._toast.show('Keine neuen Favoriten zum Hinzufügen.', 'info');
-      return;
-    }
-
-    this._toast.show(
-      result.added.length === 1
-        ? '1 Favorit hinzugefügt.'
-        : `${result.added.length} Favoriten hinzugefügt.`,
-      'info',
-    );
-  }
-
-  protected _applySuggestedChannel(channelName: string): void {
-    this._channelNameControl.setValue(channelName);
-    this._focusInput(this._streamInputRef);
-  }
 
   protected _toggleFavoriteChannel(channelName: string): void {
     const isFavorite = this._state.toggleFavoriteChannel(channelName);
