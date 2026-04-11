@@ -25,7 +25,11 @@ interface StreamLayoutPresetOption {
   styleUrl: './settings-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-/** Hosts the list, stream, layout, and quick-action controls inside the settings modal. */
+/**
+ * Hosts the list, stream, layout, and quick-action controls inside the settings modal.
+ * @remarks Provides UI and logic for managing stream lists, channels, layouts, and quick actions.
+ * @component
+ */
 export class SettingsModalComponent {
   private readonly _document = inject(DOCUMENT);
   private readonly _listNavigation = inject(ListNavigationService);
@@ -109,7 +113,10 @@ export class SettingsModalComponent {
     });
   }
 
-  /** Creates a new list and navigates to it when validation succeeds. */
+  /**
+   * Creates a new list and navigates to it when validation succeeds.
+   * @remarks Shows a toast message for success or error. Focuses the input on error.
+   */
   protected _createList(): void {
     const result = this._state.createList(this._newListNameControl.getRawValue());
 
@@ -130,13 +137,20 @@ export class SettingsModalComponent {
     this._toast.show(`${result.list?.name} angelegt.`);
   }
 
-  /** Enters inline rename mode for the selected list. */
+  /**
+   * Enters inline rename mode for the selected list.
+   * @param list - The list to rename.
+   */
   protected _startRenameList(list: StreamList): void {
     this._editingListId.set(list.id);
     this._renameListControl.setValue(list.name, { emitEvent: false });
   }
 
-  /** Validates and persists the edited list name. */
+  /**
+   * Validates and persists the edited list name.
+   * @param listId - The ID of the list to rename.
+   * @remarks Shows a toast message for success or error.
+   */
   protected _confirmRenameList(listId: number): void {
     const result = this._state.renameList(listId, this._renameListControl.getRawValue());
 
@@ -154,17 +168,27 @@ export class SettingsModalComponent {
     this._toast.show(`${result.list?.name} gespeichert.`);
   }
 
-  /** Leaves inline rename mode without changing the list name. */
+  /**
+   * Leaves inline rename mode without changing the list name.
+   * @remarks Resets the editing list state.
+   */
   protected _cancelRenameList(): void {
     this._editingListId.set(null);
   }
 
-  /** Activates the selected list and updates the route. */
+  /**
+   * Activates the selected list and updates the route.
+   * @param listId - The ID of the list to activate.
+   */
   protected _selectList(listId: number): void {
     this._navigateToList(listId);
   }
 
-  /** Creates a duplicate of the given list and switches to it. */
+  /**
+   * Creates a duplicate of the given list and switches to it.
+   * @param list - The list to duplicate.
+   * @remarks Shows a toast message for success or error.
+   */
   protected _duplicateList(list: StreamList): void {
     const result = this._state.duplicateList(list.id);
 
@@ -177,7 +201,11 @@ export class SettingsModalComponent {
     this._toast.show(`${result.list.name} angelegt.`);
   }
 
-  /** Removes a list and navigates to the next sensible list when needed. */
+  /**
+   * Removes a list and navigates to the next sensible list when needed.
+   * @param list - The list to remove.
+   * @remarks Shows a toast message and navigates to the next list if the active one is deleted.
+   */
   protected _deleteList(list: StreamList): void {
     const listsBeforeDeletion = this._lists();
     const wasActiveList = this._activeListId() === list.id;
@@ -196,19 +224,30 @@ export class SettingsModalComponent {
     this._toast.show(`${removed.name} gelöscht.`, 'info');
   }
 
-  /** Closes the modal. */
+  /**
+   * Closes the settings modal.
+   * @remarks Triggers the state service to close the menu.
+   */
   protected _close(): void {
     this._state.closeMenu();
   }
 
-  /** Closes the modal when the backdrop itself is clicked. */
+  /**
+   * Closes the modal when the backdrop itself is clicked.
+   * @param event - The mouse event triggered by clicking the backdrop.
+   * @remarks Only closes if the backdrop (not a child) was clicked.
+   */
   protected _onBackdropClick(event: MouseEvent): void {
     if (event.target === event.currentTarget) {
       this._close();
     }
   }
 
-  /** Keeps keyboard focus trapped inside the modal while it is open. */
+  /**
+   * Keeps keyboard focus trapped inside the modal while it is open.
+   * @param event - The keyboard event triggered inside the modal dialog.
+   * @remarks Handles Escape to close and Tab/Shift+Tab to cycle focus.
+   */
   protected _onDialogKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -249,7 +288,10 @@ export class SettingsModalComponent {
     }
   }
 
-  /** Adds a new stream to the active list after extracting a clean channel name. */
+  /**
+   * Adds a new stream to the active list after extracting a clean channel name.
+   * @remarks Shows a toast message for success or error. Focuses the input on error.
+   */
   protected _addStream(): void {
     const channelName = this._extractChannelName(this._channelNameControl.getRawValue());
     const result = this._state.addStream(channelName);
@@ -286,7 +328,11 @@ export class SettingsModalComponent {
     this._streamInputRef()?.nativeElement.focus();
   }
 
-  /** Removes one stream from the active list. */
+  /**
+   * Removes one stream from the active list.
+   * @param index - The index of the stream to remove.
+   * @remarks Shows a toast message if a stream was removed.
+   */
   protected _removeStream(index: number): void {
     const removed = this._state.removeStream(index);
     if (removed) {
@@ -294,30 +340,48 @@ export class SettingsModalComponent {
     }
   }
 
-  /** Moves a stream by one position inside the active list. */
+  /**
+   * Moves a stream by one position inside the active list.
+   * @param index - The index of the stream to move.
+   * @param direction - The direction to move (-1 for up, 1 for down).
+   */
   protected _moveStream(index: number, direction: -1 | 1): void {
     this._state.moveStream(index, direction);
   }
 
-  /** Returns whether a move action stays within the current stream bounds. */
+  /**
+   * Returns whether a move action stays within the current stream bounds.
+   * @param index - The index of the stream to move.
+   * @param direction - The direction to move (-1 for up, 1 for down).
+   * @returns True if the move is within bounds, otherwise false.
+   */
   protected _canMoveStream(index: number, direction: -1 | 1): boolean {
     const targetIndex = index + direction;
 
     return targetIndex >= 0 && targetIndex < this._streams().length;
   }
 
-  /** Updates the list-wide stream quality and closes the modal. */
+  /**
+   * Updates the list-wide stream quality and closes the modal.
+   * @param value - The new stream quality value to set.
+   */
   protected _setQuality(value: StreamQuality): void {
     this._state.setQuality(value);
     this._close();
   }
 
-  /** Updates the active list layout preset. */
+  /**
+   * Updates the active list layout preset.
+   * @param value - The new layout preset value to set.
+   */
   protected _setLayoutPreset(value: StreamLayoutPreset): void {
     this._state.setLayoutPreset(value);
   }
 
-  /** Disables chat for every stream in the active list and reports the outcome. */
+  /**
+   * Disables chat for every stream in the active list and reports the outcome.
+   * @remarks Shows a toast message for the number of chats disabled or if none were active.
+   */
   protected _disableAllChats(): void {
     if (!this._hasActiveList()) {
       this._toast.show('Wähle zuerst eine Liste aus.', 'error');
@@ -339,7 +403,10 @@ export class SettingsModalComponent {
     );
   }
 
-  /** Toggles the global mute flag for the active list and closes the modal. */
+  /**
+   * Toggles the global mute flag for the active list and closes the modal.
+   * @remarks Shows a toast message indicating the new mute state.
+   */
   protected _toggleMuteAllStreams(): void {
     if (!this._hasActiveList()) {
       this._toast.show('Wähle zuerst eine Liste aus.', 'error');
@@ -355,7 +422,11 @@ export class SettingsModalComponent {
     );
   }
 
-  /** Toggles whether a channel belongs to the favorites pool. */
+  /**
+   * Toggles whether a channel belongs to the favorites pool.
+   * @param channelName - The name of the channel to toggle as favorite.
+   * @remarks Shows a toast message indicating the new favorite state.
+   */
   protected _toggleFavoriteChannel(channelName: string): void {
     const isFavorite = this._state.toggleFavoriteChannel(channelName);
 
@@ -367,7 +438,12 @@ export class SettingsModalComponent {
     );
   }
 
-  /** Starts HTML5 drag-and-drop reordering for a stream entry. */
+  /**
+   * Starts HTML5 drag-and-drop reordering for a stream entry.
+   * @param index - The index of the stream being dragged.
+   * @param event - The drag event object.
+   * @remarks Sets up the drag image and state for reordering.
+   */
   protected _onStreamDragStart(index: number, event: DragEvent): void {
     this._draggedStreamIndex.set(index);
     this._dropTargetStreamIndex.set(index);
@@ -396,7 +472,10 @@ export class SettingsModalComponent {
     }
   }
 
-  /** Marks a stream as the current drop target while dragging. */
+  /**
+   * Marks a stream as the current drop target while dragging.
+   * @param index - The index of the stream being hovered as a drop target.
+   */
   protected _onStreamDragEnter(index: number): void {
     if (this._draggedStreamIndex() === null || this._draggedStreamIndex() === index) {
       return;
@@ -405,7 +484,11 @@ export class SettingsModalComponent {
     this._dropTargetStreamIndex.set(index);
   }
 
-  /** Keeps drag-and-drop active and updates the hovered drop target. */
+  /**
+   * Keeps drag-and-drop active and updates the hovered drop target.
+   * @param index - The index of the stream currently hovered.
+   * @param event - The drag event object.
+   */
   protected _onStreamDragOver(index: number, event: DragEvent): void {
     if (this._draggedStreamIndex() === null) {
       return;
@@ -422,7 +505,11 @@ export class SettingsModalComponent {
     }
   }
 
-  /** Applies the pending drag-and-drop reorder when a stream is dropped. */
+  /**
+   * Applies the pending drag-and-drop reorder when a stream is dropped.
+   * @param index - The index where the stream is dropped.
+   * @param event - The drag event object.
+   */
   protected _onStreamDrop(index: number, event: DragEvent): void {
     event.preventDefault();
 
@@ -435,27 +522,48 @@ export class SettingsModalComponent {
     this._resetDragState();
   }
 
-  /** Clears drag state after the browser finishes a drag interaction. */
+  /**
+   * Clears drag state after the browser finishes a drag interaction.
+   * @remarks Resets the drag and drop state variables.
+   */
   protected _onStreamDragEnd(): void {
     this._resetDragState();
   }
 
-  /** Provides a stable identity for quality options rendered in the template. */
+  /**
+   * Provides a stable identity for quality options rendered in the template.
+   * @param _ - The index of the option (unused).
+   * @param quality - The quality option object.
+   * @returns The unique value of the quality option.
+   */
   protected _trackQuality(_: number, quality: StreamQualityOption): string {
     return quality.value;
   }
 
-  /** Provides a stable identity for layout options rendered in the template. */
+  /**
+   * Provides a stable identity for layout options rendered in the template.
+   * @param _ - The index of the option (unused).
+   * @param option - The layout preset option object.
+   * @returns The unique value of the layout preset option.
+   */
   protected _trackLayoutOption(_: number, option: StreamLayoutPresetOption): StreamLayoutPreset {
     return option.value;
   }
 
-  /** Updates the chat visibility for one stream entry. */
+  /**
+   * Updates the chat visibility for one stream entry.
+   * @param index - The index of the stream to update.
+   * @param value - Whether chat should be shown for this stream.
+   */
   protected _setStreamShowChat(index: number, value: boolean): void {
     this._state.setStreamShowChat(index, value);
   }
 
-  /** Forwards checkbox changes from the template to the stream chat toggle. */
+  /**
+   * Forwards checkbox changes from the template to the stream chat toggle.
+   * @param index - The index of the stream to update.
+   * @param event - The change event from the checkbox input.
+   */
   protected _onStreamChatChange(index: number, event: Event): void {
     const target = event.target;
 
@@ -464,37 +572,67 @@ export class SettingsModalComponent {
     }
   }
 
-  /** Provides a stable identity for list rows rendered in the template. */
+  /**
+   * Provides a stable identity for list rows rendered in the template.
+   * @param _ - The index of the list (unused).
+   * @param list - The list object.
+   * @returns The unique ID of the list.
+   */
   protected _trackList(_: number, list: StreamList): number {
     return list.id;
   }
 
-  /** Provides a stable identity for stream rows rendered in the template. */
+  /**
+   * Provides a stable identity for stream rows rendered in the template.
+   * @param _ - The index of the stream (unused).
+   * @param stream - The stream channel object.
+   * @returns The unique name of the stream channel.
+   */
   protected _trackStream(_: number, stream: StreamChannel): string {
     return stream.name;
   }
 
-  /** Returns whether the given stream is currently being dragged. */
+  /**
+   * Returns whether the given stream is currently being dragged.
+   * @param index - The index of the stream to check.
+   * @returns True if the stream is being dragged, otherwise false.
+   */
   protected _isDraggedStream(index: number): boolean {
     return this._draggedStreamIndex() === index;
   }
 
-  /** Returns whether the given stream is the active drop target. */
+  /**
+   * Returns whether the given stream is the active drop target.
+   * @param index - The index of the stream to check.
+   * @returns True if the stream is the drop target, otherwise false.
+   */
   protected _isDropTarget(index: number): boolean {
     return this._dropTargetStreamIndex() === index && this._draggedStreamIndex() !== index;
   }
 
-  /** Removes trailing statistic counts from suggestion labels before validation. */
+  /**
+   * Removes trailing statistic counts from suggestion labels before validation.
+   * @param value - The input string containing the channel name and optional count.
+   * @returns The cleaned channel name without trailing count.
+   */
   private _extractChannelName(value: string): string {
     return value.replace(/\s+\(\d+\)$/, '');
   }
 
-  /** Navigates to the canonical route for the selected list. */
+  /**
+   * Navigates to the canonical route for the selected list.
+   * @param listId - The ID of the list to navigate to, or null.
+   */
   private _navigateToList(listId: number | null): void {
     this._listNavigation.navigateToList(listId);
   }
 
-  /** Picks the next list to show after deleting the current one. */
+  /**
+   * Picks the next list to show after deleting the current one.
+   * @param lists - The array of lists before deletion.
+   * @param removedListId - The ID of the list that was removed.
+   * @returns The ID of the next list to show, or null if none.
+   */
   private _getNextListIdAfterDeletion(lists: StreamList[], removedListId: number): number | null {
     const removedIndex = lists.findIndex(list => list.id === removedListId);
 
@@ -507,7 +645,11 @@ export class SettingsModalComponent {
     return remainingLists[removedIndex]?.id ?? remainingLists[removedIndex - 1]?.id ?? null;
   }
 
-  /** Focuses the requested input on the next microtask and optionally selects its content. */
+  /**
+   * Focuses the requested input on the next microtask and optionally selects its content.
+   * @param inputRef - A function returning the ElementRef of the input to focus.
+   * @param selectText - Whether to select the input text after focusing (default: false).
+   */
   private _focusInput(inputRef: () => ElementRef<HTMLInputElement> | undefined, selectText = false): void {
     queueMicrotask(() => {
       const input = inputRef()?.nativeElement;
@@ -524,13 +666,20 @@ export class SettingsModalComponent {
     });
   }
 
-  /** Clears drag state after a completed or cancelled reorder interaction. */
+  /**
+   * Clears drag state after a completed or cancelled reorder interaction.
+   * @remarks Resets the dragged and drop target stream indices.
+   */
   private _resetDragState(): void {
     this._draggedStreamIndex.set(null);
     this._dropTargetStreamIndex.set(null);
   }
 
-  /** Collects focusable elements so keyboard navigation can be trapped in the modal. */
+  /**
+   * Collects focusable elements so keyboard navigation can be trapped in the modal.
+   * @param container - The container element to search for focusable children.
+   * @returns An array of focusable HTMLElements within the container.
+   */
   private _getFocusableElements(container: HTMLElement): HTMLElement[] {
     return Array.from(
       container.querySelectorAll<HTMLElement>(

@@ -60,7 +60,12 @@ interface TwitchEmbedInstance {
   getPlayer(): TwitchPlayer;
 }
 
-/** Represents a live Twitch embed instance that can be updated or destroyed. */
+/**
+ * Represents a live Twitch embed instance that can be updated or destroyed.
+ *
+ * @remarks
+ * Provides methods to destroy the embed, set mute state, and set stream quality.
+ */
 export interface TwitchEmbedHandle {
   destroy(): void;
   setMuted(value: boolean): void;
@@ -77,7 +82,12 @@ interface CreateEmbedOptions {
 }
 
 @Injectable({ providedIn: 'root' })
-/** Loads the Twitch embed script and keeps player instances synchronized with app state. */
+/**
+ * Loads the Twitch embed script and keeps player instances synchronized with app state.
+ *
+ * @remarks
+ * Handles dynamic loading of the Twitch embed script, creation of embed instances, and synchronization of quality and mute state with the application.
+ */
 export class TwitchEmbedService {
   private readonly _maxQualitySyncFrames = 120;
   private readonly _maxQualitySyncDurationMs = 2000;
@@ -89,7 +99,11 @@ export class TwitchEmbedService {
   private _scriptPromise?: Promise<void>;
   private _didLogQualityDescriptors = false;
 
-  /** Loads the Twitch embed script once and reuses the pending request. */
+  /**
+   * Loads the Twitch embed script once and reuses the pending request.
+   *
+   * @returns A promise that resolves when the script is loaded and Twitch.Embed is available.
+   */
   public loadScript(): Promise<void> {
     const browserWindow = this._window;
 
@@ -110,7 +124,12 @@ export class TwitchEmbedService {
     return this._scriptPromise;
   }
 
-  /** Creates an embed handle for a stream and wires quality and mute synchronization. */
+  /**
+   * Creates an embed handle for a stream and wires quality and mute synchronization.
+   *
+   * @param options - The options for creating the embed instance.
+   * @returns A TwitchEmbedHandle for controlling the embed instance.
+   */
   public createEmbed(options: CreateEmbedOptions): TwitchEmbedHandle {
     const browserWindow = this._window;
 
@@ -175,7 +194,11 @@ export class TwitchEmbedService {
     return handle;
   }
 
-  /** Clears the embed container for a previously rendered player. */
+  /**
+   * Clears the embed container for a previously rendered player.
+   *
+   * @param elementId - The DOM element ID to clear.
+   */
   public clearEmbed(elementId: string): void {
     this._document.getElementById(elementId)?.replaceChildren();
   }

@@ -2,11 +2,22 @@ import { Injectable, inject } from '@angular/core';
 import { StreamStateService } from './stream-state.service';
 
 @Injectable({ providedIn: 'root' })
-/** Centralizes global keyboard shortcuts that interact with the settings menu. */
+/**
+ * Centralizes global keyboard shortcuts that interact with the settings menu.
+ *
+ * @remarks
+ * Handles global hotkeys for opening and closing the settings menu, and prevents conflicts with text input fields.
+ */
 export class HotkeyService {
   private readonly _state = inject(StreamStateService);
 
-  /** Handles supported window-level shortcuts and returns whether one was consumed. */
+  /**
+   * Handles supported window-level shortcuts and returns whether one was consumed.
+   *
+   * @param event - The KeyboardEvent triggered at the window level.
+   * @param activeElement - The currently focused element in the document.
+   * @returns True if a supported shortcut was handled and consumed, false otherwise.
+   */
   public handleWindowKeydown(event: KeyboardEvent, activeElement: Element | null): boolean {
     if (event.defaultPrevented || event.isComposing || event.key === 'Process') {
       return false;
@@ -33,7 +44,12 @@ export class HotkeyService {
     return false;
   }
 
-  /** Detects whether keyboard input currently targets an editable element. */
+  /**
+   * Detects whether keyboard input currently targets an editable element.
+   *
+   * @param activeElement - The currently focused element in the document.
+   * @returns True if the element is an input, textarea, select, or contentEditable, false otherwise.
+   */
   private _isTypingContext(activeElement: Element | null): boolean {
     if (!(activeElement instanceof HTMLElement)) {
       return false;

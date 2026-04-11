@@ -1,9 +1,18 @@
 import { Injectable, signal } from '@angular/core';
 
-/** Enumerates the supported toast variants. */
+/**
+ * Enumerates the supported toast variants.
+ * @remarks Used to distinguish toast message types.
+ */
 export type ToastType = 'success' | 'error' | 'info';
 
-/** Represents one visible toast message instance. */
+/**
+ * Represents one visible toast message instance.
+ * @property id - The unique identifier for the toast message.
+ * @property text - The message text to display.
+ * @property type - The type of toast (success, error, info).
+ * @property count - The number of times this toast has been shown.
+ */
 export interface ToastMessage {
   id: number;
   text: string;
@@ -12,7 +21,10 @@ export interface ToastMessage {
 }
 
 @Injectable({ providedIn: 'root' })
-/** Manages toast creation, deduplication, visibility limits, and auto-dismiss. */
+/**
+ * Manages toast creation, deduplication, visibility limits, and auto-dismiss.
+ * @remarks Provides methods to show, remove, and manage toast messages globally.
+ */
 export class ToastService {
   private readonly _toastLifetimeMs = 3000;
   private readonly _maxVisibleToasts = 4;
@@ -22,7 +34,12 @@ export class ToastService {
 
   public readonly messages = this._messages.asReadonly();
 
-  /** Shows a toast or increments the counter for an existing matching message. */
+  /**
+   * Shows a toast or increments the counter for an existing matching message.
+   * @param text - The message text to display.
+   * @param type - The type of toast (default: 'success').
+   * @remarks Duplicates increment the count and reset the timer.
+   */
   public show(text: string, type: ToastType = 'success'): void {
     const duplicate = this._messages().find(message => message.text === text && message.type === type);
 
@@ -59,13 +76,20 @@ export class ToastService {
     this._scheduleRemoval(message.id);
   }
 
-  /** Removes a toast immediately and clears its pending timer. */
+  /**
+   * Removes a toast immediately and clears its pending timer.
+   * @param id - The unique identifier of the toast to remove.
+   */
   public remove(id: number): void {
     this._clearRemovalTimer(id);
     this._messages.update(items => items.filter(item => item.id !== id));
   }
 
-  /** Schedules automatic removal for a toast and replaces any existing timer. */
+  /**
+   * Schedules automatic removal for a toast and replaces any existing timer.
+   * @param id - The unique identifier of the toast to schedule removal for.
+   * @private
+   */
   private _scheduleRemoval(id: number): void {
     this._clearRemovalTimer(id);
 
@@ -77,7 +101,11 @@ export class ToastService {
     this._removalTimers.set(id, timeoutId);
   }
 
-  /** Cancels and removes the timer associated with a toast id. */
+  /**
+   * Cancels and removes the timer associated with a toast id.
+   * @param id - The unique identifier of the toast whose timer should be cleared.
+   * @private
+   */
   private _clearRemovalTimer(id: number): void {
     const timeoutId = this._removalTimers.get(id);
 
