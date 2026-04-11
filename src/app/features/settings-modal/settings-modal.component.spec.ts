@@ -257,14 +257,17 @@ describe('SettingsModalComponent', () => {
     expect(toast.show).toHaveBeenCalledWith('Esports angelegt.');
   });
 
-  it('renames the active list via enter on the rename input', async () => {
+  it('renames a list inline via enter on the rename input', async () => {
     state.menuOpen.set(true);
     state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
     state.setActiveListId(1);
     state.renameList.mockReturnValue({ ok: true, list: { id: 1, name: 'Main', streams: [] } });
     await syncComponent();
 
-    const input = fixture.nativeElement.querySelector('#rename-list-input') as HTMLInputElement;
+    getComponentMethod<(list: StreamList) => void>(component, '_startRenameList')({ id: 1, name: 'Liste 1', streams: [] });
+    await syncComponent();
+
+    const input = fixture.nativeElement.querySelector('.list-item__rename-input') as HTMLInputElement;
 
     input.value = 'Main';
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -273,7 +276,7 @@ describe('SettingsModalComponent', () => {
 
     expect(state.renameList).toHaveBeenCalledWith(1, 'Main');
     expect(toast.show).toHaveBeenCalledWith('Main gespeichert.');
-    expect(document.activeElement).toBe(input);
+    expect(getComponentMember<() => number | null>(component, '_editingListId')()).toBeNull();
   });
 
   it('keeps focus trapped inside the dialog on tab from the last element', async () => {
@@ -455,42 +458,33 @@ describe('SettingsModalComponent', () => {
     expect(selectSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('requires an active list before renaming and selecting a list navigates directly', async () => {
+  it('selecting a list navigates directly', async () => {
     state.menuOpen.set(true);
     await syncComponent();
 
-    const listInput = fixture.nativeElement.querySelector('#list-input') as HTMLInputElement;
-
-    getComponentMethod<() => void>(component, '_renameActiveList')();
-    await Promise.resolve();
     getComponentMethod<(listId: number) => void>(component, '_selectList')(5);
 
-    expect(toast.show).toHaveBeenCalledWith('Wähle zuerst eine Liste aus.', 'error');
-    expect(document.activeElement).toBe(listInput);
     expect(listNavigation.navigateToList).toHaveBeenCalledWith(5);
   });
 
-  it('shows duplicate and empty errors when renaming the active list fails', async () => {
+  it('shows duplicate and empty errors when renaming a list inline fails', async () => {
     state.menuOpen.set(true);
     state.setLists([{ id: 1, name: 'Liste 1', streams: [] }]);
     state.setActiveListId(1);
     await syncComponent();
 
-    const input = fixture.nativeElement.querySelector('#rename-list-input') as HTMLInputElement;
-    const selectSpy = vi.spyOn(input, 'select');
+    getComponentMethod<(list: StreamList) => void>(component, '_startRenameList')({ id: 1, name: 'Liste 1', streams: [] });
+    await syncComponent();
 
     state.renameList.mockReturnValueOnce({ ok: false, reason: 'duplicate' });
-    getComponentMethod<() => void>(component, '_renameActiveList')();
-    await Promise.resolve();
+    getComponentMethod<(listId: number) => void>(component, '_confirmRenameList')(1);
 
     state.renameList.mockReturnValueOnce({ ok: false, reason: 'empty' });
-    getComponentMethod<() => void>(component, '_renameActiveList')();
-    await Promise.resolve();
+    getComponentMethod<(listId: number) => void>(component, '_confirmRenameList')(1);
 
     expect(toast.show).toHaveBeenNthCalledWith(1, 'Eine Liste mit diesem Namen gibt es bereits.', 'error');
     expect(toast.show).toHaveBeenNthCalledWith(2, 'Der Listenname darf nicht leer sein.', 'error');
-    expect(document.activeElement).toBe(input);
-    expect(selectSpy).toHaveBeenCalledTimes(2);
+    expect(getComponentMember<() => number | null>(component, '_editingListId')()).toBe(1);
   });
 
   it('returns without navigation when a list deletion did not remove anything', () => {
@@ -682,8 +676,9 @@ describe('SettingsModalComponent', () => {
     state.deleteList.mockReturnValue({ id: 1, name: 'Main', streams: [channel('shroud')] });
     await syncComponent();
 
-    getComponentMember<{ setValue(value: string): void }>(component, '_activeListNameControl').setValue('Main');
-    getComponentMethod<() => void>(component, '_renameActiveList')();
+    getComponentMethod<(list: StreamList) => void>(component, '_startRenameList')({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
+    getComponentMember<{ setValue(value: string): void }>(component, '_renameListControl').setValue('Main');
+    getComponentMethod<(listId: number) => void>(component, '_confirmRenameList')(1);
     getComponentMethod<(list: StreamList) => void>(component, '_deleteList')({ id: 1, name: 'Liste 1', streams: [channel('shroud')] });
 
     expect(state.renameList).toHaveBeenCalledWith(1, 'Main');

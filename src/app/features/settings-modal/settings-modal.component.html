@@ -52,24 +52,6 @@
                   <button type="button" class="primary-btn" aria-label="Liste anlegen" (click)="_createList()">+</button>
                 </div>
               </div>
-
-              @if (_activeList()) {
-                <div class="form-block panel-card panel-card--compact">
-                  <label for="rename-list-input">Liste umbenennen</label>
-                  <div class="input-row input-row--compact">
-                    <input
-                      #renameListInput
-                      id="rename-list-input"
-                      type="text"
-                      [formControl]="_activeListNameControl"
-                      autocomplete="off"
-                      maxlength="60"
-                      placeholder="Listenname"
-                      (keydown.enter)="_renameActiveList()" />
-                    <button type="button" class="apply-btn" aria-label="Listenname speichern" (click)="_renameActiveList()">Speichern</button>
-                  </div>
-                </div>
-              }
             </section>
 
             <div class="content-grid">
@@ -86,11 +68,29 @@
                     } @else {
                       @for (list of _lists(); track _trackList($index, list)) {
                         <div class="list-item" [class.list-item--active]="_activeListId() === list.id" role="listitem">
-                          <button type="button" class="list-item__select" [attr.aria-pressed]="_activeListId() === list.id" (click)="_selectList(list.id)">
-                            <span class="list-item__name">{{ list.name }}</span>
-                            <span class="list-item__meta">#{{ list.id }} · {{ list.streams.length }} Stream{{ list.streams.length === 1 ? '' : 's' }}</span>
-                          </button>
+                          @if (_editingListId() === list.id) {
+                            <div class="list-item__rename">
+                              <input
+                                class="list-item__rename-input"
+                                type="text"
+                                [formControl]="_renameListControl"
+                                autocomplete="off"
+                                maxlength="60"
+                                (keydown.enter)="_confirmRenameList(list.id)"
+                                (keydown.escape)="_cancelRenameList()" />
+                              <button type="button" class="apply-btn apply-btn--compact" aria-label="Listenname speichern" (click)="_confirmRenameList(list.id)">OK</button>
+                              <button type="button" class="list-item__action-btn" aria-label="Umbenennen abbrechen" (click)="_cancelRenameList()">×</button>
+                            </div>
+                          } @else {
+                            <button type="button" class="list-item__select" [attr.aria-pressed]="_activeListId() === list.id" (click)="_selectList(list.id)" (dblclick)="_startRenameList(list)">
+                              <span class="list-item__name">{{ list.name }}</span>
+                              <span class="list-item__meta">#{{ list.id }} · {{ list.streams.length }} Stream{{ list.streams.length === 1 ? '' : 's' }}</span>
+                            </button>
+                          }
                           <div class="list-item__actions" role="group" [attr.aria-label]="list.name + ' Aktionen'">
+                            @if (_editingListId() !== list.id) {
+                              <button type="button" class="list-item__action-btn" title="Umbenennen" [attr.aria-label]="list.name + ' umbenennen'" (click)="_startRenameList(list)">✎</button>
+                            }
                             <button type="button" class="list-item__action-btn list-item__action-btn--duplicate" title="Kopieren" [attr.aria-label]="list.name + ' duplizieren'" (click)="_duplicateList(list)">⧉</button>
                             <button type="button" class="list-item__action-btn list-item__action-btn--delete" title="Löschen" [attr.aria-label]="list.name + ' löschen'" (click)="_deleteList(list)">×</button>
                           </div>

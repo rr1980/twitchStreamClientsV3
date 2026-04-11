@@ -115,7 +115,6 @@
 
 .settings-toolbar {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -436,6 +435,27 @@
 .list-item__meta {
   color: var(--color-muted);
   font-size: 0.78rem;
+}
+
+.list-item__rename {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 60px;
+  padding: 0 4px;
+}
+
+.list-item__rename-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-twitch);
+  border-radius: 12px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  outline: none;
+  font-size: 0.92rem;
 }
 
 .stream-item {

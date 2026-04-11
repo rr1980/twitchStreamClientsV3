@@ -34,15 +34,15 @@ export class SettingsModalComponent {
   private _wasOpen = false;
   private readonly _draggedStreamIndex = signal<number | null>(null);
   private readonly _dropTargetStreamIndex = signal<number | null>(null);
+  protected readonly _editingListId = signal<number | null>(null);
 
   private readonly _listInputRef = viewChild<ElementRef<HTMLInputElement>>('listInput');
   private readonly _streamInputRef = viewChild<ElementRef<HTMLInputElement>>('streamInput');
-  private readonly _renameListInputRef = viewChild<ElementRef<HTMLInputElement>>('renameListInput');
   private readonly _modalPanelRef = viewChild<ElementRef<HTMLElement>>('modalPanel');
 
   protected readonly _qualityOptions = this._state.availableQualities;
   protected readonly _newListNameControl = new FormControl('', { nonNullable: true });
-  protected readonly _activeListNameControl = new FormControl('', { nonNullable: true });
+  protected readonly _renameListControl = new FormControl('', { nonNullable: true });
   protected readonly _channelNameControl = new FormControl('', { nonNullable: true });
   protected readonly _isOpen = this._state.menuOpen;
   protected readonly _lists = this._state.lists;
@@ -69,10 +69,6 @@ export class SettingsModalComponent {
   ];
 
   constructor() {
-    effect(() => {
-      this._activeListNameControl.setValue(this._activeList()?.name ?? '', { emitEvent: false });
-    });
-
     effect(() => {
       if (this._hasActiveList()) {
         this._channelNameControl.enable({ emitEvent: false });
@@ -132,31 +128,30 @@ export class SettingsModalComponent {
     this._toast.show(`${result.list?.name} angelegt.`);
   }
 
-  protected _renameActiveList(): void {
-    const activeList = this._activeList();
+  protected _startRenameList(list: StreamList): void {
+    this._editingListId.set(list.id);
+    this._renameListControl.setValue(list.name, { emitEvent: false });
+  }
 
-    if (!activeList) {
-      this._focusInput(this._listInputRef);
-      this._toast.show('Wähle zuerst eine Liste aus.', 'error');
-      return;
-    }
-
-    const result = this._state.renameList(activeList.id, this._activeListNameControl.getRawValue());
+  protected _confirmRenameList(listId: number): void {
+    const result = this._state.renameList(listId, this._renameListControl.getRawValue());
 
     if (!result.ok) {
       if (result.reason === 'duplicate') {
-        this._focusInput(this._renameListInputRef, true);
         this._toast.show('Eine Liste mit diesem Namen gibt es bereits.', 'error');
         return;
       }
 
-      this._focusInput(this._renameListInputRef, true);
       this._toast.show('Der Listenname darf nicht leer sein.', 'error');
       return;
     }
 
+    this._editingListId.set(null);
     this._toast.show(`${result.list?.name} gespeichert.`);
-    this._renameListInputRef()?.nativeElement.focus();
+  }
+
+  protected _cancelRenameList(): void {
+    this._editingListId.set(null);
   }
 
   protected _selectList(listId: number): void {
