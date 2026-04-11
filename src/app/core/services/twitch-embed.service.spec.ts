@@ -22,9 +22,9 @@ describe('TwitchEmbedService', () => {
 
   function setWindowTwitchEmbedWithReadyEvent(embed: ReturnType<typeof vi.fn>, readyEvent = 'VIDEO_READY_EVENT'): void {
     const twitchApi = {} as NonNullable<Window['Twitch']>;
-    const embedConstructor = embed as ReturnType<typeof vi.fn> & { VIDEO_PLAY?: string; VIDEO_READY?: string };
-    embedConstructor.VIDEO_PLAY = 'VIDEO_PLAY_EVENT';
-    embedConstructor.VIDEO_READY = readyEvent;
+    const embedConstructor = embed as ReturnType<typeof vi.fn> & Record<string, string | undefined>;
+    embedConstructor['VIDEO_PLAY'] = 'VIDEO_PLAY_EVENT';
+    embedConstructor['VIDEO_READY'] = readyEvent;
     twitchApi.Embed = embedConstructor as never;
     window.Twitch = twitchApi;
   }

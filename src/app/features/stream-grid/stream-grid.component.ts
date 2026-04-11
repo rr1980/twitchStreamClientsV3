@@ -86,8 +86,12 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     this._state.focusedChannel() !== null,
   ));
 
-  protected readonly _gridTemplateColumns = computed(() => `repeat(${this._grid().cols}, 1fr)`);
-  protected readonly _gridTemplateRows = computed(() => `repeat(${this._grid().rows}, 1fr)`);
+  protected readonly _gridTemplateColumns = computed(
+    () => `repeat(${this._grid().cols}, minmax(var(--twitch-embed-min-width), 1fr))`,
+  );
+  protected readonly _gridTemplateRows = computed(
+    () => `repeat(${this._grid().rows}, minmax(var(--twitch-embed-min-height), 1fr))`,
+  );
 
   constructor() {
     effect(() => {

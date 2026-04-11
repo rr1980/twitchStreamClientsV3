@@ -27,8 +27,7 @@ declare global {
             parent: string[];
           },
         ): TwitchEmbedInstance;
-        VIDEO_PLAY?: string;
-        VIDEO_READY?: string;
+        [eventConstant: string]: unknown;
       };
     };
   }
@@ -124,12 +123,14 @@ export class TwitchEmbedService {
       muted: true,
       parent: [browserWindow.location.hostname || 'localhost'],
     });
+    const twitchReadyEvent = browserWindow.Twitch.Embed['VIDEO_READY'];
+    const twitchPlayEvent = browserWindow.Twitch.Embed['VIDEO_PLAY'];
     const readyEvents = new Set([
-      browserWindow.Twitch.Embed.VIDEO_READY ?? 'video.ready',
+      typeof twitchReadyEvent === 'string' ? twitchReadyEvent : 'video.ready',
       'video.ready',
     ]);
     const playEvents = new Set([
-      browserWindow.Twitch.Embed.VIDEO_PLAY ?? 'video.play',
+      typeof twitchPlayEvent === 'string' ? twitchPlayEvent : 'video.play',
       'video.play',
     ]);
     let didInitializePlayer = false;

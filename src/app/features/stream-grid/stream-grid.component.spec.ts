@@ -222,6 +222,20 @@ describe('StreamGridComponent', () => {
     }));
   });
 
+  it('uses Twitch-compatible minimum grid tracks for autoplay', async () => {
+    state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
+    await syncComponent();
+
+    const component = fixture.componentInstance;
+
+    expect(getPrivateMethod<() => string>(component, '_gridTemplateColumns')()).toContain(
+      'minmax(var(--twitch-embed-min-width), 1fr)',
+    );
+    expect(getPrivateMethod<() => string>(component, '_gridTemplateRows')()).toContain(
+      'minmax(var(--twitch-embed-min-height), 1fr)',
+    );
+  });
+
   it('defers embed startup while the menu overlay is open', async () => {
     state.menuOpen.set(true);
     state.setActiveList({ id: 1, name: 'Liste 1', streams: [channel('shroud'), channel('rocketbeanstv')] });
