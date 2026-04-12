@@ -3,9 +3,9 @@ import type { StreamChannel, StreamLayoutPreset } from '../../core/models/app-se
 /**
  * Represents the number of columns and rows for a rendered grid.
  *
- * @property {number} cols Number of grid columns.
- * @property {number} rows Number of grid rows.
- * @remarks Used to describe the grid layout for stream placement.
+ * @property {number} cols - Number of grid columns.
+ * @property {number} rows - Number of grid rows.
+ * @remarks This is a dimension-only grid description. It is derived from stream count, viewport size, and sometimes chat visibility before CSS templates are produced.
  */
 export interface GridLayout {
   cols: number;
@@ -15,8 +15,9 @@ export interface GridLayout {
 /**
  * Describes an optional CSS grid placement override for a single tile.
  *
- * @property {string | undefined} column Optional CSS grid column override.
- * @property {string | undefined} row Optional CSS grid row override.
+ * @property {string} [column] - Optional CSS grid column override.
+ * @property {string} [row] - Optional CSS grid row override.
+ * @remarks When both properties are omitted the tile participates in normal grid flow. Explicit overrides are mainly used by stage-style layouts to promote the first stream.
  */
 export interface GridItemPlacement {
   column?: string;
@@ -26,8 +27,8 @@ export interface GridItemPlacement {
 /**
  * Combines the grid dimensions with per-stream placement metadata.
  *
- * @property {GridItemPlacement[]} placements Placement overrides for rendered stream tiles.
- * @remarks Used for advanced stream grid layouts with custom placements.
+ * @property {GridItemPlacement[]} placements - Placement overrides for rendered stream tiles.
+ * @remarks The placements array is aligned with the rendered stream order. Uniform layouts return empty placement objects, while featured layouts override only specific tiles.
  */
 export interface StreamGridLayout extends GridLayout {
   placements: GridItemPlacement[];
@@ -36,9 +37,9 @@ export interface StreamGridLayout extends GridLayout {
 /**
  * Calculates the grid layout with the largest effective video area for the given streams.
  *
- * @param {StreamChannel[]} streams List of stream channels to display.
- * @param {number} containerWidth Width of the container in pixels.
- * @param {number} containerHeight Height of the container in pixels.
+ * @param {StreamChannel[]} streams - List of stream channels to display.
+ * @param {number} containerWidth - Width of the container in pixels.
+ * @param {number} containerHeight - Height of the container in pixels.
  * @returns {GridLayout} Optimal grid layout with column and row counts.
  * @remarks Takes into account streams with and without chat.
  */
@@ -80,12 +81,13 @@ export function calculateOptimalGrid(
 /**
  * Resolves the grid layout for the selected preset.
  *
- * @param {StreamChannel[]} streams List of stream channels to display.
- * @param {number} containerWidth Width of the container in pixels.
- * @param {number} containerHeight Height of the container in pixels.
- * @param {StreamLayoutPreset} preset Selected layout preset.
+ * @param {StreamChannel[]} streams - List of stream channels to display.
+ * @param {number} containerWidth - Width of the container in pixels.
+ * @param {number} containerHeight - Height of the container in pixels.
+ * @param {StreamLayoutPreset} preset - Selected layout preset.
  * @returns {StreamGridLayout} Computed stream grid layout with placements.
-   */
+ * @remarks `auto` maximizes estimated video area, `balanced` prefers a square-like grid, `chat` biases for narrow columns, and `stage` promotes the first stream.
+ */
 export function calculateStreamGridLayout(
   streams: StreamChannel[],
   containerWidth: number,
@@ -116,8 +118,8 @@ export function calculateStreamGridLayout(
 /**
  * Builds a layout where every stream occupies one uniform grid cell.
  *
- * @param {number} count Number of streams.
- * @param {GridLayout} layout Grid layout to use.
+ * @param {number} count - Number of streams.
+ * @param {GridLayout} layout - Grid layout to use.
  * @returns {StreamGridLayout} Stream grid layout with uniform placements.
  */
 function buildUniformLayout(count: number, layout: GridLayout): StreamGridLayout {
@@ -130,7 +132,7 @@ function buildUniformLayout(count: number, layout: GridLayout): StreamGridLayout
 /**
  * Creates a square-like grid for the balanced layout preset.
  *
- * @param {number} count Number of streams.
+ * @param {number} count - Number of streams.
  * @returns {GridLayout} Calculated grid layout.
  */
 function calculateBalancedGrid(count: number): GridLayout {
@@ -143,9 +145,9 @@ function calculateBalancedGrid(count: number): GridLayout {
 /**
  * Chooses a chat-friendly grid layout based on the viewport aspect ratio.
  *
- * @param {number} count Number of streams.
- * @param {number} containerWidth Width of the container in pixels.
- * @param {number} containerHeight Height of the container in pixels.
+ * @param {number} count - Number of streams.
+ * @param {number} containerWidth - Width of the container in pixels.
+ * @param {number} containerHeight - Height of the container in pixels.
  * @returns {GridLayout} Calculated grid layout for chat mode.
  */
 function calculateChatGrid(count: number, containerWidth: number, containerHeight: number): GridLayout {
@@ -165,9 +167,9 @@ function calculateChatGrid(count: number, containerWidth: number, containerHeigh
 /**
  * Creates the stage-style layout where the first stream gets extra space.
  *
- * @param {number} count Number of streams.
- * @param {number} containerWidth Width of the container in pixels.
- * @param {number} containerHeight Height of the container in pixels.
+ * @param {number} count - Number of streams.
+ * @param {number} containerWidth - Width of the container in pixels.
+ * @param {number} containerHeight - Height of the container in pixels.
  * @returns {StreamGridLayout} Featured stream grid layout.
  */
 function calculateFeaturedGrid(count: number, containerWidth: number, containerHeight: number): StreamGridLayout {
@@ -256,9 +258,9 @@ function calculateFeaturedGrid(count: number, containerWidth: number, containerH
 /**
  * Estimates the usable video area for one cell, accounting for chat width.
  *
- * @param {number} cellWidth Width of the cell in pixels.
- * @param {number} cellHeight Height of the cell in pixels.
- * @param {boolean} showChat Whether the stream has chat enabled and therefore changes the target aspect ratio.
+ * @param {number} cellWidth - Width of the cell in pixels.
+ * @param {number} cellHeight - Height of the cell in pixels.
+ * @param {boolean} showChat - Whether the stream has chat enabled and therefore changes the target aspect ratio.
  * @returns {number} Estimated video area in square pixels.
  */
 function thisCellArea(cellWidth: number, cellHeight: number, showChat: boolean): number {

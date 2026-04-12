@@ -12,8 +12,8 @@ describe('StreamStateService', () => {
   /**
    * Returns a bound private service method for white-box assertions.
    *
-   * @param {object} instance Service instance that owns the requested private method.
-   * @param {string} propertyName Name of the private method.
+   * @param {object} instance - Service instance that owns the requested private method.
+   * @param {string} propertyName - Name of the private method.
    * @returns {T} Bound method with the expected function type.
    * @remarks Encapsulates the unsafe private-member access needed by targeted tests.
    */
@@ -24,11 +24,11 @@ describe('StreamStateService', () => {
   /**
    * Overrides a private service member for targeted test scenarios.
    *
-   * @param {object} instance Service instance that owns the member to override.
-   * @param {string} propertyName Name of the private member.
-   * @param {T} value New value assigned to the member.
-   * @returns {void}
+   * @param {object} instance - Service instance that owns the member to override.
+   * @param {string} propertyName - Name of the private member.
+   * @param {T} value - New value assigned to the member.
    * @remarks Used to prepare internal state for focused white-box scenarios.
+    * @returns {void}
    */
   function setServiceMember<T>(instance: object, propertyName: string, value: T): void {
     (instance as Record<string, unknown>)[propertyName] = value;
@@ -827,8 +827,8 @@ describe('StreamStateService', () => {
   /**
    * Creates a stream fixture with an optional chat flag.
    *
-   * @param {string} name Channel name of the fixture stream.
-   * @param {boolean} [showChat=false] Whether the stream should be created with chat enabled.
+   * @param {string} name - Channel name of the fixture stream.
+    * @param {boolean} [showChat] - Whether the stream should be created with chat enabled.
    * @returns {StreamChannel} Stream fixture used in service tests.
    * @remarks The helper keeps stream expectations consistent across multiple test cases.
    */
@@ -839,8 +839,8 @@ describe('StreamStateService', () => {
   /**
    * Creates a quality option fixture with a default label.
    *
-   * @param {string} value Normalized quality value.
-   * @param {string} [label=value] Optional display label.
+   * @param {string} value - Normalized quality value.
+    * @param {string} [label] - Optional display label.
    * @returns {StreamQualityOption} Quality fixture used in assertions.
    * @remarks The label falls back to the quality value when none is provided.
    */
@@ -851,10 +851,10 @@ describe('StreamStateService', () => {
   /**
    * Creates a fully populated list fixture with optional overrides.
    *
-   * @param {number} id Id of the fixture list.
-   * @param {string} name Display name of the fixture list.
-   * @param {StreamChannel[]} streams Streams assigned to the fixture list.
-  * @param {Partial<Pick<AppSettings['lists'][number], 'quality' | 'layoutPreset' | 'muteAllStreams'>>} [overrides={}] Optional field overrides for list-scoped settings.
+   * @param {number} id - Id of the fixture list.
+   * @param {string} name - Display name of the fixture list.
+   * @param {StreamChannel[]} streams - Streams assigned to the fixture list.
+  * @param {Partial<Pick<AppSettings['lists'][number], 'quality' | 'layoutPreset' | 'muteAllStreams'>>} [overrides] - Optional field overrides for list-scoped settings.
    * @returns {AppSettings['lists'][number]} Fully initialized list fixture.
    * @remarks Default values mirror the service's empty baseline state.
    */

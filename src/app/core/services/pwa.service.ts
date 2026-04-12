@@ -4,16 +4,37 @@ import { SwUpdate } from '@angular/service-worker';
 import { filter } from 'rxjs';
 import { StorageService } from './storage.service';
 
+/**
+ * User choice payload returned by the deferred install prompt.
+ *
+ * @remarks The browser resolves this only after the user closes the install prompt, allowing the service to persist dismissal state conditionally.
+ */
 interface BeforeInstallPromptChoice {
+  /** Whether the install prompt was accepted or dismissed. */
   outcome: 'accepted' | 'dismissed';
+
+  /** Platform identifier returned by the browser. */
   platform: string;
 }
 
+/**
+ * Browser install prompt event surfaced before the app can be installed.
+ *
+ * @remarks The event is browser-specific and intentionally kept local to this service so unsupported environments degrade without leaking the custom type through the app.
+ */
 interface BeforeInstallPromptEvent extends Event {
+  /** Opens the browser-provided install prompt. */
   prompt(): Promise<void>;
+
+  /** Resolves with the user's final prompt choice. */
   userChoice: Promise<BeforeInstallPromptChoice>;
 }
 
+/**
+ * Browser navigator shape that may expose the legacy standalone flag on iOS.
+ *
+ * @remarks Safari on iOS historically exposes standalone mode through `navigator.standalone` instead of `matchMedia('(display-mode: standalone)')`.
+ */
 type NavigatorWithStandalone = Navigator & {
   standalone?: boolean;
 };
@@ -22,7 +43,7 @@ type NavigatorWithStandalone = Navigator & {
 /**
  * Manages install prompts, startup hints, and service worker update notices.
  *
- * @remarks Handles PWA installation lifecycle, startup hints, and service worker update notifications for the application shell.
+ * @remarks This service centralizes all PWA-specific browser integration so the shell can react through signals instead of wiring raw install and service-worker events itself.
  */
 export class PwaService {
   private readonly _startupHintSeenKey = 'pwa_startup_hint_seen_v1';
@@ -36,8 +57,13 @@ export class PwaService {
   private readonly _startupHintVisible = signal(false);
   private readonly _updateAvailable = signal(false);
 
+  /** Read-only signal exposing whether the browser currently allows PWA installation. */
   public readonly canInstall = computed(() => this._installPromptEvent() !== null);
+
+  /** Read-only signal exposing whether the startup install hint should be visible. */
   public readonly startupHintVisible = this._startupHintVisible.asReadonly();
+
+  /** Read-only signal exposing whether a service worker update is ready to activate. */
   public readonly updateAvailable = this._updateAvailable.asReadonly();
 
   constructor() {
@@ -53,8 +79,8 @@ export class PwaService {
   /**
    * Hides the install hint and records that the user has seen it.
    *
-   * @returns {void}
    * @remarks Sets the startup hint to hidden and persists that dismissal in storage.
+    * @returns {void}
    */
   public dismissStartupHint(): void {
     this._startupHintVisible.set(false);
@@ -64,8 +90,8 @@ export class PwaService {
   /**
    * Dismisses the currently visible update notice.
    *
-   * @returns {void}
    * @remarks Hides the update notification for the current session.
+    * @returns {void}
    */
   public dismissUpdateNotice(): void {
     this._updateAvailable.set(false);
@@ -101,8 +127,8 @@ export class PwaService {
   /**
    * Reloads the current page to activate the latest deployed version.
    *
-   * @returns {void}
    * @remarks Forces a browser reload so a newly ready service worker version becomes active.
+    * @returns {void}
    */
   public reloadForUpdate(): void {
     const browserWindow = this._window;
@@ -117,8 +143,8 @@ export class PwaService {
   /**
    * Registers browser install prompt lifecycle events and their cleanup.
    *
-   * @returns {void}
-   * @remarks Handles `beforeinstallprompt` and `appinstalled` events and unregisters listeners on service destruction.
+    * @remarks Handles `beforeinstallprompt` and `appinstalled` events, captures the deferred prompt for later user-driven installation, and unregisters listeners on service destruction.
+    * @returns {void}
    */
   private _registerInstallEvents(): void {
     const browserWindow = this._window;
@@ -153,8 +179,8 @@ export class PwaService {
   /**
    * Subscribes to service worker version readiness events when enabled.
    *
-   * @returns {void}
-   * @remarks Listens for `VERSION_READY` events from [`SwUpdate`](src/app/core/services/pwa.service.ts:3) and sets the update signal.
+    * @remarks Listens for `VERSION_READY` events from [`SwUpdate`](src/app/core/services/pwa.service.ts:3) and flips a signal instead of reloading immediately, so the shell can let the user control when the update is activated.
+    * @returns {void}
    */
   private _registerUpdateEvents(): void {
     if (!this._swUpdate?.isEnabled) {

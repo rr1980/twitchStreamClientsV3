@@ -14,8 +14,8 @@ export class ListNavigationService {
   /**
    * Navigates to the canonical hash route for a given list id.
    *
-   * @param {number | null} listId List id to navigate to, or `null` for the default route.
-   * @returns {void}
+   * @param {number | null} listId - List id to navigate to, or `null` for the default route.
+    * @returns {void}
    */
   public navigateToList(listId: number | null): void {
     void this._router.navigate(['/List', listId ?? 'null']);
@@ -24,7 +24,7 @@ export class ListNavigationService {
   /**
    * Reads the list id from an arbitrary URL and returns null for invalid routes.
    *
-   * @param {string} url URL string to parse for a list id.
+   * @param {string} url - URL string to parse for a list id.
    * @returns {number | null} Parsed list id, or `null` when the URL is invalid.
    */
   public readListId(url: string): number | null {
@@ -40,7 +40,7 @@ export class ListNavigationService {
   /**
    * Rewrites non-canonical list URLs while preserving query params and fragments.
    *
-   * @param {string} url URL string to check and canonicalize.
+   * @param {string} url - URL string to check and canonicalize.
    * @returns {true | UrlTree} `true` when the URL is already canonical, otherwise a canonical [`UrlTree`](src/app/core/services/list-navigation.service.ts:3).
    */
   public ensureCanonicalUrl(url: string): true | UrlTree {
@@ -61,7 +61,7 @@ export class ListNavigationService {
   /**
    * Extracts the list id from an already parsed UrlTree.
    *
-   * @param {UrlTree} urlTree Parsed [`UrlTree`](src/app/core/services/list-navigation.service.ts:3) instance.
+   * @param {UrlTree} urlTree - Parsed [`UrlTree`](src/app/core/services/list-navigation.service.ts:3) instance.
    * @returns {number | null} Parsed list id, or `null` when the tree does not represent a valid list route.
    */
   private _readListIdFromTree(urlTree: UrlTree): number | null {
@@ -77,7 +77,7 @@ export class ListNavigationService {
   /**
    * Parses a raw route segment into a valid positive list id or null.
    *
-   * @param {string | null} rawListId Raw list id string from the route segment.
+   * @param {string | null} rawListId - Raw list id string from the route segment.
    * @returns {number | null} Parsed positive list id, or `null` when invalid.
    */
   private _parseListId(rawListId: string | null): number | null {
@@ -97,7 +97,7 @@ export class ListNavigationService {
   /**
    * Returns the primary outlet path segments for a parsed URL.
    *
-   * @param {UrlTree} urlTree Parsed [`UrlTree`](src/app/core/services/list-navigation.service.ts:3) instance.
+   * @param {UrlTree} urlTree - Parsed [`UrlTree`](src/app/core/services/list-navigation.service.ts:3) instance.
    * @returns {string[]} Array of path segments for the primary outlet.
    */
   private _getPrimarySegments(urlTree: UrlTree): string[] {

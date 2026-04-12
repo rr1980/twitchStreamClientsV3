@@ -19,18 +19,39 @@ import { calculateStreamGridLayout } from '../../shared/utils/grid.util';
 import { areStreamQualityOptionsEqual } from '../../shared/utils/stream-quality.util';
 import { ToastService } from '../toast/toast.service';
 
+/**
+ * Runtime state tracked for each rendered Twitch embed.
+ */
 interface RenderedEmbedState {
+  /** DOM id of the embed wrapper element. */
   elementId: string;
+
+  /** Quality currently applied to the embed. */
   quality: StreamQuality;
+
+  /** Whether the embed currently renders chat. */
   showChat: boolean;
+
+  /** Whether the embed is currently muted. */
   muted: boolean;
+
+  /** Handle used to control the embed lifecycle. */
   handle: TwitchEmbedHandle;
 }
 
+/**
+ * Snapshot of embed state that can be compared without the live handle reference.
+ */
 type RenderedEmbedSnapshot = Omit<RenderedEmbedState, 'handle'>;
 
+/**
+ * Pending embed reconciliation work for one stream.
+ */
 interface PendingEmbedSync {
+  /** Stream that should be rendered or updated. */
   stream: StreamChannel;
+
+  /** Target state to apply for the stream's embed. */
   nextState: RenderedEmbedSnapshot;
 }
 
@@ -50,7 +71,6 @@ interface PendingEmbedSync {
  * Computes the visible grid and keeps Twitch embeds synchronized with active state.
  *
  * @remarks Handles grid calculation, embed lifecycle, quality sync, and mute sync for streams.
- * @component
  */
 export class StreamGridComponent implements AfterViewInit, OnDestroy {
   private readonly _platformId = inject(PLATFORM_ID);
@@ -106,8 +126,8 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Marks the view as ready and kicks off the first embed synchronization.
    *
-   * @returns {void}
    * @remarks Called after the component's view has been fully initialized.
+    * @returns {void}
    */
   public ngAfterViewInit(): void {
     this._viewReady = true;
@@ -117,8 +137,8 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Destroys rendered embeds and clears derived quality state on teardown.
    *
-   * @returns {void}
    * @remarks Called when the component is destroyed to clean up resources.
+    * @returns {void}
    */
   public ngOnDestroy(): void {
     if (this._resizeTimer !== null) {
@@ -139,8 +159,8 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Debounces viewport changes before recalculating the grid.
    *
-   * @returns {void}
    * @remarks Updates the viewport size signals after a short delay.
+    * @returns {void}
    */
   protected _onResize(): void {
     if (this._resizeTimer !== null) {
@@ -157,8 +177,8 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Resumes embed synchronization when the document becomes visible again.
    *
-   * @returns {void}
    * @remarks Triggers a sync if the view is ready and the document is visible.
+    * @returns {void}
    */
   protected _onDocumentVisibilityChange(): void {
     if (!this._viewReady || this._isDocumentHidden(this._hostRef()?.nativeElement.ownerDocument)) {
@@ -171,9 +191,8 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Coalesces multiple reactive changes into a single embed synchronization pass.
    *
-   * @returns {void}
    * @remarks Ensures only the latest sync run is executed after microtasks.
-   * @private
+    * @returns {void}
    */
   private _scheduleSync(): void {
     const runId = ++this._syncRunId;
@@ -190,10 +209,9 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Reconciles rendered embeds with the active list, quality, chat, and mute state.
    *
-   * @param {number} runId Identifier for the current sync run.
+   * @param {number} runId - Identifier for the current sync run.
    * @returns {Promise<void>} Promise that resolves when the sync completes.
    * @remarks Reuses existing embeds where possible and recreates them only when wrapper or chat shape changes.
-   * @private
    */
   private async _syncEmbeds(runId: number): Promise<void> {
     if (runId !== this._syncRunId) {
@@ -353,10 +371,9 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Destroys embeds for channels that are no longer part of the active view.
    *
-   * @param {Set<string>} activeChannels Set of channel names that should remain active.
-   * @returns {void}
+   * @param {Set<string>} activeChannels - Set of channel names that should remain active.
    * @remarks Also republishes available quality options when rendered embed state changes.
-   * @private
+    * @returns {void}
    */
   private _removeStaleEmbeds(activeChannels: Set<string>): void {
     let removedEmbed = false;
@@ -385,11 +402,10 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Stores the latest quality set for one stream and republishes the flattened union.
    *
-   * @param {string} stream Name of the stream channel.
-   * @param {StreamQualityOption[]} qualities Available quality options reported for the stream.
-   * @returns {void}
+   * @param {string} stream - Name of the stream channel.
+   * @param {StreamQualityOption[]} qualities - Available quality options reported for the stream.
    * @remarks Deduplicates and trims option values before merging them into the shared quality state.
-   * @private
+    * @returns {void}
    */
   private _setAvailableQualitiesForStream(stream: string, qualities: StreamQualityOption[]): void {
     const seen = new Set<string>();
@@ -418,9 +434,8 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Publishes the merged quality options reported by all currently rendered embeds.
    *
-   * @returns {void}
    * @remarks Flattens the per-stream cache into one list consumed by the shared state service.
-   * @private
+    * @returns {void}
    */
   private _syncAvailableQualities(): void {
     this._state.setAvailableQualities([...this._availableQualitiesByStream.values()].flat());
@@ -429,9 +444,8 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Builds the DOM id used for a stream's embed host element.
    *
-   * @param {string} channel Name of the stream channel.
+   * @param {string} channel - Name of the stream channel.
    * @returns {string} DOM element id for the embed host.
-   * @private
    */
   private _getEmbedElementId(channel: string): string {
     return `twitch-embed-${channel}`;
@@ -440,7 +454,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Returns the placement override for a rendered tile.
    *
-   * @param {number} index Index of the tile in the grid.
+   * @param {number} index - Index of the tile in the grid.
    * @returns {GridItemPlacement} Placement override for the tile, or an empty object when none exists.
    */
   protected _getPlacement(index: number): GridItemPlacement {
@@ -450,11 +464,10 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Returns whether an existing embed can be kept without recreation.
    *
-   * @param {RenderedEmbedState} currentState Current rendered embed state.
-   * @param {RenderedEmbedSnapshot} nextState Next desired embed state.
+   * @param {RenderedEmbedState} currentState - Current rendered embed state.
+   * @param {RenderedEmbedSnapshot} nextState - Next desired embed state.
    * @returns {boolean} `true` when the embed can be reused.
    * @remarks Reuse is intentionally limited to cases where wrapper identity and chat shape stay unchanged.
-   * @private
    */
   private _canReuseEmbed(currentState: RenderedEmbedState, nextState: RenderedEmbedSnapshot): boolean {
     return currentState.elementId === nextState.elementId
@@ -464,11 +477,10 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Applies mute changes to an existing embed only when the state actually changed.
    *
-   * @param {RenderedEmbedState} currentState Current rendered embed state.
-   * @param {RenderedEmbedSnapshot} nextState Next desired embed state.
-   * @param {boolean} force Whether the mute update should be forced regardless of state.
-   * @returns {void}
-   * @private
+   * @param {RenderedEmbedState} currentState - Current rendered embed state.
+   * @param {RenderedEmbedSnapshot} nextState - Next desired embed state.
+   * @param {boolean} force - Whether the mute update should be forced regardless of state.
+    * @returns {void}
    */
   private _syncMutedState(
     currentState: RenderedEmbedState,
@@ -486,11 +498,10 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Applies quality changes to an existing embed only when necessary.
    *
-   * @param {RenderedEmbedState} currentState Current rendered embed state.
-   * @param {RenderedEmbedSnapshot} nextState Next desired embed state.
-   * @param {boolean} force Whether the quality update should be forced regardless of state.
-   * @returns {void}
-   * @private
+   * @param {RenderedEmbedState} currentState - Current rendered embed state.
+   * @param {RenderedEmbedSnapshot} nextState - Next desired embed state.
+   * @param {boolean} force - Whether the quality update should be forced regardless of state.
+    * @returns {void}
    */
   private _syncQualityState(
     currentState: RenderedEmbedState,
@@ -508,10 +519,9 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Defers expensive embed work while the modal is open or the document is hidden.
    *
-   * @param {HTMLElement} host Host element of the grid.
+   * @param {HTMLElement} host - Host element of the grid.
    * @returns {boolean} `true` when embed sync should be deferred.
    * @remarks Avoids eager embed churn while the menu is open or the page is hidden.
-   * @private
    */
   private _shouldDeferEmbedSync(host: HTMLElement): boolean {
     return this._state.menuOpen() || this._isDocumentHidden(host.ownerDocument);
@@ -520,9 +530,8 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Returns whether the referenced document is currently hidden.
    *
-   * @param {Document | undefined} documentRef Document to check.
+   * @param {Document | undefined} documentRef - Document to check.
    * @returns {boolean} `true` when the document is hidden.
-   * @private
    */
   private _isDocumentHidden(documentRef: Document | undefined): boolean {
     return documentRef?.visibilityState === 'hidden';
@@ -531,9 +540,8 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   /**
    * Reads the viewport size on the browser and falls back to zero during SSR.
    *
-   * @param {'innerWidth' | 'innerHeight'} dimension Window property to read, such as `innerWidth` or `innerHeight`.
+   * @param {'innerWidth' | 'innerHeight'} dimension - Window property to read, such as `innerWidth` or `innerHeight`.
    * @returns {number} Viewport dimension in pixels, or `0` when unavailable.
-   * @private
    */
   private _readViewportDimension(dimension: 'innerWidth' | 'innerHeight'): number {
     if (!isPlatformBrowser(this._platformId)) {

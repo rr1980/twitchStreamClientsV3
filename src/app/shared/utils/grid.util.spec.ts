@@ -157,8 +157,8 @@ describe('calculateOptimalGrid', () => {
   /**
    * Creates a stream test fixture with an optional chat flag.
    *
-   * @param {string} name Channel name of the test stream.
-   * @param {boolean} [showChat=false] Whether the fixture stream should be created with chat enabled.
+   * @param {string} name - Channel name of the test stream.
+    * @param {boolean} [showChat] - Whether the fixture stream should be created with chat enabled.
    * @returns {StreamChannel} Stream fixture used in layout tests.
    * @remarks This helper reduces repetition across grid test cases.
    */

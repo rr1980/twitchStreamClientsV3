@@ -13,8 +13,8 @@ describe('App', () => {
   /**
    * Returns a bound private method from the app instance for white-box assertions.
    *
-   * @param {object} instance App instance that owns the requested private method.
-   * @param {string} propertyName Name of the private method.
+   * @param {object} instance - App instance that owns the requested private method.
+   * @param {string} propertyName - Name of the private method.
    * @returns {T} Bound method with the expected function type.
    * @remarks This helper centralizes the unsafe private-member access required by focused white-box tests.
    */

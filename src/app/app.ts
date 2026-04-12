@@ -65,8 +65,8 @@ export class App {
   /**
    * Delegates global hotkeys and prevents the browser default when consumed.
    *
-   * @param {KeyboardEvent} event Keyboard event raised on window keydown.
-   * @returns {void}
+   * @param {KeyboardEvent} event - Keyboard event raised on window keydown.
+    * @returns {void}
    */
   protected _onWindowKeydown(event: KeyboardEvent): void {
     if (this._hotkeys.handleWindowKeydown(event, this._document.activeElement)) {
@@ -77,8 +77,8 @@ export class App {
   /**
    * Opens the settings menu from shell UI controls.
    *
-   * @returns {void}
    * @remarks Triggers the state service to open the settings menu modal.
+    * @returns {void}
    */
   protected _openMenu(): void {
     this._state.openMenu();
@@ -87,8 +87,8 @@ export class App {
   /**
    * Starts the deferred PWA install flow.
    *
-   * @returns {void}
    * @remarks Initiates the PWA installation prompt when available.
+    * @returns {void}
    */
   protected _installApp(): void {
     void this._pwa.install();
@@ -97,8 +97,8 @@ export class App {
   /**
    * Hides the startup install hint.
    *
-   * @returns {void}
    * @remarks Dismisses the PWA startup hint for the user.
+    * @returns {void}
    */
   protected _dismissStartupHint(): void {
     this._pwa.dismissStartupHint();
@@ -107,8 +107,8 @@ export class App {
   /**
    * Reloads the app so a ready service worker update becomes active.
    *
-   * @returns {void}
    * @remarks Forces a reload to activate a newly installed service worker version.
+    * @returns {void}
    */
   protected _reloadForUpdate(): void {
     this._pwa.reloadForUpdate();
@@ -117,8 +117,8 @@ export class App {
   /**
    * Hides the current update notice without reloading.
    *
-   * @returns {void}
    * @remarks Dismisses the update notification without reloading the application.
+    * @returns {void}
    */
   protected _dismissUpdateNotice(): void {
     this._pwa.dismissUpdateNotice();
@@ -147,9 +147,9 @@ export class App {
   /**
    * Restores the last active list when the app starts on the null route.
    *
-   * @param {number | null} activeListId List id currently active from the route.
-   * @returns {void}
+   * @param {number | null} activeListId - List id currently active from the route.
    * @remarks Navigates to the last active list when the current route is `null` and the list still exists.
+    * @returns {void}
    */
   private _restoreInitialView(activeListId: number | null): void {
     const lastActiveListId = this._state.lastActiveListId();

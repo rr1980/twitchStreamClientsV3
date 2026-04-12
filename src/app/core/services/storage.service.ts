@@ -5,7 +5,7 @@ import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 /**
  * Wraps localStorage access with browser guards and failure handling.
  *
- * @remarks Provides safe access to browser localStorage, including error handling, platform checks, and typed convenience helpers for string, boolean, and JSON values.
+ * @remarks This service is the only storage access layer used by the app. It guards SSR access, converts failures into fallbacks, and keeps callers free from repetitive `try`/`catch` handling.
  */
 export class StorageService {
   private readonly _platformId = inject(PLATFORM_ID);
@@ -13,7 +13,7 @@ export class StorageService {
   /**
    * Returns the raw stored value for a key or null when unavailable.
    *
-   * @param {string} key Storage key to retrieve.
+   * @param {string} key - Storage key to retrieve.
    * @returns {string | null} Stored string value, or `null` when unavailable.
    */
   public getItem(key: string): string | null {
@@ -23,7 +23,7 @@ export class StorageService {
   /**
    * Checks whether a key is present in localStorage.
    *
-   * @param {string} key Storage key to check.
+   * @param {string} key - Storage key to check.
    * @returns {boolean} `true` when the key exists.
    */
   public hasKey(key: string): boolean {
@@ -33,8 +33,8 @@ export class StorageService {
   /**
    * Reads a string value and falls back when the key is missing.
    *
-   * @param {string} key Storage key to retrieve.
-   * @param {string} fallback Fallback value used when the key is missing.
+   * @param {string} key - Storage key to retrieve.
+   * @param {string} fallback - Fallback value used when the key is missing.
    * @returns {string} Stored string value, or the fallback when not found.
    */
   public getString(key: string, fallback: string): string {
@@ -44,8 +44,8 @@ export class StorageService {
   /**
    * Reads a boolean persisted as the strings "true" or "false".
    *
-   * @param {string} key Storage key to retrieve.
-   * @param {boolean} [fallback=false] Fallback boolean value used when the key is missing or invalid.
+   * @param {string} key - Storage key to retrieve.
+    * @param {boolean} [fallback] - Fallback boolean value used when the key is missing or invalid.
    * @returns {boolean} Stored boolean value, or the fallback when not found.
    */
   public getBoolean(key: string, fallback = false): boolean {
@@ -62,8 +62,8 @@ export class StorageService {
    * Parses JSON and returns the fallback when parsing or storage access fails.
    *
    * @typeParam T Expected type of the parsed value.
-   * @param {string} key Storage key to retrieve.
-   * @param {T} fallback Fallback value used when parsing fails or the key is missing.
+   * @param {string} key - Storage key to retrieve.
+   * @param {T} fallback - Fallback value used when parsing fails or the key is missing.
    * @returns {T} Parsed value of type `T`, or the fallback when the stored value is unavailable or invalid.
    */
   public getJson<T>(key: string, fallback: T): T {
@@ -78,8 +78,8 @@ export class StorageService {
   /**
    * Persists a raw string value.
    *
-   * @param {string} key Storage key to set.
-   * @param {string} value String value to store.
+   * @param {string} key - Storage key to set.
+   * @param {string} value - String value to store.
    * @returns {boolean} `true` when the value was stored successfully.
    */
   public setString(key: string, value: string): boolean {
@@ -89,8 +89,8 @@ export class StorageService {
   /**
    * Persists a boolean as a string value.
    *
-   * @param {string} key Storage key to set.
-   * @param {boolean} value Boolean value to store.
+   * @param {string} key - Storage key to set.
+   * @param {boolean} value - Boolean value to store.
    * @returns {boolean} `true` when the value was stored successfully.
    */
   public setBoolean(key: string, value: boolean): boolean {
@@ -101,8 +101,8 @@ export class StorageService {
    * Serializes a value as JSON and stores it under the given key.
    *
    * @typeParam T Type of the value to store.
-   * @param {string} key Storage key to set.
-   * @param {T} value Value to serialize and store.
+   * @param {string} key - Storage key to set.
+   * @param {T} value - Value to serialize and store.
    * @returns {boolean} `true` when the value was stored successfully.
    */
   public setJson<T>(key: string, value: T): boolean {
@@ -112,7 +112,7 @@ export class StorageService {
   /**
    * Removes a key from storage.
    *
-   * @param {string} key Storage key to remove.
+   * @param {string} key - Storage key to remove.
    * @returns {boolean} `true` when the key was removed successfully.
    */
   public remove(key: string): boolean {
@@ -123,9 +123,10 @@ export class StorageService {
    * Executes a read operation against localStorage with a fallback on failure.
    *
    * @typeParam T Type of the value to read.
-   * @param {(storage: Storage) => T} reader Function to execute on the storage object.
-   * @param {T} fallback Fallback value used when storage is unavailable or the read fails.
+   * @param {(storage: Storage) => T} reader - Function to execute on the storage object.
+   * @param {T} fallback - Fallback value used when storage is unavailable or the read fails.
    * @returns {T} Result of the reader function, or the fallback value.
+    * @remarks Reads never throw to callers. When storage is unavailable because of SSR, browser privacy settings, blocked access, or transient browser errors, the fallback is returned unchanged so higher layers can stay deterministic.
    */
   private _read<T>(reader: (storage: Storage) => T, fallback: T): T {
     const storage = this._storage;
@@ -144,9 +145,9 @@ export class StorageService {
   /**
    * Executes a write operation against localStorage and reports write failures.
    *
-   * @param {(storage: Storage) => void} writer Function to execute on the storage object.
+   * @param {(storage: Storage) => void} writer - Function to execute on the storage object.
    * @returns {boolean} `true` when the write was successful.
-   * @remarks Logs quota failures and silently reports all storage write failures as `false`.
+    * @remarks Writes are intentionally fail-soft. Quota and access failures are swallowed and reported as `false`, with quota issues logged so higher layers can decide whether user feedback, retries, or persistence fallbacks are necessary.
    */
   private _write(writer: (storage: Storage) => void): boolean {
     const storage = this._storage;

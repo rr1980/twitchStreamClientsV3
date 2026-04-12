@@ -82,8 +82,8 @@ describe('stream-quality.util', () => {
   /**
    * Creates a quality option fixture with a default label matching the value.
    *
-   * @param {string} value Normalized quality value for the fixture entry.
-   * @param {string} [label=value] Optional display label for the quality.
+   * @param {string} value - Normalized quality value for the fixture entry.
+    * @param {string} [label] - Optional display label for the quality.
    * @returns {StreamQualityOption} Quality fixture used in assertions.
    * @remarks When no explicit label is provided, the quality value itself is used as the display text.
    */

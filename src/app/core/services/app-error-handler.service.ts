@@ -14,9 +14,9 @@ export class AppErrorHandler implements ErrorHandler {
   /**
    * Reports the error and shows a generic toast outside of development mode.
    *
-   * @param {unknown} error Error object or thrown value to handle.
-   * @returns {void}
+   * @param {unknown} error - Error object or thrown value to handle.
    * @remarks Logs the error to the console and shows a generic error toast outside development mode.
+    * @returns {void}
    */
   public handleError(error: unknown): void {
     const normalizedError = this._normalizeError(error);
@@ -31,7 +31,7 @@ export class AppErrorHandler implements ErrorHandler {
   /**
    * Converts unknown thrown values into a standard Error instance.
    *
-   * @param {unknown} error Error value to normalize.
+   * @param {unknown} error - Error value to normalize.
    * @returns {Error} Standard [`Error`](src/app/core/services/app-error-handler.service.ts:38) instance representing the error.
    */
   private _normalizeError(error: unknown): Error {

@@ -18,9 +18,9 @@ describe('TwitchEmbedService', () => {
   /**
    * Installs a mock Twitch embed constructor on the browser window.
    *
-   * @param {ReturnType<typeof vi.fn>} embed Mock constructor for [`Twitch.Embed`](src/app/core/services/twitch-embed.service.ts:206).
-   * @returns {void}
+   * @param {ReturnType<typeof vi.fn>} embed - Mock constructor for [`Twitch.Embed`](src/app/core/services/twitch-embed.service.ts:206).
    * @remarks The helper simulates the global Twitch API without loading the external script.
+    * @returns {void}
    */
   function setWindowTwitchEmbed(embed: ReturnType<typeof vi.fn>): void {
     const twitchApi = {} as NonNullable<Window['Twitch']>;
@@ -31,10 +31,10 @@ describe('TwitchEmbedService', () => {
   /**
    * Installs a mock Twitch embed constructor with a configurable ready event constant.
    *
-   * @param {ReturnType<typeof vi.fn>} embed Mock constructor for [`Twitch.Embed`](src/app/core/services/twitch-embed.service.ts:206).
-   * @param {string} [readyEvent='VIDEO_READY_EVENT'] Name of the ready event constant in the mock.
-   * @returns {void}
+   * @param {ReturnType<typeof vi.fn>} embed - Mock constructor for [`Twitch.Embed`](src/app/core/services/twitch-embed.service.ts:206).
+    * @param {string} [readyEvent] - Name of the ready event constant in the mock.
    * @remarks A play-event constant is also set so event mappings remain testable.
+    * @returns {void}
    */
   function setWindowTwitchEmbedWithReadyEvent(embed: ReturnType<typeof vi.fn>, readyEvent = 'VIDEO_READY_EVENT'): void {
     const twitchApi = {} as NonNullable<Window['Twitch']>;
@@ -48,7 +48,7 @@ describe('TwitchEmbedService', () => {
   /**
    * Returns a bound private service method for white-box Twitch tests.
    *
-   * @param {string} propertyName Name of the private method.
+   * @param {string} propertyName - Name of the private method.
    * @returns {T} Bound method with the expected function type.
    * @remarks Accesses the service instance already injected in the test context.
    */
@@ -59,10 +59,10 @@ describe('TwitchEmbedService', () => {
   /**
    * Overrides a private service member for a targeted test scenario.
    *
-   * @param {string} propertyName Name of the private member.
-   * @param {T} value New value assigned to the member.
-   * @returns {void}
+   * @param {string} propertyName - Name of the private member.
+   * @param {T} value - New value assigned to the member.
    * @remarks Used to steer internal service state for targeted test paths.
+    * @returns {void}
    */
   function setServiceMember<T>(propertyName: string, value: T): void {
     (service as unknown as Record<string, unknown>)[propertyName] = value;
@@ -822,9 +822,8 @@ describe('TwitchEmbedService', () => {
     /**
      * Creates a ready-to-trigger embed harness with a controllable mock player.
      *
-     * @returns {{ player: { getQualities: ReturnType<typeof vi.fn>; getQuality: ReturnType<typeof vi.fn>; setQuality: ReturnType<typeof vi.fn>; }; triggerReady: () => void; }} Harness with a mock player and a manually triggerable ready callback.
+     * @returns Harness with a mock player and a manually triggerable ready callback.
      * @remarks The structure allows quality synchronization to be asserted precisely after the simulated ready event.
-     * @type {() => { player: { getQualities: ReturnType<typeof vi.fn>; getQuality: ReturnType<typeof vi.fn>; setQuality: ReturnType<typeof vi.fn>; }; triggerReady: () => void; }}
      */
     const createReadyHarness = (): {
       player: {
