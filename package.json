@@ -11,7 +11,7 @@
     "coverage:check": "node ./scripts/check-coverage.mjs",
     "test:coverage:ci": "npm run test:coverage && npm run coverage:check",
     "lint": "ng lint",
-    "check:dead-exports": "ts-unused-exports tsconfig.app.json --excludePathsFromReport=src/**/*.spec.ts",
+    "check:dead-exports": "ts-unused-exports tsconfig.app.json",
     "http": "http-server --port 8086 -c-1 ./dist/twitchStreamClientsV3/browser"
   },
   "private": true,
