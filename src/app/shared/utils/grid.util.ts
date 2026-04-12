@@ -175,27 +175,81 @@ function calculateFeaturedGrid(count: number, containerWidth: number, containerH
     return buildUniformLayout(1, { cols: 1, rows: 1 });
   }
 
-  if (count === 2) {
+  const isLandscape = containerWidth >= containerHeight;
+
+  if (!isLandscape) {
+    if (count === 2) {
+      return {
+        cols: 2,
+        rows: 3,
+        placements: [
+          { column: '1 / span 2', row: '1 / span 2' },
+          { column: '1 / span 2', row: '3' },
+        ],
+      };
+    }
+
     return {
       cols: 2,
-      rows: 2,
+      rows: 2 + Math.ceil((count - 1) / 2),
       placements: [
-        { column: '1', row: '1 / span 2' },
-        {},
+        { column: '1 / span 2', row: '1 / span 2' },
+        ...Array.from({ length: count - 1 }, () => ({})),
       ],
     };
   }
 
-  const cols = containerWidth >= containerHeight ? 4 : 3;
-  const normalizedCols = Math.min(Math.max(3, cols), Math.max(3, count));
+  if (count === 2) {
+    return {
+      cols: 3,
+      rows: 2,
+      placements: [
+        { column: '1 / span 2', row: '1 / span 2' },
+        { column: '3', row: '1 / span 2' },
+      ],
+    };
+  }
+
+  if (count === 3) {
+    return {
+      cols: 4,
+      rows: 2,
+      placements: [
+        { column: '1 / span 3', row: '1 / span 2' },
+        { column: '4', row: '1' },
+        { column: '4', row: '2' },
+      ],
+    };
+  }
+
+  const heroRows = 3;
+  const sideRailCount = Math.min(count - 1, heroRows);
+  const extraCount = count - 1 - sideRailCount;
+  const extraRows = extraCount === 1
+    ? 1
+    : Math.ceil(extraCount / 2);
+  const rows = heroRows + extraRows;
+  const placements: GridItemPlacement[] = [
+    { column: '1 / span 3', row: `1 / span ${heroRows}` },
+    ...Array.from({ length: sideRailCount }, (_, index) => ({
+      column: '4',
+      row: String(index + 1),
+    })),
+  ];
+
+  if (extraCount === 1) {
+    placements.push({ column: '1 / span 4', row: String(heroRows + 1) });
+  } else {
+    placements.push(...Array.from({ length: extraCount }, (_, index) => ({
+      column: index % 2 === 0 ? '1 / span 2' : '3 / span 2',
+      row: String(heroRows + Math.floor(index / 2) + 1),
+    })));
+  }
 
   return {
-    cols: normalizedCols,
-    rows: Math.max(2, Math.ceil((count + 3) / normalizedCols)),
-    placements: [
-      { column: 'span 2', row: 'span 2' },
-      ...Array.from({ length: count - 1 }, () => ({})),
-    ],
+    cols: 4,
+    rows,
+    placements,
   };
 }
 

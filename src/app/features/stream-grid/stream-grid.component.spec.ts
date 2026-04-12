@@ -681,9 +681,27 @@ describe('StreamGridComponent', () => {
 
     const wrappers = fixture.nativeElement.querySelectorAll('.twitch-embed-wrapper') as NodeListOf<HTMLElement>;
 
-    expect(wrappers[0].style.gridColumn).toBe('span 2');
-    expect(wrappers[0].style.gridRow).toBe('span 2');
+    expect(wrappers[0].style.gridColumn).toBe('1 / span 3');
+    expect(wrappers[0].style.gridRow).toBe('1 / span 2');
     expect(fixture.nativeElement.querySelector('.stream-overlay')).toBeNull();
+  });
+
+  it('renders a larger hero and a right-side rail for four stage streams', async () => {
+    state.layoutPreset.set('stage');
+    state.setActiveList({
+      id: 1,
+      name: 'Liste 1',
+      streams: [channel('shroud'), channel('rocketbeanstv'), channel('gronkh'), channel('papaplatte')],
+    });
+    await syncComponent();
+
+    const wrappers = fixture.nativeElement.querySelectorAll('.twitch-embed-wrapper') as NodeListOf<HTMLElement>;
+
+    expect(wrappers[0].style.gridColumn).toBe('1 / span 3');
+    expect(wrappers[0].style.gridRow).toBe('1 / span 3');
+    expect(wrappers[1].style.gridColumn).toBe('4');
+    expect(wrappers[1].style.gridRow).toBe('1');
+    expect(wrappers[3].style.gridRow).toBe('3');
   });
 
   it('updates the viewport signals on resize', () => {

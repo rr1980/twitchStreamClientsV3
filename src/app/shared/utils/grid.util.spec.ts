@@ -51,9 +51,11 @@ describe('calculateOptimalGrid', () => {
       channel('three'),
     ], 1920, 1080, 'stage');
 
-    expect(layout.cols).toBe(3);
+    expect(layout.cols).toBe(4);
     expect(layout.rows).toBe(2);
-    expect(layout.placements[0]).toEqual({ column: 'span 2', row: 'span 2' });
+    expect(layout.placements[0]).toEqual({ column: '1 / span 3', row: '1 / span 2' });
+    expect(layout.placements[1]).toEqual({ column: '4', row: '1' });
+    expect(layout.placements[2]).toEqual({ column: '4', row: '2' });
   });
 
   it('builds a chat-friendly layout with fewer columns', () => {
@@ -95,12 +97,13 @@ describe('calculateOptimalGrid', () => {
   it('builds a featured layout for two streams', () => {
     const layout = calculateStreamGridLayout([channel('one'), channel('two')], 1920, 1080, 'stage');
 
-    expect(layout.cols).toBe(2);
+    expect(layout.cols).toBe(3);
     expect(layout.rows).toBe(2);
-    expect(layout.placements[0]).toEqual({ column: '1', row: '1 / span 2' });
+    expect(layout.placements[0]).toEqual({ column: '1 / span 2', row: '1 / span 2' });
+    expect(layout.placements[1]).toEqual({ column: '3', row: '1 / span 2' });
   });
 
-  it('builds a portrait featured layout with 3 columns', () => {
+  it('builds a portrait featured layout with a hero row and a grid below', () => {
     const layout = calculateStreamGridLayout([
       channel('one'),
       channel('two'),
@@ -108,7 +111,41 @@ describe('calculateOptimalGrid', () => {
       channel('four'),
     ], 800, 1200, 'stage');
 
-    expect(layout.cols).toBe(3);
+    expect(layout.cols).toBe(2);
+    expect(layout.rows).toBe(4);
+    expect(layout.placements[0]).toEqual({ column: '1 / span 2', row: '1 / span 2' });
+  });
+
+  it('builds a larger hero with a side rail for four landscape streams', () => {
+    const layout = calculateStreamGridLayout([
+      channel('one'),
+      channel('two'),
+      channel('three'),
+      channel('four'),
+    ], 1920, 1080, 'stage');
+
+    expect(layout.cols).toBe(4);
+    expect(layout.rows).toBe(3);
+    expect(layout.placements).toEqual([
+      { column: '1 / span 3', row: '1 / span 3' },
+      { column: '4', row: '1' },
+      { column: '4', row: '2' },
+      { column: '4', row: '3' },
+    ]);
+  });
+
+  it('uses a full-width lower row when one extra stream remains after the side rail', () => {
+    const layout = calculateStreamGridLayout([
+      channel('one'),
+      channel('two'),
+      channel('three'),
+      channel('four'),
+      channel('five'),
+    ], 1920, 1080, 'stage');
+
+    expect(layout.cols).toBe(4);
+    expect(layout.rows).toBe(4);
+    expect(layout.placements[4]).toEqual({ column: '1 / span 4', row: '4' });
   });
 
   it('builds a single-stream chat layout', () => {
