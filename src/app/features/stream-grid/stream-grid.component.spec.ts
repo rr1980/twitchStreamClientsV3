@@ -15,7 +15,14 @@ describe('StreamGridComponent', () => {
   let twitch: MockTwitchEmbedService;
   let toast: MockToastService;
 
-  /** Returns a bound private method from the component for white-box test access. */
+  /**
+   * Returns a bound private method from the component for white-box test access.
+   *
+   * @param {object} instance Component instance that owns the requested method.
+   * @param {string} propertyName Name of the private method.
+   * @returns {T} Bound method with the expected function type.
+   * @remarks Binding ensures that the method keeps the correct `this` context.
+   */
   function getPrivateMethod<T extends (...args: never[]) => unknown>(
     instance: object,
     propertyName: string,
@@ -23,17 +30,40 @@ describe('StreamGridComponent', () => {
     return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
   }
 
-  /** Reads a private numeric field from the component instance. */
+  /**
+   * Reads a private numeric field from the component instance.
+   *
+   * @param {object} instance Component instance that owns the requested field.
+   * @param {string} propertyName Name of the private numeric field.
+   * @returns {number} Current numeric field value.
+   * @remarks Used by white-box assertions that inspect internal counters.
+   */
   function getPrivateNumber(instance: object, propertyName: string): number {
     return (instance as Record<string, number>)[propertyName];
   }
 
-  /** Writes a private numeric field on the component instance. */
+  /**
+   * Writes a private numeric field on the component instance.
+   *
+   * @param {object} instance Component instance that owns the target field.
+   * @param {string} propertyName Name of the private numeric field.
+   * @param {number} value New numeric value.
+   * @returns {void}
+   * @remarks Allows internal state to be prepared for targeted test paths.
+   */
   function setPrivateNumber(instance: object, propertyName: string, value: number): void {
     (instance as Record<string, number>)[propertyName] = value;
   }
 
-  /** Writes an arbitrary private member on the component instance. */
+  /**
+   * Writes an arbitrary private member on the component instance.
+   *
+   * @param {object} instance Component instance that owns the target member.
+   * @param {string} propertyName Name of the private member.
+   * @param {T} value New value.
+   * @returns {void}
+   * @remarks Used to inject test doubles and internal flags directly.
+   */
   function setPrivateMember<T>(instance: object, propertyName: string, value: T): void {
     (instance as Record<string, unknown>)[propertyName] = value;
   }
@@ -796,17 +826,36 @@ describe('StreamGridComponent', () => {
     expect(state.setAvailableQualities).toHaveBeenLastCalledWith([]);
   });
 
-  /** Creates a stream fixture with an optional chat flag. */
+  /**
+   * Creates a stream fixture with an optional chat flag.
+   *
+   * @param {string} name Channel name of the fixture stream.
+   * @param {boolean} [showChat=false] Whether the stream should be created with chat enabled.
+   * @returns {StreamChannel} Stream fixture used in grid tests.
+   * @remarks The helper keeps layout and focus tests compact.
+   */
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }
 
-  /** Creates a quality option fixture for embed quality reporting. */
+  /**
+   * Creates a quality option fixture for embed quality reporting.
+   *
+   * @param {string} value Normalized quality value.
+   * @param {string} [label=value] Optional display label.
+   * @returns {StreamQualityOption} Quality fixture used by embed mocks.
+   * @remarks When no label is provided, the quality value itself is displayed.
+   */
   function quality(value: string, label = value): StreamQualityOption {
     return { value, label };
   }
 
-  /** Flushes change detection and pending microtasks for the component fixture. */
+  /**
+   * Flushes change detection and pending microtasks for the component fixture.
+   *
+   * @returns {Promise<void>} Promise that resolves once the fixture update becomes stable.
+   * @remarks Combines change detection, fakeAsync timers, and microtask flushing for reproducible UI tests.
+   */
   async function syncComponent(): Promise<void> {
     fixture.detectChanges();
     TestBed.tick();
@@ -835,7 +884,13 @@ class MockStreamStateService {
   });
   private readonly _activeList = signal<StreamList | null>(null);
 
-  /** Replaces the active list fixture and keeps the active id in sync. */
+  /**
+   * Replaces the active list fixture and keeps the active id in sync.
+   *
+   * @param {StreamList | null} list New active list fixture or `null`.
+   * @returns {void}
+   * @remarks The mock method updates both the active list and the active list id.
+   */
   public setActiveList(list: StreamList | null): void {
     this._activeList.set(list);
     this.activeListId.set(list?.id ?? null);
@@ -857,7 +912,14 @@ class MockTwitchEmbedService {
     return handle;
   });
 
-  /** Pushes reported qualities into the callback registered for an embed. */
+  /**
+   * Pushes reported qualities into the callback registered for an embed.
+   *
+   * @param {string} elementId Element id of the affected embed.
+   * @param {StreamQualityOption[]} qualities Reported quality options.
+   * @returns {void}
+   * @remarks Simulates Twitch embed quality callbacks without a real player instance.
+   */
   public reportQualities(elementId: string, qualities: StreamQualityOption[]): void {
     this._qualityCallbacks.get(elementId)?.(qualities);
   }

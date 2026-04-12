@@ -1,7 +1,7 @@
 /**
  * Normalizes and reports bootstrap failures before the app is interactive.
  *
- * @param {unknown} error Unbekannter Fehlerwert aus dem Bootstrap-Prozess.
+ * @param {unknown} error Unknown error value raised during bootstrap.
  * @returns {void}
  */
 export function reportBootstrapError(error: unknown): void {
@@ -13,8 +13,8 @@ export function reportBootstrapError(error: unknown): void {
 /**
  * Converts unknown bootstrap failures into a standard [`Error`](src/app/core/utils/bootstrap-error.util.ts:9) instance.
  *
- * @param {unknown} error Unbekannter Fehlerwert aus dem Bootstrap-Prozess.
- * @returns {Error} Normalisierte Fehlerinstanz für Logging und Weitergabe.
+ * @param {unknown} error Unknown error value raised during bootstrap.
+ * @returns {Error} Normalized error instance for logging and propagation.
  */
 function normalizeBootstrapError(error: unknown): Error {
   if (error instanceof Error) {

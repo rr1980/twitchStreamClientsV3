@@ -15,17 +15,37 @@ describe('SettingsModalComponent', () => {
   let state: MockStreamStateService;
   let toast: MockToastService;
 
-  /** Reads a private component member for white-box assertions. */
+  /**
+   * Reads a private component member for white-box assertions.
+   *
+   * @param {object} instance Component instance that owns the requested member.
+   * @param {string} propertyName Name of the private member.
+   * @returns {T} Read value with the expected type.
+   * @remarks Encapsulates the unsafe private-member access needed by the tests.
+   */
   function getComponentMember<T>(instance: object, propertyName: string): T {
     return (instance as Record<string, unknown>)[propertyName] as T;
   }
 
-  /** Returns a bound private or protected method from the component instance. */
+  /**
+   * Returns a bound private or protected method from the component instance.
+   *
+   * @param {object} instance Component instance that owns the requested method.
+   * @param {string} propertyName Name of the private or protected method.
+   * @returns {T} Bound method with the expected function type.
+   * @remarks Binding ensures that `this` remains correct in white-box tests.
+   */
   function getComponentMethod<T extends (...args: never[]) => unknown>(instance: object, propertyName: string): T {
     return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
   }
 
-  /** Queries a required element from the rendered fixture and asserts it exists. */
+  /**
+   * Queries a required element from the rendered fixture and asserts it exists.
+   *
+   * @param {string} selector CSS selector for the expected DOM element.
+   * @returns {T} Located DOM element.
+   * @remarks The test fails immediately with an assertion if no matching element exists.
+   */
   function getElement<T extends Element>(selector: string): T {
     const element = fixture.nativeElement.querySelector(selector) as T | null;
 
@@ -34,7 +54,13 @@ describe('SettingsModalComponent', () => {
     return element as T;
   }
 
-  /** Finds a button by its trimmed text content. */
+  /**
+   * Finds a button by its trimmed text content.
+   *
+   * @param {string} text Expected visible button text.
+   * @returns {HTMLButtonElement} Located button element.
+   * @remarks The search ignores leading and trailing whitespace in the text content.
+   */
   function getButtonByText(text: string): HTMLButtonElement {
     const buttons = fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>;
     const button = Array.from(buttons)
@@ -45,7 +71,14 @@ describe('SettingsModalComponent', () => {
     return button as HTMLButtonElement;
   }
 
-  /** Updates an input value in the DOM and dispatches the corresponding input event. */
+  /**
+   * Updates an input value in the DOM and dispatches the corresponding input event.
+   *
+   * @param {string} selector CSS selector for the input element.
+   * @param {string} value New field value.
+   * @returns {HTMLInputElement} Updated input element.
+   * @remarks Simulates real user input including the `input` event.
+   */
   function setInputValue(selector: string, value: string): HTMLInputElement {
     const input = getElement<HTMLInputElement>(selector);
 
@@ -909,17 +942,36 @@ describe('SettingsModalComponent', () => {
     expect(setDragImage).toHaveBeenCalledTimes(1);
   });
 
-  /** Creates a stream fixture with an optional chat flag. */
+  /**
+   * Creates a stream fixture with an optional chat flag.
+   *
+   * @param {string} name Channel name of the fixture stream.
+   * @param {boolean} [showChat=false] Whether the stream should be created with chat enabled.
+   * @returns {StreamChannel} Stream fixture used in modal tests.
+   * @remarks The helper keeps stream expectations compact across the tests.
+   */
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }
 
-  /** Creates a quality option fixture with a default label. */
+  /**
+   * Creates a quality option fixture with a default label.
+   *
+   * @param {string} value Normalized quality value.
+   * @param {string} [label=value] Optional display label.
+   * @returns {StreamQualityOption} Quality fixture used in assertions.
+   * @remarks When no explicit label is provided, the quality value is used as the visible caption.
+   */
   function quality(value: string, label = value): StreamQualityOption {
     return { value, label };
   }
 
-  /** Flushes change detection, timers, and microtasks for the modal fixture. */
+  /**
+   * Flushes change detection, timers, and microtasks for the modal fixture.
+   *
+   * @returns {Promise<void>} Promise that resolves once the fixture reaches a stable state.
+   * @remarks Combines change detection, [`TestBed.tick()`](src/app/features/settings-modal/settings-modal.component.spec.ts:925), and microtask flushing for async modal interactions.
+   */
   async function syncComponent(): Promise<void> {
     fixture.detectChanges();
     TestBed.tick();
@@ -974,17 +1026,34 @@ class MockStreamStateService {
   public readonly setStreamShowChat = vi.fn();
   public readonly toggleFavoriteChannel = vi.fn<(channelName: string) => boolean>(() => true);
 
-  /** Replaces the list fixtures used by the modal tests. */
+  /**
+   * Replaces the list fixtures used by the modal tests.
+   *
+   * @param {StreamList[]} lists New list fixtures for the mock state.
+   * @returns {void}
+   * @remarks The method updates only the mock signals and intentionally adds no extra logic.
+   */
   public setLists(lists: StreamList[]): void {
     this.lists.set(lists);
   }
 
-  /** Updates the active list id fixture. */
+  /**
+   * Updates the active list id fixture.
+   *
+   * @param {number | null} listId New active list id or `null`.
+   * @returns {void}
+   * @remarks Used to simulate navigation and selection state in focused tests.
+   */
   public setActiveListId(listId: number | null): void {
     this.activeListId.set(listId);
   }
 
-  /** Returns the prepared statistics fixture used by suggestion tests. */
+  /**
+   * Returns the prepared statistics fixture used by suggestion tests.
+   *
+   * @returns {StreamStatistic[]} Prepared statistic values from the mock.
+   * @remarks The data is read directly from the fixture and is not recalculated.
+   */
   public getTopStatistics(): StreamStatistic[] {
     return this.statistics;
   }

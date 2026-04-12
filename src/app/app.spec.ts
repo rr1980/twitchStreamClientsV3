@@ -10,7 +10,14 @@ import { StreamStateService } from './core/services/stream-state.service';
 describe('App', () => {
   let router: Router;
 
-  /** Returns a bound private method from the app instance for white-box assertions. */
+  /**
+   * Returns a bound private method from the app instance for white-box assertions.
+   *
+   * @param {object} instance App instance that owns the requested private method.
+   * @param {string} propertyName Name of the private method.
+   * @returns {T} Bound method with the expected function type.
+   * @remarks This helper centralizes the unsafe private-member access required by focused white-box tests.
+   */
   function getAppMethod<T extends (...args: never[]) => unknown>(instance: object, propertyName: string): T {
     return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
   }

@@ -48,7 +48,11 @@ interface ListMutationResult {
 }
 
 @Injectable({ providedIn: 'root' })
-/** Owns the normalized application state and persists it to localStorage. */
+/**
+ * Owns the normalized application state and persists it to localStorage.
+ *
+ * @remarks Centralizes list, stream, favorites, and persistence logic behind the application's state signals.
+ */
 export class StreamStateService {
   private readonly _stateKey = 'app_state_v3';
   private readonly _maxRecentChannels = 24;
@@ -149,7 +153,7 @@ export class StreamStateService {
   /**
    * Updates the active list id and tracks it as the last active list when valid.
    *
-   * @param {number | null} listId Id der Liste, die aktiv sein soll, oder `null`, um die Auswahl zu leeren.
+   * @param {number | null} listId Id of the list that should become active, or `null` to clear the selection.
    * @returns {void}
    */
   public setActiveListId(listId: number | null): void {
@@ -163,8 +167,8 @@ export class StreamStateService {
   /**
    * Creates a new empty list after validating and normalizing the requested name.
    *
-   * @param {string} rawName Unformatierter Listenname aus der UI.
-   * @returns {ListMutationResult} Ergebnis der Listenerstellung inklusive Fehlergrund oder erzeugter Liste.
+   * @param {string} rawName Raw list name from the UI.
+   * @returns {ListMutationResult} Result of the list creation, including a failure reason or the created list.
    */
   public createList(rawName: string): ListMutationResult {
     const name = this._normalizeListName(rawName);
@@ -195,9 +199,9 @@ export class StreamStateService {
   /**
    * Renames an existing list when the target name is valid and unique.
    *
-   * @param {number} listId Id der umzubenennenden Liste.
-   * @param {string} rawName Unformatierter neuer Listenname.
-   * @returns {ListMutationResult} Ergebnis der Umbenennung inklusive Fehlergrund oder aktualisierter Liste.
+   * @param {number} listId Id of the list to rename.
+   * @param {string} rawName Raw new list name.
+   * @returns {ListMutationResult} Result of the rename operation, including a failure reason or the updated list.
    */
   public renameList(listId: number, rawName: string): ListMutationResult {
     const name = this._normalizeListName(rawName);
@@ -229,8 +233,8 @@ export class StreamStateService {
   /**
    * Clones the selected list, including stream configuration and list-scoped settings.
    *
-   * @param {number} listId Id der zu duplizierenden Liste.
-   * @returns {ListMutationResult} Ergebnis der Duplizierung inklusive Fehlergrund oder neuer Liste.
+   * @param {number} listId Id of the list to duplicate.
+   * @returns {ListMutationResult} Result of the duplication, including a failure reason or the new list.
    */
   public duplicateList(listId: number): ListMutationResult {
     const sourceList = this._lists().find(list => list.id === listId);
@@ -257,8 +261,8 @@ export class StreamStateService {
   /**
    * Deletes a list and clears active references that pointed to it.
    *
-   * @param {number} listId Id der zu löschenden Liste.
-   * @returns {StreamList | null} Die entfernte Liste oder `null`, falls keine Liste mit der Id existiert.
+   * @param {number} listId Id of the list to delete.
+   * @returns {StreamList | null} Removed list, or `null` when no list with that id exists.
    */
   public deleteList(listId: number): StreamList | null {
     const current = this._lists();
@@ -284,8 +288,8 @@ export class StreamStateService {
   /**
    * Adds a normalized channel to the active list and updates recents and statistics.
    *
-   * @param {string} rawName Unformatierter Kanalname aus der Eingabe.
-   * @returns {StreamMutationResult} Ergebnis des Hinzufügens inklusive validiertem Kanalnamen oder Fehlergrund.
+   * @param {string} rawName Raw channel name from user input.
+   * @returns {StreamMutationResult} Result of the add operation, including the validated channel name or a failure reason.
    */
   public addStream(rawName: string): StreamMutationResult {
     const name = this._normalizeChannelName(rawName);
@@ -321,8 +325,8 @@ export class StreamStateService {
   /**
    * Removes a stream from the active list and clears focus if needed.
    *
-   * @param {number} index Index des zu entfernenden Streams innerhalb der aktiven Liste.
-   * @returns {string | null} Name des entfernten Kanals oder `null`, wenn nichts entfernt wurde.
+   * @param {number} index Index of the stream to remove from the active list.
+   * @returns {string | null} Name of the removed channel, or `null` when nothing was removed.
    */
   public removeStream(index: number): string | null {
     const activeList = this.activeList();
@@ -351,8 +355,8 @@ export class StreamStateService {
   /**
    * Moves a stream one position up or down inside the active list.
    *
-   * @param {number} index Aktuelle Position des Streams.
-   * @param {-1 | 1} direction Bewegungsrichtung relativ zur aktuellen Position.
+   * @param {number} index Current position of the stream.
+   * @param {-1 | 1} direction Movement direction relative to the current position.
    * @returns {void}
    */
   public moveStream(index: number, direction: -1 | 1): void {
@@ -362,8 +366,8 @@ export class StreamStateService {
   /**
    * Reorders the active list streams when both indices are within bounds.
    *
-   * @param {number} fromIndex Ursprünglicher Index des Streams.
-   * @param {number} toIndex Zielindex des Streams.
+   * @param {number} fromIndex Original index of the stream.
+   * @param {number} toIndex Target index of the stream.
    * @returns {void}
    */
   public reorderStreams(fromIndex: number, toIndex: number): void {
@@ -396,7 +400,7 @@ export class StreamStateService {
   /**
    * Persists the active list quality after normalizing the requested value.
    *
-   * @param {StreamQuality} value Angeforderte Qualitätsstufe aus UI oder Persistenz.
+   * @param {StreamQuality} value Requested quality level from the UI or persistence.
    * @returns {void}
    */
   public setQuality(value: StreamQuality): void {
@@ -417,7 +421,7 @@ export class StreamStateService {
   /**
    * Stores the union of qualities currently reported by active embeds.
    *
-   * @param {StreamQualityOption[]} values Von aktiven Embeds gemeldete Qualitätsoptionen.
+   * @param {StreamQualityOption[]} values Quality options reported by active embeds.
    * @returns {void}
    */
   public setAvailableQualities(values: StreamQualityOption[]): void {
@@ -427,7 +431,7 @@ export class StreamStateService {
   /**
    * Updates the active list layout preset when it changes.
    *
-   * @param {StreamLayoutPreset} value Neues Layout-Preset für die aktive Liste.
+   * @param {StreamLayoutPreset} value New layout preset for the active list.
    * @returns {void}
    */
   public setLayoutPreset(value: StreamLayoutPreset): void {
@@ -448,7 +452,7 @@ export class StreamStateService {
   /**
    * Focuses a single stream in the active list or clears the focus state.
    *
-   * @param {string | null} rawName Kanalname, der fokussiert werden soll, oder `null`, um den Fokus zu entfernen.
+   * @param {string | null} rawName Channel name to focus, or `null` to clear the focus.
    * @returns {void}
    */
   public setFocusedChannel(rawName: string | null): void {
@@ -474,8 +478,8 @@ export class StreamStateService {
   /**
    * Toggles whether a normalized channel is stored in the favorites list.
    *
-   * @param {string} rawName Unformatierter Kanalname, der als Favorit umgeschaltet werden soll.
-   * @returns {boolean} `true`, wenn der Kanal nach dem Aufruf als Favorit gespeichert ist.
+   * @param {string} rawName Raw channel name whose favorite state should be toggled.
+   * @returns {boolean} `true` when the channel is stored as a favorite after the call.
    */
   public toggleFavoriteChannel(rawName: string): boolean {
     const name = this._normalizeChannelName(rawName);
@@ -501,8 +505,8 @@ export class StreamStateService {
   /**
    * Enables or disables chat for a single stream in the active list.
    *
-   * @param {number} index Index des Streams innerhalb der aktiven Liste.
-   * @param {boolean} value Gewünschter Chat-Status für den Stream.
+   * @param {number} index Index of the stream inside the active list.
+   * @param {boolean} value Desired chat visibility for the stream.
    * @returns {void}
    */
   public setStreamShowChat(index: number, value: boolean): void {
@@ -529,7 +533,7 @@ export class StreamStateService {
   /**
    * Updates whether all embeds in the active list should be muted.
    *
-   * @param {boolean} value Gewünschter Stummschaltungsstatus für alle Streams der aktiven Liste.
+   * @param {boolean} value Desired muted state for all streams in the active list.
    * @returns {void}
    */
   public setMuteAllStreams(value: boolean): void {
@@ -550,7 +554,7 @@ export class StreamStateService {
   /**
    * Disables every enabled chat in the active list and returns how many changed.
    *
-   * @returns {number} Anzahl der Streams, deren Chat deaktiviert wurde.
+   * @returns {number} Number of streams whose chat visibility was disabled.
    */
   public disableChatsForActiveList(): number {
     const activeList = this.activeList();
@@ -576,7 +580,7 @@ export class StreamStateService {
   /**
    * Adds all favorite channels missing from the active list and returns the added names.
    *
-   * @returns {{ ok: boolean; reason?: 'no-list'; added: string[] }} Ergebnis mit optionalem Fehlergrund und allen hinzugefügten Kanälen.
+   * @returns {{ ok: boolean; reason?: 'no-list'; added: string[] }} Result with an optional failure reason and all added channels.
    */
   public addFavoriteChannelsToActiveList(): { ok: boolean; reason?: 'no-list'; added: string[] } {
     const activeList = this.activeList();
@@ -614,8 +618,8 @@ export class StreamStateService {
   /**
    * Returns the most frequently added channels in descending order.
    *
-   * @param {number} [limit=10] Maximale Anzahl zurückzugebender Statistik-Einträge.
-   * @returns {StreamStatistic[]} Häufigkeitsstatistik, absteigend nach Nutzungsanzahl sortiert.
+   * @param {number} [limit=10] Maximum number of statistics entries to return.
+   * @returns {StreamStatistic[]} Usage statistics sorted in descending order.
    */
   public getTopStatistics(limit = 10): StreamStatistic[] {
     return [...this._statistics()]
@@ -648,7 +652,7 @@ export class StreamStateService {
   /**
    * Reads current persisted state or falls back to legacy migration sources.
    *
-   * @returns {StoredState} Persistierter oder migrierter Zustand in der erwarteten Speicherform.
+   * @returns {StoredState} Persisted or migrated state in the expected storage shape.
    */
   private _readPersistedState(): StoredState {
     if (this._storage.hasKey(this._stateKey)) {
@@ -700,8 +704,8 @@ export class StreamStateService {
   /**
    * Normalizes persisted statistics and drops malformed entries.
    *
-   * @param {unknown} value Rohwert aus der Persistenz.
-   * @returns {StreamStatistic[]} Bereinigte Statistik-Einträge.
+   * @param {unknown} value Raw value read from persistence.
+   * @returns {StreamStatistic[]} Sanitized statistic entries.
    */
   private _normalizeStoredStatistics(value: unknown): StreamStatistic[] {
     if (!Array.isArray(value)) {
@@ -733,8 +737,8 @@ export class StreamStateService {
   /**
    * Normalizes a stored channel array into unique valid channel names.
    *
-   * @param {unknown} value Rohwert aus der Persistenz.
-   * @returns {string[]} Eindeutige, validierte Kanalnamen.
+   * @param {unknown} value Raw value read from persistence.
+   * @returns {string[]} Unique, validated channel names.
    */
   private _normalizeStoredChannelList(value: unknown): string[] {
     if (!Array.isArray(value)) {
@@ -759,9 +763,9 @@ export class StreamStateService {
   /**
    * Normalizes persisted list data and drops malformed entries.
    *
-   * @param {unknown} value Rohwert mit persistierten Listen.
-   * @param {NormalizeStoredListsOptions} options Standardwerte für Legacy- und Fallback-Felder.
-   * @returns {StreamList[]} Bereinigte Listen für den In-Memory-Zustand.
+   * @param {unknown} value Raw value containing persisted lists.
+   * @param {NormalizeStoredListsOptions} options Default values for legacy and fallback fields.
+   * @returns {StreamList[]} Sanitized lists for the in-memory state.
    */
   private _normalizeStoredLists(value: unknown, options: NormalizeStoredListsOptions): StreamList[] {
     if (!Array.isArray(value)) {
@@ -778,11 +782,11 @@ export class StreamStateService {
   /**
    * Normalizes one stored list and fills missing values with safe defaults.
    *
-   * @param {unknown} value Rohwert einer einzelnen Liste.
-   * @param {number} index Position der Liste innerhalb der persistierten Sammlung.
-   * @param {Set<number>} usedIds Bereits vergebene Listen-Ids zur Kollisionsvermeidung.
-   * @param {NormalizeStoredListsOptions} options Standardwerte für fehlende Felder.
-   * @returns {StreamList | null} Bereinigte Liste oder `null`, wenn der Eintrag unbrauchbar ist.
+   * @param {unknown} value Raw value of a single persisted list.
+   * @param {number} index Position of the list inside the persisted collection.
+   * @param {Set<number>} usedIds Already assigned list ids used to avoid collisions.
+   * @param {NormalizeStoredListsOptions} options Default values for missing fields.
+   * @returns {StreamList | null} Sanitized list or `null` when the entry is unusable.
    */
   private _normalizeStoredList(
     value: unknown,
@@ -835,9 +839,9 @@ export class StreamStateService {
   /**
    * Resolves a persisted list id or allocates the next unused positive id.
    *
-   * @param {unknown} value Persistierter Id-Wert.
-   * @param {Set<number>} usedIds Bereits belegte Listen-Ids.
-   * @returns {number} Gültige, eindeutige positive Listen-Id.
+   * @param {unknown} value Persisted id value.
+   * @param {Set<number>} usedIds Already occupied list ids.
+   * @returns {number} Valid, unique positive list id.
    */
   private _normalizeStoredListId(value: unknown, usedIds: Set<number>): number {
     const parsed = typeof value === 'number' ? value : Number(value);
@@ -858,8 +862,8 @@ export class StreamStateService {
   /**
    * Maps unknown persisted layout values to a supported preset.
    *
-   * @param {unknown} value Persistierter Layout-Wert.
-   * @returns {StreamLayoutPreset} Unterstütztes Layout-Preset.
+   * @param {unknown} value Persisted layout value.
+   * @returns {StreamLayoutPreset} Supported layout preset.
    */
   private _normalizeStoredLayoutPreset(value: unknown): StreamLayoutPreset {
     return value === 'balanced' || value === 'stage' || value === 'chat'
@@ -870,9 +874,9 @@ export class StreamStateService {
   /**
    * Normalizes a stored focused channel and optionally verifies it still exists in the list.
    *
-   * @param {unknown} value Persistierter Fokus-Kanal.
-   * @param {StreamChannel[]} [streams] Optionale Streamliste zur Existenzprüfung.
-   * @returns {string | null} Normalisierter Kanalname oder `null`, wenn kein gültiger Fokus vorliegt.
+   * @param {unknown} value Persisted focused channel.
+   * @param {StreamChannel[]} [streams] Optional stream list used for existence checks.
+   * @returns {string | null} Normalized channel name or `null` when no valid focus exists.
    */
   private _normalizeStoredFocusedChannel(value: unknown, streams?: StreamChannel[]): string | null {
     if (typeof value !== 'string') {
@@ -895,8 +899,8 @@ export class StreamStateService {
   /**
    * Normalizes a persisted list reference and verifies that it still exists.
    *
-   * @param {unknown} value Persistierte Referenz auf eine Liste.
-   * @returns {number | null} Gültige Listen-Id oder `null`, wenn die Referenz unbrauchbar ist.
+   * @param {unknown} value Persisted reference to a list.
+   * @returns {number | null} Valid list id or `null` when the reference is unusable.
    */
   private _normalizeStoredListReference(value: unknown): number | null {
     const parsed = typeof value === 'number' ? value : Number(value);
@@ -911,7 +915,7 @@ export class StreamStateService {
   /**
    * Increments the usage counter for a channel or creates it on first use.
    *
-   * @param {string} channelName Bereits normalisierter Kanalname.
+   * @param {string} channelName Already normalized channel name.
    * @returns {void}
    */
   private _bumpStatistic(channelName: string): void {
@@ -933,7 +937,7 @@ export class StreamStateService {
   /**
    * Moves a channel to the front of the recent list and enforces the size limit.
    *
-   * @param {string} channelName Bereits normalisierter Kanalname.
+   * @param {string} channelName Already normalized channel name.
    * @returns {void}
    */
   private _touchRecentChannel(channelName: string): void {
@@ -946,8 +950,8 @@ export class StreamStateService {
   /**
    * Normalizes channel names for storage and duplicate checks.
    *
-   * @param {string} value Unformatierter Kanalname.
-   * @returns {string} Getrimmter, kleingeschriebener Kanalname ohne Kommas.
+   * @param {string} value Raw channel name.
+   * @returns {string} Trimmed, lowercased channel name without commas.
    */
   private _normalizeChannelName(value: string): string {
     return String(value)
@@ -959,8 +963,8 @@ export class StreamStateService {
   /**
    * Normalizes list names by trimming and collapsing whitespace.
    *
-   * @param {string} value Unformatierter Listenname.
-   * @returns {string} Bereinigter Listenname mit einfachen Leerzeichen.
+   * @param {string} value Raw list name.
+   * @returns {string} Sanitized list name with collapsed whitespace.
    */
   private _normalizeListName(value: string): string {
     return String(value)
@@ -971,8 +975,8 @@ export class StreamStateService {
   /**
    * Parses the legacy focused list id format used during migration.
    *
-   * @param {unknown} value Persistierter Legacy-Wert.
-   * @returns {number | null} Positive Listen-Id oder `null`, wenn kein Legacy-Format vorliegt.
+   * @param {unknown} value Persisted legacy value.
+   * @returns {number | null} Positive list id, or `null` when no legacy format can be parsed.
    */
   private _normalizeLegacyFocusedListId(value: unknown): number | null {
     const parsed = typeof value === 'number' ? value : Number(value);
@@ -983,9 +987,9 @@ export class StreamStateService {
   /**
    * Normalizes stored stream entries into unique valid channel objects.
    *
-   * @param {unknown[]} values Persistierte Stream-Einträge.
-   * @param {boolean} [defaultShowChat=false] Standardwert für fehlende Chat-Flags.
-   * @returns {StreamChannel[]} Bereinigte, eindeutige Streams.
+   * @param {unknown[]} values Persisted stream entries.
+   * @param {boolean} [defaultShowChat=false] Default value used when chat flags are missing.
+   * @returns {StreamChannel[]} Sanitized, unique streams.
    */
   private _normalizeStoredStreams(values: unknown[], defaultShowChat = false): StreamChannel[] {
     const channels = new Map<string, StreamChannel>();
@@ -1017,8 +1021,8 @@ export class StreamStateService {
   /**
    * Validates a normalized Twitch channel name against app rules.
    *
-   * @param {string} value Bereits normalisierter Kanalname.
-   * @returns {boolean} `true`, wenn der Kanalname den App-Regeln entspricht.
+   * @param {string} value Already normalized channel name.
+   * @returns {boolean} `true` when the channel name matches the app rules.
    */
   private _isValidChannelName(value: string): boolean {
     return /^[a-z\u00E4\u00F6\u00FC0-9_]{1,25}$/.test(value);
@@ -1027,9 +1031,9 @@ export class StreamStateService {
   /**
    * Checks whether another list already uses the provided normalized name.
    *
-   * @param {string} name Bereits normalisierter Listenname.
-   * @param {number} [ignoredListId] Optionale Listen-Id, die beim Vergleich ignoriert wird.
-   * @returns {boolean} `true`, wenn bereits eine andere Liste denselben Namen verwendet.
+   * @param {string} name Already normalized list name.
+   * @param {number} [ignoredListId] Optional list id to ignore during comparison.
+   * @returns {boolean} `true` when another list already uses the same name.
    */
   private _hasListName(name: string, ignoredListId?: number): boolean {
     const normalizedName = name.toLocaleLowerCase();
@@ -1042,8 +1046,8 @@ export class StreamStateService {
   /**
    * Builds the next available duplicate list name using the `Kopie` suffix scheme.
    *
-   * @param {string} sourceName Anzeigename der Ausgangsliste.
-   * @returns {string} Eindeutiger Name für die neue Kopie.
+   * @param {string} sourceName Display name of the source list.
+   * @returns {string} Unique name for the new copy.
    */
   private _buildDuplicateListName(sourceName: string): string {
     const baseName = `${sourceName} Kopie`;
@@ -1064,8 +1068,8 @@ export class StreamStateService {
   /**
    * Returns whether the provided id matches an existing list.
    *
-   * @param {number} listId Zu prüfende Listen-Id.
-   * @returns {boolean} `true`, wenn eine Liste mit dieser Id existiert.
+   * @param {number} listId List id to check.
+   * @returns {boolean} `true` when a list with that id exists.
    */
   private _isKnownListId(listId: number): boolean {
     return this._lists().some(list => list.id === listId);
@@ -1074,7 +1078,7 @@ export class StreamStateService {
   /**
    * Allocates the next list id from the current maximum id.
    *
-   * @returns {number} Nächste freie positive Listen-Id.
+   * @returns {number} Next free positive list id.
    */
   private _getNextListId(): number {
     return this._lists().reduce((maxId, list) => Math.max(maxId, list.id), 0) + 1;
@@ -1083,8 +1087,8 @@ export class StreamStateService {
   /**
    * Applies an update function to a specific list by id.
    *
-   * @param {number} listId Id der zu aktualisierenden Liste.
-   * @param {(list: StreamList) => StreamList} updater Reine Update-Funktion für die Ziel-Liste.
+   * @param {number} listId Id of the list to update.
+   * @param {(list: StreamList) => StreamList} updater Pure update function for the target list.
    * @returns {void}
    */
   private _updateList(listId: number, updater: (list: StreamList) => StreamList): void {
@@ -1094,7 +1098,7 @@ export class StreamStateService {
   /**
    * Applies an update function to the currently active list when one exists.
    *
-   * @param {(list: StreamList) => StreamList} updater Reine Update-Funktion für die aktive Liste.
+   * @param {(list: StreamList) => StreamList} updater Pure update function for the active list.
    * @returns {void}
    */
   private _updateActiveList(updater: (list: StreamList) => StreamList): void {
@@ -1110,7 +1114,7 @@ export class StreamStateService {
   /**
    * Debounces persistence so multiple signal updates collapse into one storage write.
    *
-   * @param {PersistedStreamState} state Zu persistierender Snapshot des App-Zustands.
+   * @param {PersistedStreamState} state Snapshot of the app state that should be persisted.
    * @returns {void}
    */
   private _schedulePersist(state: PersistedStreamState): void {
@@ -1146,7 +1150,7 @@ export class StreamStateService {
   /**
    * Writes the current app state and shows one toast when persistence fails.
    *
-   * @param {PersistedStreamState} state Zu speichernder Zustand.
+   * @param {PersistedStreamState} state State to write to storage.
    * @returns {void}
    */
   private _persistState(state: PersistedStreamState): void {
@@ -1166,7 +1170,7 @@ export class StreamStateService {
   /**
    * Returns the empty persisted state used as the initial fallback.
    *
-   * @returns {PersistedStreamState} Leerer Initialzustand für neue oder defekte Persistenzdaten.
+   * @returns {PersistedStreamState} Empty initial state for new or invalid persisted data.
    */
   private _createDefaultState(): PersistedStreamState {
     return {
