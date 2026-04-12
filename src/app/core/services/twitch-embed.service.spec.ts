@@ -1,6 +1,7 @@
 import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
+import type { TwitchEmbedHandle } from './twitch-embed.service';
 import { TwitchEmbedService } from './twitch-embed.service';
 
 describe('TwitchEmbedService', () => {
@@ -738,6 +739,83 @@ describe('TwitchEmbedService', () => {
     expect(player.setQuality).toHaveBeenCalledWith('720p60');
 
     rafSpy.mockRestore();
+  });
+
+  it('applies the latest queued quality when the player becomes ready', async () => {
+    const player = {
+      getQualities: vi.fn(() => ['720p60', '1080p60']),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const readyEvent = 'VIDEO_READY_EVENT';
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === readyEvent) {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
+
+    const handle = service.createEmbed({
+      elementId: 'queued-quality',
+      channel: 'queued-quality',
+      quality: '720p60',
+      showChat: false,
+      muted: false,
+    });
+
+    handle.setQuality('1080p60');
+    readyCallback?.();
+    await Promise.resolve();
+
+    expect(player.setQuality).toHaveBeenCalledTimes(1);
+    expect(player.setQuality).toHaveBeenCalledWith('1080p60');
+  });
+
+  it('cancels an older quality sync when a newer request starts on the same player', async () => {
+    const createHandle = getServiceMethod<(
+      elementId: string,
+      initialMuted: boolean,
+      initialQuality: string,
+    ) => TwitchEmbedHandle & {
+      setPlayer(player: { getQualities(): string[]; getQuality(): string; setQuality(value: string): void }): void;
+      setQualityCallbackChannel(channel: string, onAvailableQualities?: (qualities: { value: string; label: string }[]) => void): void;
+    }>('_createHandle');
+    const frameCallbacks: FrameRequestCallback[] = [];
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      frameCallbacks.push(callback);
+      return frameCallbacks.length;
+    });
+    const player = {
+      getQualities: vi.fn()
+        .mockReturnValueOnce([])
+        .mockReturnValue(['720p60', '1080p60']),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+
+    try {
+      const handle = createHandle('race-quality', false, '720p60');
+
+      handle.setQualityCallbackChannel('race-quality');
+      handle.setPlayer(player);
+      handle.setQuality('1080p60');
+
+      const pendingFrame = frameCallbacks.shift();
+      pendingFrame?.(0);
+      await Promise.resolve();
+
+      expect(player.setQuality).toHaveBeenCalledTimes(1);
+      expect(player.setQuality).toHaveBeenCalledWith('1080p60');
+    } finally {
+      rafSpy.mockRestore();
+    }
   });
 
   it('supports 480p and chunked quality mappings', async () => {

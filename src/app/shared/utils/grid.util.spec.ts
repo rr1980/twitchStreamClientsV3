@@ -49,7 +49,7 @@ describe('calculateOptimalGrid', () => {
       channel('one'),
       channel('two'),
       channel('three'),
-    ], 1920, 1080, 'stage', false);
+    ], 1920, 1080, 'stage');
 
     expect(layout.cols).toBe(3);
     expect(layout.rows).toBe(2);
@@ -61,16 +61,16 @@ describe('calculateOptimalGrid', () => {
       channel('one'),
       channel('two'),
       channel('three'),
-    ], 1400, 900, 'chat', false)).toMatchObject({ cols: 2, rows: 2 });
+    ], 1400, 900, 'chat')).toMatchObject({ cols: 2, rows: 2 });
     expect(calculateStreamGridLayout([
       channel('one'),
       channel('two'),
-    ], 700, 1200, 'chat', false)).toMatchObject({ cols: 1, rows: 2 });
+    ], 700, 1200, 'chat')).toMatchObject({ cols: 1, rows: 2 });
   });
 
   it('returns a 1x1 layout with no placements for empty stream sets in all presets', () => {
-    expect(calculateStreamGridLayout([], 1920, 1080, 'auto', false)).toEqual({ cols: 1, rows: 1, placements: [] });
-    expect(calculateStreamGridLayout([], 1920, 1080, 'balanced', false)).toEqual({ cols: 1, rows: 1, placements: [] });
+    expect(calculateStreamGridLayout([], 1920, 1080, 'auto')).toEqual({ cols: 1, rows: 1, placements: [] });
+    expect(calculateStreamGridLayout([], 1920, 1080, 'balanced')).toEqual({ cols: 1, rows: 1, placements: [] });
   });
 
   it('builds a balanced layout based on square root columns', () => {
@@ -79,7 +79,7 @@ describe('calculateOptimalGrid', () => {
       channel('two'),
       channel('three'),
       channel('four'),
-    ], 1920, 1080, 'balanced', false);
+    ], 1920, 1080, 'balanced');
 
     expect(layout.cols).toBe(2);
     expect(layout.rows).toBe(2);
@@ -87,13 +87,13 @@ describe('calculateOptimalGrid', () => {
   });
 
   it('builds a featured layout for a single stream', () => {
-    const layout = calculateStreamGridLayout([channel('one')], 1920, 1080, 'stage', false);
+    const layout = calculateStreamGridLayout([channel('one')], 1920, 1080, 'stage');
 
     expect(layout).toEqual({ cols: 1, rows: 1, placements: [{}] });
   });
 
   it('builds a featured layout for two streams', () => {
-    const layout = calculateStreamGridLayout([channel('one'), channel('two')], 1920, 1080, 'stage', false);
+    const layout = calculateStreamGridLayout([channel('one'), channel('two')], 1920, 1080, 'stage');
 
     expect(layout.cols).toBe(2);
     expect(layout.rows).toBe(2);
@@ -106,23 +106,13 @@ describe('calculateOptimalGrid', () => {
       channel('two'),
       channel('three'),
       channel('four'),
-    ], 800, 1200, 'stage', false);
+    ], 800, 1200, 'stage');
 
     expect(layout.cols).toBe(3);
   });
 
-  it('uses focused stream layout when hasFocusedStream is true', () => {
-    const layout = calculateStreamGridLayout([
-      channel('one'),
-      channel('two'),
-      channel('three'),
-    ], 1920, 1080, 'auto', true);
-
-    expect(layout.placements[0]).toEqual({ column: 'span 2', row: 'span 2' });
-  });
-
   it('builds a single-stream chat layout', () => {
-    const layout = calculateStreamGridLayout([channel('one')], 1920, 1080, 'chat', false);
+    const layout = calculateStreamGridLayout([channel('one')], 1920, 1080, 'chat');
 
     expect(layout).toMatchObject({ cols: 1, rows: 1 });
   });

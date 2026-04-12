@@ -55,7 +55,6 @@ export interface StreamChannel {
  * @property {StreamChannel[]} streams Array of stream channels in the list.
  * @property {StreamQuality | undefined} quality Selected stream quality for the list.
  * @property {StreamLayoutPreset | undefined} layoutPreset Selected layout preset for the list.
- * @property {string | null | undefined} focusedChannel Currently focused channel.
  * @property {boolean | undefined} muteAllStreams Whether all streams are muted.
  */
 export interface StreamList {
@@ -64,7 +63,6 @@ export interface StreamList {
   streams: StreamChannel[];
   quality?: StreamQuality;
   layoutPreset?: StreamLayoutPreset;
-  focusedChannel?: string | null;
   muteAllStreams?: boolean;
 }
 

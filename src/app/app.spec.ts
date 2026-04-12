@@ -232,7 +232,6 @@ describe('App', () => {
       favoriteChannels: [],
       recentChannels: [],
       layoutPreset: 'auto',
-      focusedChannel: null,
       lastActiveListId: 2,
     }));
 
@@ -256,7 +255,6 @@ describe('App', () => {
       favoriteChannels: [],
       recentChannels: [],
       layoutPreset: 'auto',
-      focusedChannel: null,
       lastActiveListId: 9,
     }));
 

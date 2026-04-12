@@ -22,9 +22,9 @@ The app is optimized for a compact codebase, predictable state handling, and str
 - List duplication for quickly branching an existing setup
 - Global quality selection with Twitch quality fallback handling
 - Layout presets with `Auto`, balanced grid, stage, and chat-focused modes
-- Per-stream chat toggle, drag-and-drop ordering, favorites, and focus mode
+- Per-stream chat toggle, drag-and-drop ordering, favorites, and reusable suggestions
 - Local persistence for lists, quality, and usage statistics
-- Local persistence for favorites, recent channels, layout, focus state, and the last active list
+- Local persistence for favorites, recent channels, layout, and the last active list
 - Legacy storage migration into the current list-based state model
 - Keyboard shortcuts, modal focus handling, and toast-based feedback
 - Production service worker support with startup and update hints
@@ -70,7 +70,6 @@ Persistence details:
 - Calculate an efficient grid layout based on the current viewport
 - Switch between automatic, balanced, stage, and chat-friendly layouts
 - Render Twitch embeds lazily for the active list only
-- Focus a single stream temporarily without losing the rest of the setup
 - Support dynamic quality options reported by the Twitch player
 - Preserve the selected quality even when Twitch reports a different option set
 - Mute or unmute all streams at once via a single toggle

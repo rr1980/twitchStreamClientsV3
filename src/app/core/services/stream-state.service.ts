@@ -21,7 +21,6 @@ type StoredState = Partial<PersistedStreamState> & {
   showChat?: unknown;
   quality?: unknown;
   layoutPreset?: unknown;
-  focusedChannel?: unknown;
 };
 
 type StreamMutationResultReason = 'empty' | 'invalid' | 'duplicate' | 'no-list';
@@ -31,8 +30,6 @@ interface NormalizeStoredListsOptions {
   defaultShowChat: boolean;
   defaultQuality: StreamQuality;
   defaultLayoutPreset: StreamLayoutPreset;
-  defaultFocusedChannel: string | null;
-  defaultFocusedListId: number | null;
 }
 
 interface StreamMutationResult {
@@ -79,7 +76,6 @@ export class StreamStateService {
   public readonly favoriteChannels = computed(() => this._favoriteChannels());
   public readonly recentChannels = computed(() => this._recentChannels());
   public readonly layoutPreset = computed(() => this._normalizeStoredLayoutPreset(this.activeList()?.layoutPreset));
-  public readonly focusedChannel = computed(() => this.activeList()?.focusedChannel ?? null);
   public readonly muteAllStreams = computed(() => this.activeList()?.muteAllStreams === true);
   public readonly lastActiveListId = computed(() => this._lastActiveListId());
   public readonly menuOpen = computed(() => this._menuOpen());
@@ -187,7 +183,6 @@ export class StreamStateService {
       streams: [],
       quality: 'auto',
       layoutPreset: 'auto',
-      focusedChannel: null,
       muteAllStreams: false,
     };
 
@@ -249,7 +244,6 @@ export class StreamStateService {
       streams: sourceList.streams.map(stream => ({ ...stream })),
       quality: normalizeStreamQuality(sourceList.quality ?? 'auto'),
       layoutPreset: this._normalizeStoredLayoutPreset(sourceList.layoutPreset),
-      focusedChannel: this._normalizeStoredFocusedChannel(sourceList.focusedChannel, sourceList.streams),
       muteAllStreams: sourceList.muteAllStreams === true,
     };
 
@@ -323,7 +317,7 @@ export class StreamStateService {
   }
 
   /**
-   * Removes a stream from the active list and clears focus if needed.
+   * Removes a stream from the active list.
    *
    * @param {number} index Index of the stream to remove from the active list.
    * @returns {string | null} Name of the removed channel, or `null` when nothing was removed.
@@ -346,7 +340,6 @@ export class StreamStateService {
     this._updateList(activeList.id, list => ({
       ...list,
       streams: current,
-      focusedChannel: list.focusedChannel === removed.name ? null : list.focusedChannel ?? null,
     }));
 
     return removed.name;
@@ -447,32 +440,6 @@ export class StreamStateService {
         layoutPreset,
       };
     });
-  }
-
-  /**
-   * Focuses a single stream in the active list or clears the focus state.
-   *
-   * @param {string | null} rawName Channel name to focus, or `null` to clear the focus.
-   * @returns {void}
-   */
-  public setFocusedChannel(rawName: string | null): void {
-    const activeList = this.activeList();
-
-    if (!activeList) {
-      return;
-    }
-
-    const name = rawName === null ? null : this._normalizeChannelName(rawName);
-    const focusedChannel = name && activeList.streams.some(stream => stream.name === name) ? name : null;
-
-    if ((activeList.focusedChannel ?? null) === focusedChannel) {
-      return;
-    }
-
-    this._updateList(activeList.id, list => ({
-      ...list,
-      focusedChannel,
-    }));
   }
 
   /**
@@ -640,8 +607,6 @@ export class StreamStateService {
       defaultShowChat: legacyShowChat,
       defaultQuality: normalizeStreamQuality(persistedState.quality),
       defaultLayoutPreset: this._normalizeStoredLayoutPreset(persistedState.layoutPreset),
-      defaultFocusedChannel: this._normalizeStoredFocusedChannel(persistedState.focusedChannel),
-      defaultFocusedListId: this._normalizeLegacyFocusedListId(persistedState.lastActiveListId),
     }));
     this._statistics.set(this._normalizeStoredStatistics(persistedState.statistics));
     this._favoriteChannels.set(this._normalizeStoredChannelList(persistedState.favoriteChannels));
@@ -686,7 +651,6 @@ export class StreamStateService {
           streams: migratedStreams.map(stream => ({ ...stream, showChat })),
           quality: migratedQuality,
           layoutPreset: 'auto',
-          focusedChannel: null,
           muteAllStreams: false,
         }]
         : [],
@@ -804,7 +768,6 @@ export class StreamStateService {
       streams?: unknown;
       quality?: unknown;
       layoutPreset?: unknown;
-      focusedChannel?: unknown;
       muteAllStreams?: unknown;
     };
     const id = this._normalizeStoredListId(candidate.id, usedIds);
@@ -815,12 +778,6 @@ export class StreamStateService {
     );
     const quality = normalizeStreamQuality(candidate.quality ?? options.defaultQuality);
     const layoutPreset = this._normalizeStoredLayoutPreset(candidate.layoutPreset ?? options.defaultLayoutPreset);
-    const rawFocusedChannel = candidate.focusedChannel ?? (
-      id === options.defaultFocusedListId
-        ? options.defaultFocusedChannel
-        : null
-    );
-    const focusedChannel = this._normalizeStoredFocusedChannel(rawFocusedChannel, streams);
     const muteAllStreams = candidate.muteAllStreams === true;
 
     usedIds.add(id);
@@ -831,7 +788,6 @@ export class StreamStateService {
       streams,
       quality,
       layoutPreset,
-      focusedChannel,
       muteAllStreams,
     };
   }
@@ -869,31 +825,6 @@ export class StreamStateService {
     return value === 'balanced' || value === 'stage' || value === 'chat'
       ? value
       : 'auto';
-  }
-
-  /**
-   * Normalizes a stored focused channel and optionally verifies it still exists in the list.
-   *
-   * @param {unknown} value Persisted focused channel.
-   * @param {StreamChannel[]} [streams] Optional stream list used for existence checks.
-   * @returns {string | null} Normalized channel name or `null` when no valid focus exists.
-   */
-  private _normalizeStoredFocusedChannel(value: unknown, streams?: StreamChannel[]): string | null {
-    if (typeof value !== 'string') {
-      return null;
-    }
-
-    const name = this._normalizeChannelName(value);
-
-    if (!name || !this._isValidChannelName(name)) {
-      return null;
-    }
-
-    if (streams && !streams.some(stream => stream.name === name)) {
-      return null;
-    }
-
-    return name;
   }
 
   /**
@@ -970,18 +901,6 @@ export class StreamStateService {
     return String(value)
       .trim()
       .replace(/\s+/g, ' ');
-  }
-
-  /**
-   * Parses the legacy focused list id format used during migration.
-   *
-   * @param {unknown} value Persisted legacy value.
-   * @returns {number | null} Positive list id, or `null` when no legacy format can be parsed.
-   */
-  private _normalizeLegacyFocusedListId(value: unknown): number | null {
-    const parsed = typeof value === 'number' ? value : Number(value);
-
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   }
 
   /**

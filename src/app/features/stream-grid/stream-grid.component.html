@@ -20,7 +20,6 @@
     @for (stream of _displayedStreams(); track stream.name; let i = $index) {
       <div
         class="twitch-embed-wrapper"
-        [class.twitch-embed-wrapper--focused]="_isFocusedChannel(stream.name)"
         [attr.data-channel]="stream.name"
         [style.gridColumn]="_getPlacement(i).column ?? null"
         [style.gridRow]="_getPlacement(i).row ?? null">

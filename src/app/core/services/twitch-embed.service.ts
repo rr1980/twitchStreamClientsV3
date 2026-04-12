@@ -143,10 +143,10 @@ export class TwitchEmbedService {
     const browserWindow = this._window;
 
     if (!browserWindow?.Twitch?.Embed) {
-      return this._createHandle(options.elementId, options.muted);
+      return this._createHandle(options.elementId, options.muted, options.quality);
     }
 
-    const handle = this._createHandle(options.elementId, options.muted);
+    const handle = this._createHandle(options.elementId, options.muted, options.quality);
 
     const embed = new browserWindow.Twitch.Embed(options.elementId, {
       width: '100%',
@@ -182,14 +182,8 @@ export class TwitchEmbedService {
       }
 
       didInitializePlayer = true;
+      handle.setQualityCallbackChannel(options.channel, options.onAvailableQualities);
       handle.setPlayer(player);
-      void this._syncRequestedQuality(
-        player,
-        options.channel,
-        options.quality,
-        () => handle.isDestroyed(),
-        options.onAvailableQualities,
-      );
 
       return true;
     };
@@ -702,13 +696,17 @@ export class TwitchEmbedService {
    * @param {boolean} initialMuted Initial muted state.
    * @returns {TwitchEmbedHandle & { isDestroyed(): boolean; setPlayer(player: TwitchPlayer): void; }} Control object for the embed lifecycle, audio state, and quality.
    */
-  private _createHandle(elementId: string, initialMuted: boolean): TwitchEmbedHandle & {
+  private _createHandle(elementId: string, initialMuted: boolean, initialQuality: StreamQuality): TwitchEmbedHandle & {
     isDestroyed(): boolean;
     setPlayer(player: TwitchPlayer): void;
+    setQualityCallbackChannel(channel: string, onAvailableQualities?: (qualities: StreamQualityOption[]) => void): void;
   } {
     let destroyed = false;
     let player: TwitchPlayer | null = null;
     let requestedMuted = initialMuted;
+    let requestedQuality: StreamQuality = initialQuality;
+    let qualityChannel = '';
+    let onAvailableQualities: ((qualities: StreamQualityOption[]) => void) | undefined;
     let restoredVolume = 0.5;
     let muteSyncRunId = 0;
     let qualitySyncRunId = 0;
@@ -737,6 +735,28 @@ export class TwitchEmbedService {
       );
     };
 
+    /**
+     * Starts or restarts quality synchronization for the current player instance.
+     *
+     * @returns {void}
+     */
+    const syncRequestedQuality = (): void => {
+      if (!player || destroyed) {
+        return;
+      }
+
+      const currentPlayer = player;
+      const syncRunId = ++qualitySyncRunId;
+
+      void this._syncRequestedQuality(
+        currentPlayer,
+        qualityChannel,
+        requestedQuality,
+        () => destroyed || player !== currentPlayer || syncRunId !== qualitySyncRunId,
+        onAvailableQualities,
+      );
+    };
+
     return {
       destroy: () => {
         if (destroyed) {
@@ -745,6 +765,7 @@ export class TwitchEmbedService {
 
         destroyed = true;
         muteSyncRunId += 1;
+        qualitySyncRunId += 1;
         this.clearEmbed(elementId);
       },
       setMuted: (value: boolean) => {
@@ -752,19 +773,8 @@ export class TwitchEmbedService {
         syncRequestedMutedState();
       },
       setQuality: (value: StreamQuality) => {
-        if (!player || destroyed) {
-          return;
-        }
-
-        const currentPlayer = player;
-        const syncRunId = ++qualitySyncRunId;
-
-        void this._syncRequestedQuality(
-          currentPlayer,
-          '',
-          value,
-          () => destroyed || player !== currentPlayer || syncRunId !== qualitySyncRunId,
-        );
+        requestedQuality = value;
+        syncRequestedQuality();
       },
       setPlayer: (nextPlayer: TwitchPlayer) => {
         if (destroyed) {
@@ -773,6 +783,11 @@ export class TwitchEmbedService {
 
         player = nextPlayer;
         syncRequestedMutedState();
+        syncRequestedQuality();
+      },
+      setQualityCallbackChannel: (channel: string, onAvailableQualitiesCallback?: (qualities: StreamQualityOption[]) => void) => {
+        qualityChannel = channel;
+        onAvailableQualities = onAvailableQualitiesCallback;
       },
       isDestroyed: () => destroyed,
     };

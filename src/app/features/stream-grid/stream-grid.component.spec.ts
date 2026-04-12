@@ -746,43 +746,6 @@ describe('StreamGridComponent', () => {
     expect(getPrivateMethod<(dimension: 'innerWidth' | 'innerHeight') => number>(component, '_readViewportDimension')('innerHeight')).toBe(0);
   });
 
-  it('reorders displayed streams to put the focused stream first', async () => {
-    state.setActiveList({ id: 1, name: 'Test', streams: [channel('a'), channel('b'), channel('c')] });
-    state.focusedChannel.set('b');
-    await syncComponent();
-
-    const component = fixture.componentInstance;
-    const displayedStreams = getPrivateMethod<() => StreamChannel[]>(component, '_displayedStreams')();
-
-    expect(displayedStreams[0].name).toBe('b');
-    expect(displayedStreams.map(s => s.name)).toEqual(['b', 'a', 'c']);
-  });
-
-  it('toggles the focused channel through the state service', async () => {
-    state.setActiveList({ id: 1, name: 'Test', streams: [channel('streamer')] });
-    await syncComponent();
-
-    const toggleFocusedChannel = getPrivateMethod<(channelName: string) => void>(fixture.componentInstance, '_toggleFocusedChannel');
-
-    toggleFocusedChannel('streamer');
-    expect(state.setFocusedChannel).toHaveBeenLastCalledWith('streamer');
-
-    state.focusedChannel.set('streamer');
-    toggleFocusedChannel('streamer');
-    expect(state.setFocusedChannel).toHaveBeenLastCalledWith(null);
-  });
-
-  it('falls back to default order when focused stream is not in the list', async () => {
-    state.setActiveList({ id: 1, name: 'Test', streams: [channel('a'), channel('b')] });
-    state.focusedChannel.set('nonexistent');
-    await syncComponent();
-
-    const component = fixture.componentInstance;
-    const displayedStreams = getPrivateMethod<() => StreamChannel[]>(component, '_displayedStreams')();
-
-    expect(displayedStreams.map(s => s.name)).toEqual(['a', 'b']);
-  });
-
   it('clears the resize timer in ngOnDestroy when one is active', () => {
     vi.useFakeTimers();
     const component = fixture.componentInstance;
@@ -873,14 +836,10 @@ class MockStreamStateService {
   public readonly quality = signal<StreamQuality>('auto');
   public readonly layoutPreset = signal<StreamLayoutPreset>('auto');
   public readonly menuOpen = signal(false);
-  public readonly focusedChannel = signal<string | null>(null);
   public readonly muteAllStreams = signal(false);
   public readonly availableQualities = signal<StreamQualityOption[]>([{ value: 'auto', label: 'Auto' }]);
   public readonly setAvailableQualities = vi.fn((values: StreamQualityOption[]) => {
     this.availableQualities.set([{ value: 'auto', label: 'Auto' }, ...values]);
-  });
-  public readonly setFocusedChannel = vi.fn((channelName: string | null) => {
-    this.focusedChannel.set(channelName);
   });
   private readonly _activeList = signal<StreamList | null>(null);
 

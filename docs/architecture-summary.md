@@ -40,7 +40,7 @@ Persisted application state is defined through `AppSettings` and centers on `Str
 
 | Entity | Purpose |
 | --- | --- |
-| `StreamList` | Named collection of channels plus list-scoped quality, layout, focus, and mute state |
+| `StreamList` | Named collection of channels plus list-scoped quality, layout, and mute state |
 | `StreamChannel` | Channel name and per-stream chat toggle |
 | `favoriteChannels` | Reusable favorite channel pool across lists |
 | `recentChannels` | Recently used channels, capped for quick reuse |
@@ -57,7 +57,7 @@ Use this section to find the right edit location quickly.
 | Change route behavior or canonical URLs | `src/app/core/services/list-navigation.service.ts`, `src/app/app.config.ts`, `src/app/app.ts` |
 | Change Twitch player setup or sync heuristics | `src/app/core/services/twitch-embed.service.ts` |
 | Change modal interactions or stream management UI | `src/app/features/settings-modal/` |
-| Change grid behavior or focus mode rendering | `src/app/features/stream-grid/`, `src/app/shared/utils/grid.util.ts` |
+| Change grid behavior or layout rendering | `src/app/features/stream-grid/`, `src/app/shared/utils/grid.util.ts` |
 | Change quality normalization or labels | `src/app/shared/utils/stream-quality.util.ts` |
 | Change install/update UX | `src/app/core/services/pwa.service.ts` |
 | Change notification behavior | `src/app/features/toast/` |

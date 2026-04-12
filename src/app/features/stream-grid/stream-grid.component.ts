@@ -49,7 +49,7 @@ interface PendingEmbedSync {
 /**
  * Computes the visible grid and keeps Twitch embeds synchronized with active state.
  *
- * @remarks Handles grid calculation, embed lifecycle, quality/mute sync, and focus mode for streams.
+ * @remarks Handles grid calculation, embed lifecycle, quality sync, and mute sync for streams.
  * @component
  */
 export class StreamGridComponent implements AfterViewInit, OnDestroy {
@@ -66,23 +66,7 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
   protected readonly _activeList = this._state.activeList;
   protected readonly _listCount = this._state.listCount;
   protected readonly _streams = this._state.streams;
-  protected readonly _focusedChannel = this._state.focusedChannel;
-  protected readonly _displayedStreams = computed(() => {
-    const focusedChannel = this._state.focusedChannel();
-    const streams = this._state.streams();
-
-    if (!focusedChannel) {
-      return streams;
-    }
-
-    const focusedStream = streams.find(stream => stream.name === focusedChannel);
-
-    if (!focusedStream) {
-      return streams;
-    }
-
-    return [focusedStream, ...streams.filter(stream => stream.name !== focusedChannel)];
-  });
+  protected readonly _displayedStreams = this._state.streams;
 
   private _viewReady = false;
   private _syncRunId = 0;
@@ -95,7 +79,6 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
     this._viewportWidth(),
     this._viewportHeight(),
     this._state.layoutPreset(),
-    this._state.focusedChannel() !== null,
   ));
 
   protected readonly _gridTemplateColumns = computed(
@@ -452,27 +435,6 @@ export class StreamGridComponent implements AfterViewInit, OnDestroy {
    */
   private _getEmbedElementId(channel: string): string {
     return `twitch-embed-${channel}`;
-  }
-
-  /**
-   * Toggles focus mode for a specific channel inside the current list.
-   *
-   * @param {string} channelName Name of the channel to focus or unfocus.
-   * @returns {void}
-   * @remarks Clears focus when the selected channel is already focused.
-   */
-  protected _toggleFocusedChannel(channelName: string): void {
-    this._state.setFocusedChannel(this._focusedChannel() === channelName ? null : channelName);
-  }
-
-  /**
-   * Returns whether the provided channel is currently focused.
-   *
-   * @param {string} channelName Name of the channel to check.
-   * @returns {boolean} `true` when the channel is currently focused.
-   */
-  protected _isFocusedChannel(channelName: string): boolean {
-    return this._focusedChannel() === channelName;
   }
 
   /**

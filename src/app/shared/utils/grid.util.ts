@@ -78,13 +78,12 @@ export function calculateOptimalGrid(
 }
 
 /**
- * Resolves the grid layout for the selected preset and current focus state.
+ * Resolves the grid layout for the selected preset.
  *
  * @param {StreamChannel[]} streams List of stream channels to display.
  * @param {number} containerWidth Width of the container in pixels.
  * @param {number} containerHeight Height of the container in pixels.
  * @param {StreamLayoutPreset} preset Selected layout preset.
- * @param {boolean} hasFocusedStream Whether a stream is currently focused.
  * @returns {StreamGridLayout} Computed stream grid layout with placements.
    */
 export function calculateStreamGridLayout(
@@ -92,7 +91,6 @@ export function calculateStreamGridLayout(
   containerWidth: number,
   containerHeight: number,
   preset: StreamLayoutPreset,
-  hasFocusedStream: boolean,
 ): StreamGridLayout {
   const count = streams.length;
 
@@ -100,7 +98,7 @@ export function calculateStreamGridLayout(
     return { cols: 1, rows: 1, placements: [] };
   }
 
-  if (hasFocusedStream || preset === 'stage') {
+  if (preset === 'stage') {
     return calculateFeaturedGrid(count, containerWidth, containerHeight);
   }
 
