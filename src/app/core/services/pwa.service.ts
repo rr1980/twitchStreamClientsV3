@@ -22,8 +22,7 @@ type NavigatorWithStandalone = Navigator & {
 /**
  * Manages install prompts, startup hints, and service worker update notices.
  *
- * @remarks
- * Handles PWA installation lifecycle, startup hints, and service worker update notifications for the application shell.
+ * @remarks Handles PWA installation lifecycle, startup hints, and service worker update notifications for the application shell.
  */
 export class PwaService {
   private readonly _startupHintSeenKey = 'pwa_startup_hint_seen_v1';
@@ -54,8 +53,8 @@ export class PwaService {
   /**
    * Hides the install hint and records that the user has seen it.
    *
-   * @remarks
-   * Sets the startup hint as not visible and persists this state in storage.
+   * @returns {void}
+   * @remarks Sets the startup hint to hidden and persists that dismissal in storage.
    */
   public dismissStartupHint(): void {
     this._startupHintVisible.set(false);
@@ -65,8 +64,8 @@ export class PwaService {
   /**
    * Dismisses the currently visible update notice.
    *
-   * @remarks
-   * Hides the update notification for the current session.
+   * @returns {void}
+   * @remarks Hides the update notification for the current session.
    */
   public dismissUpdateNotice(): void {
     this._updateAvailable.set(false);
@@ -75,9 +74,8 @@ export class PwaService {
   /**
    * Triggers the deferred install prompt when the browser supports it.
    *
-   * @returns A promise that resolves when the install prompt flow is complete.
-   * @remarks
-   * If the user accepts the install, the startup hint is dismissed. If the prompt is not available, nothing happens.
+   * @returns {Promise<void>} Promise that resolves when the install prompt flow completes.
+   * @remarks If the user accepts the install, the startup hint is dismissed. If no prompt is available, nothing happens.
    */
   public async install(): Promise<void> {
     const promptEvent = this._installPromptEvent();
@@ -103,8 +101,8 @@ export class PwaService {
   /**
    * Reloads the current page to activate the latest deployed version.
    *
-   * @remarks
-   * Forces a browser reload to activate a new service worker version if available.
+   * @returns {void}
+   * @remarks Forces a browser reload so a newly ready service worker version becomes active.
    */
   public reloadForUpdate(): void {
     const browserWindow = this._window;
@@ -119,8 +117,8 @@ export class PwaService {
   /**
    * Registers browser install prompt lifecycle events and their cleanup.
    *
-   * @remarks
-   * Handles beforeinstallprompt and appinstalled events, and ensures cleanup on service destruction.
+   * @returns {void}
+   * @remarks Handles `beforeinstallprompt` and `appinstalled` events and unregisters listeners on service destruction.
    */
   private _registerInstallEvents(): void {
     const browserWindow = this._window;
@@ -155,8 +153,8 @@ export class PwaService {
   /**
    * Subscribes to service worker version readiness events when enabled.
    *
-   * @remarks
-   * Listens for VERSION_READY events from Angular's SwUpdate and sets the updateAvailable signal.
+   * @returns {void}
+   * @remarks Listens for `VERSION_READY` events from [`SwUpdate`](src/app/core/services/pwa.service.ts:3) and sets the update signal.
    */
   private _registerUpdateEvents(): void {
     if (!this._swUpdate?.isEnabled) {
@@ -175,7 +173,7 @@ export class PwaService {
   /**
    * Detects whether the app already runs in installed standalone mode.
    *
-   * @returns True if the app is running in standalone mode, false otherwise.
+   * @returns {boolean} `true` when the app is already running in standalone mode.
    */
   private _isStandaloneMode(): boolean {
     const browserWindow = this._window;
@@ -191,7 +189,7 @@ export class PwaService {
   /**
    * Returns the current browser window when available.
    *
-   * @returns The Window object if available, or null otherwise.
+   * @returns {Window | null} Current browser window, or `null` when unavailable.
    */
   private get _window(): Window | null {
     return this._document.defaultView;

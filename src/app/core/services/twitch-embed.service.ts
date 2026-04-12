@@ -63,8 +63,7 @@ interface TwitchEmbedInstance {
 /**
  * Represents a live Twitch embed instance that can be updated or destroyed.
  *
- * @remarks
- * Provides methods to destroy the embed, set mute state, and set stream quality.
+ * @remarks Provides methods to destroy the embed, update mute state, and set stream quality.
  */
 export interface TwitchEmbedHandle {
   destroy(): void;
@@ -72,6 +71,16 @@ export interface TwitchEmbedHandle {
   setQuality(value: StreamQuality): void;
 }
 
+/**
+ * Options used to create and initialize one Twitch embed instance.
+ *
+ * @property {string} elementId DOM element id of the embed container.
+ * @property {string} channel Twitch channel name to render.
+ * @property {StreamQuality} quality Requested stream quality.
+ * @property {boolean} showChat Whether chat should be rendered next to the stream.
+ * @property {boolean} muted Initial muted state requested by the app.
+ * @property {((qualities: StreamQualityOption[]) => void) | undefined} onAvailableQualities Optional callback invoked when the player reports available qualities.
+ */
 interface CreateEmbedOptions {
   elementId: string;
   channel: string;
@@ -85,8 +94,7 @@ interface CreateEmbedOptions {
 /**
  * Loads the Twitch embed script and keeps player instances synchronized with app state.
  *
- * @remarks
- * Handles dynamic loading of the Twitch embed script, creation of embed instances, and synchronization of quality and mute state with the application.
+ * @remarks Handles dynamic script loading, embed creation, and synchronization of player quality and mute state with the application.
  */
 export class TwitchEmbedService {
   private readonly _maxQualitySyncFrames = 120;
@@ -102,7 +110,7 @@ export class TwitchEmbedService {
   /**
    * Loads the Twitch embed script once and reuses the pending request.
    *
-   * @returns A promise that resolves when the script is loaded and Twitch.Embed is available.
+   * @returns {Promise<void>} Promise that resolves when the script is loaded and [`Twitch.Embed`](src/app/core/services/twitch-embed.service.ts:207) is available.
    */
   public loadScript(): Promise<void> {
     const browserWindow = this._window;
@@ -127,8 +135,9 @@ export class TwitchEmbedService {
   /**
    * Creates an embed handle for a stream and wires quality and mute synchronization.
    *
-   * @param options - The options for creating the embed instance.
-   * @returns A TwitchEmbedHandle for controlling the embed instance.
+   * @param {CreateEmbedOptions} options Options used to create the embed instance.
+   * @returns {TwitchEmbedHandle} Handle used to control the embed instance.
+   * @remarks When the Twitch API is unavailable, the method still returns a no-op compatible handle.
    */
   public createEmbed(options: CreateEmbedOptions): TwitchEmbedHandle {
     const browserWindow = this._window;
@@ -197,7 +206,8 @@ export class TwitchEmbedService {
   /**
    * Clears the embed container for a previously rendered player.
    *
-   * @param elementId - The DOM element ID to clear.
+   * @param {string} elementId DOM element id to clear.
+   * @returns {void}
    */
   public clearEmbed(elementId: string): void {
     this._document.getElementById(elementId)?.replaceChildren();

@@ -1,19 +1,24 @@
 /**
  * Represents a persisted Twitch quality identifier.
+ *
+ * @type {string}
  * @remarks Used for storing and comparing stream quality values.
  */
 export type StreamQuality = string;
 
 /**
  * Selects how the active list should be arranged in the grid.
+ *
+ * @type {'auto' | 'balanced' | 'stage' | 'chat'}
  * @remarks Used to determine the stream grid layout preset.
  */
 export type StreamLayoutPreset = 'auto' | 'balanced' | 'stage' | 'chat';
 
 /**
  * Describes a selectable quality value and its user-facing label.
- * @property value - The stream quality identifier.
- * @property label - The user-facing label for the quality.
+ *
+ * @property {StreamQuality} value Stream quality identifier.
+ * @property {string} label User-facing label for the quality.
  */
 export interface StreamQualityOption {
   value: StreamQuality;
@@ -22,8 +27,9 @@ export interface StreamQualityOption {
 
 /**
  * Stores how often a channel has been added by the user.
- * @property name - The channel name.
- * @property value - The number of times the channel was added.
+ *
+ * @property {string} name Channel name.
+ * @property {number} value Number of times the channel was added.
  */
 export interface StreamStatistic {
   name: string;
@@ -32,8 +38,9 @@ export interface StreamStatistic {
 
 /**
  * Represents one channel entry inside a stream list.
- * @property name - The channel name.
- * @property showChat - Whether chat is shown for this channel.
+ *
+ * @property {string} name Channel name.
+ * @property {boolean} showChat Whether chat is shown for this channel.
  */
 export interface StreamChannel {
   name: string;
@@ -42,13 +49,14 @@ export interface StreamChannel {
 
 /**
  * Bundles the persisted configuration for a named stream list.
- * @property id - The unique list identifier.
- * @property name - The list name.
- * @property streams - The array of stream channels in the list.
- * @property quality - The selected stream quality for the list (optional).
- * @property layoutPreset - The selected layout preset for the list (optional).
- * @property focusedChannel - The currently focused channel (optional).
- * @property muteAllStreams - Whether all streams are muted (optional).
+ *
+ * @property {number} id Unique list identifier.
+ * @property {string} name List name.
+ * @property {StreamChannel[]} streams Array of stream channels in the list.
+ * @property {StreamQuality | undefined} quality Selected stream quality for the list.
+ * @property {StreamLayoutPreset | undefined} layoutPreset Selected layout preset for the list.
+ * @property {string | null | undefined} focusedChannel Currently focused channel.
+ * @property {boolean | undefined} muteAllStreams Whether all streams are muted.
  */
 export interface StreamList {
   id: number;
@@ -62,11 +70,12 @@ export interface StreamList {
 
 /**
  * Defines the full persisted application state written to localStorage.
- * @property lists - The array of all stream lists.
- * @property statistics - The array of channel usage statistics.
- * @property favoriteChannels - The array of favorite channel names.
- * @property recentChannels - The array of recently used channel names.
- * @property lastActiveListId - The last active list identifier or null.
+ *
+ * @property {StreamList[]} lists Array of all stream lists.
+ * @property {StreamStatistic[]} statistics Array of channel usage statistics.
+ * @property {string[]} favoriteChannels Array of favorite channel names.
+ * @property {string[]} recentChannels Array of recently used channel names.
+ * @property {number | null} lastActiveListId Last active list identifier, or `null`.
  */
 export interface AppSettings {
   lists: StreamList[];

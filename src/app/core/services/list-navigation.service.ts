@@ -6,8 +6,7 @@ import type { UrlTree } from '@angular/router';
 /**
  * Encapsulates list URL creation, parsing, and canonicalization.
  *
- * @remarks
- * Provides methods for navigating to list routes, parsing list IDs from URLs, and ensuring canonical URL formats for list navigation.
+ * @remarks Provides methods for navigating to list routes, parsing list ids from URLs, and enforcing canonical list URL formats.
  */
 export class ListNavigationService {
   private readonly _router = inject(Router);
@@ -15,7 +14,8 @@ export class ListNavigationService {
   /**
    * Navigates to the canonical hash route for a given list id.
    *
-   * @param listId - The list ID to navigate to, or null for the default route.
+   * @param {number | null} listId List id to navigate to, or `null` for the default route.
+   * @returns {void}
    */
   public navigateToList(listId: number | null): void {
     void this._router.navigate(['/List', listId ?? 'null']);
@@ -24,8 +24,8 @@ export class ListNavigationService {
   /**
    * Reads the list id from an arbitrary URL and returns null for invalid routes.
    *
-   * @param url - The URL string to parse for a list ID.
-   * @returns The parsed list ID as a number, or null if invalid.
+   * @param {string} url URL string to parse for a list id.
+   * @returns {number | null} Parsed list id, or `null` when the URL is invalid.
    */
   public readListId(url: string): number | null {
     const segments = this._getPrimarySegments(this._router.parseUrl(url || '/'));
@@ -40,8 +40,8 @@ export class ListNavigationService {
   /**
    * Rewrites non-canonical list URLs while preserving query params and fragments.
    *
-   * @param url - The URL string to check and canonicalize.
-   * @returns True if the URL is already canonical, or a UrlTree representing the canonical URL.
+   * @param {string} url URL string to check and canonicalize.
+   * @returns {true | UrlTree} `true` when the URL is already canonical, otherwise a canonical [`UrlTree`](src/app/core/services/list-navigation.service.ts:3).
    */
   public ensureCanonicalUrl(url: string): true | UrlTree {
     const currentUrlTree = this._router.parseUrl(url || '/');
@@ -61,8 +61,8 @@ export class ListNavigationService {
   /**
    * Extracts the list id from an already parsed UrlTree.
    *
-   * @param urlTree - The parsed UrlTree object.
-   * @returns The parsed list ID as a number, or null if invalid.
+   * @param {UrlTree} urlTree Parsed [`UrlTree`](src/app/core/services/list-navigation.service.ts:3) instance.
+   * @returns {number | null} Parsed list id, or `null` when the tree does not represent a valid list route.
    */
   private _readListIdFromTree(urlTree: UrlTree): number | null {
     const segments = this._getPrimarySegments(urlTree);
@@ -77,8 +77,8 @@ export class ListNavigationService {
   /**
    * Parses a raw route segment into a valid positive list id or null.
    *
-   * @param rawListId - The raw list ID string from the route segment.
-   * @returns The parsed list ID as a number, or null if invalid.
+   * @param {string | null} rawListId Raw list id string from the route segment.
+   * @returns {number | null} Parsed positive list id, or `null` when invalid.
    */
   private _parseListId(rawListId: string | null): number | null {
     if (rawListId === 'null') {
@@ -97,8 +97,8 @@ export class ListNavigationService {
   /**
    * Returns the primary outlet path segments for a parsed URL.
    *
-   * @param urlTree - The parsed UrlTree object.
-   * @returns An array of path segments for the primary outlet.
+   * @param {UrlTree} urlTree Parsed [`UrlTree`](src/app/core/services/list-navigation.service.ts:3) instance.
+   * @returns {string[]} Array of path segments for the primary outlet.
    */
   private _getPrimarySegments(urlTree: UrlTree): string[] {
     return urlTree.root.children[PRIMARY_OUTLET]?.segments.map(segment => segment.path) ?? [];

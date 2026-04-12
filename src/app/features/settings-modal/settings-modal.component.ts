@@ -25,11 +25,12 @@ interface StreamLayoutPresetOption {
   styleUrl: './settings-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-/**
- * Hosts the list, stream, layout, and quick-action controls inside the settings modal.
- * @remarks Provides UI and logic for managing stream lists, channels, layouts, and quick actions.
- * @component
- */
+  /**
+   * Hosts the list, stream, layout, and quick-action controls inside the settings modal.
+   *
+   * @remarks Provides UI and logic for managing stream lists, channels, layouts, and quick actions.
+   * @component
+   */
 export class SettingsModalComponent {
   private readonly _document = inject(DOCUMENT);
   private readonly _listNavigation = inject(ListNavigationService);
@@ -115,6 +116,8 @@ export class SettingsModalComponent {
 
   /**
    * Creates a new list and navigates to it when validation succeeds.
+   *
+   * @returns {void}
    * @remarks Shows a toast message for success or error. Focuses the input on error.
    */
   protected _createList(): void {
@@ -139,7 +142,9 @@ export class SettingsModalComponent {
 
   /**
    * Enters inline rename mode for the selected list.
-   * @param list - The list to rename.
+   *
+   * @param {StreamList} list List to rename.
+   * @returns {void}
    */
   protected _startRenameList(list: StreamList): void {
     this._editingListId.set(list.id);
@@ -148,7 +153,9 @@ export class SettingsModalComponent {
 
   /**
    * Validates and persists the edited list name.
-   * @param listId - The ID of the list to rename.
+   *
+   * @param {number} listId Id of the list to rename.
+   * @returns {void}
    * @remarks Shows a toast message for success or error.
    */
   protected _confirmRenameList(listId: number): void {
@@ -170,6 +177,8 @@ export class SettingsModalComponent {
 
   /**
    * Leaves inline rename mode without changing the list name.
+   *
+   * @returns {void}
    * @remarks Resets the editing list state.
    */
   protected _cancelRenameList(): void {
@@ -178,7 +187,9 @@ export class SettingsModalComponent {
 
   /**
    * Activates the selected list and updates the route.
-   * @param listId - The ID of the list to activate.
+   *
+   * @param {number} listId Id of the list to activate.
+   * @returns {void}
    */
   protected _selectList(listId: number): void {
     this._navigateToList(listId);
@@ -186,7 +197,9 @@ export class SettingsModalComponent {
 
   /**
    * Creates a duplicate of the given list and switches to it.
-   * @param list - The list to duplicate.
+   *
+   * @param {StreamList} list List to duplicate.
+   * @returns {void}
    * @remarks Shows a toast message for success or error.
    */
   protected _duplicateList(list: StreamList): void {
@@ -203,7 +216,9 @@ export class SettingsModalComponent {
 
   /**
    * Removes a list and navigates to the next sensible list when needed.
-   * @param list - The list to remove.
+   *
+   * @param {StreamList} list List to remove.
+   * @returns {void}
    * @remarks Shows a toast message and navigates to the next list if the active one is deleted.
    */
   protected _deleteList(list: StreamList): void {
@@ -226,6 +241,8 @@ export class SettingsModalComponent {
 
   /**
    * Closes the settings modal.
+   *
+   * @returns {void}
    * @remarks Triggers the state service to close the menu.
    */
   protected _close(): void {
@@ -234,7 +251,9 @@ export class SettingsModalComponent {
 
   /**
    * Closes the modal when the backdrop itself is clicked.
-   * @param event - The mouse event triggered by clicking the backdrop.
+   *
+   * @param {MouseEvent} event Mouse event triggered by clicking the backdrop.
+   * @returns {void}
    * @remarks Only closes if the backdrop (not a child) was clicked.
    */
   protected _onBackdropClick(event: MouseEvent): void {
@@ -245,7 +264,9 @@ export class SettingsModalComponent {
 
   /**
    * Keeps keyboard focus trapped inside the modal while it is open.
-   * @param event - The keyboard event triggered inside the modal dialog.
+   *
+   * @param {KeyboardEvent} event Keyboard event triggered inside the modal dialog.
+   * @returns {void}
    * @remarks Handles Escape to close and Tab/Shift+Tab to cycle focus.
    */
   protected _onDialogKeydown(event: KeyboardEvent): void {
@@ -290,6 +311,8 @@ export class SettingsModalComponent {
 
   /**
    * Adds a new stream to the active list after extracting a clean channel name.
+   *
+   * @returns {void}
    * @remarks Shows a toast message for success or error. Focuses the input on error.
    */
   protected _addStream(): void {
@@ -330,7 +353,9 @@ export class SettingsModalComponent {
 
   /**
    * Removes one stream from the active list.
-   * @param index - The index of the stream to remove.
+   *
+   * @param {number} index Index of the stream to remove.
+   * @returns {void}
    * @remarks Shows a toast message if a stream was removed.
    */
   protected _removeStream(index: number): void {
@@ -342,8 +367,10 @@ export class SettingsModalComponent {
 
   /**
    * Moves a stream by one position inside the active list.
-   * @param index - The index of the stream to move.
-   * @param direction - The direction to move (-1 for up, 1 for down).
+   *
+   * @param {number} index Index of the stream to move.
+   * @param {-1 | 1} direction Direction to move, `-1` for up and `1` for down.
+   * @returns {void}
    */
   protected _moveStream(index: number, direction: -1 | 1): void {
     this._state.moveStream(index, direction);
@@ -351,9 +378,10 @@ export class SettingsModalComponent {
 
   /**
    * Returns whether a move action stays within the current stream bounds.
-   * @param index - The index of the stream to move.
-   * @param direction - The direction to move (-1 for up, 1 for down).
-   * @returns True if the move is within bounds, otherwise false.
+   *
+   * @param {number} index Index of the stream to move.
+   * @param {-1 | 1} direction Direction to move, `-1` for up and `1` for down.
+   * @returns {boolean} `true` when the move stays within the current stream bounds.
    */
   protected _canMoveStream(index: number, direction: -1 | 1): boolean {
     const targetIndex = index + direction;
@@ -363,7 +391,9 @@ export class SettingsModalComponent {
 
   /**
    * Updates the list-wide stream quality and closes the modal.
-   * @param value - The new stream quality value to set.
+   *
+   * @param {StreamQuality} value New stream quality value to set.
+   * @returns {void}
    */
   protected _setQuality(value: StreamQuality): void {
     this._state.setQuality(value);
@@ -372,7 +402,9 @@ export class SettingsModalComponent {
 
   /**
    * Updates the active list layout preset.
-   * @param value - The new layout preset value to set.
+   *
+   * @param {StreamLayoutPreset} value New layout preset value to set.
+   * @returns {void}
    */
   protected _setLayoutPreset(value: StreamLayoutPreset): void {
     this._state.setLayoutPreset(value);
@@ -380,6 +412,8 @@ export class SettingsModalComponent {
 
   /**
    * Disables chat for every stream in the active list and reports the outcome.
+   *
+   * @returns {void}
    * @remarks Shows a toast message for the number of chats disabled or if none were active.
    */
   protected _disableAllChats(): void {
@@ -405,6 +439,8 @@ export class SettingsModalComponent {
 
   /**
    * Toggles the global mute flag for the active list and closes the modal.
+   *
+   * @returns {void}
    * @remarks Shows a toast message indicating the new mute state.
    */
   protected _toggleMuteAllStreams(): void {
@@ -424,7 +460,9 @@ export class SettingsModalComponent {
 
   /**
    * Toggles whether a channel belongs to the favorites pool.
-   * @param channelName - The name of the channel to toggle as favorite.
+   *
+   * @param {string} channelName Name of the channel to toggle as favorite.
+   * @returns {void}
    * @remarks Shows a toast message indicating the new favorite state.
    */
   protected _toggleFavoriteChannel(channelName: string): void {
@@ -440,8 +478,10 @@ export class SettingsModalComponent {
 
   /**
    * Starts HTML5 drag-and-drop reordering for a stream entry.
-   * @param index - The index of the stream being dragged.
-   * @param event - The drag event object.
+   *
+   * @param {number} index Index of the stream being dragged.
+   * @param {DragEvent} event Drag event object.
+   * @returns {void}
    * @remarks Sets up the drag image and state for reordering.
    */
   protected _onStreamDragStart(index: number, event: DragEvent): void {
@@ -474,7 +514,9 @@ export class SettingsModalComponent {
 
   /**
    * Marks a stream as the current drop target while dragging.
-   * @param index - The index of the stream being hovered as a drop target.
+   *
+   * @param {number} index Index of the stream being hovered as a drop target.
+   * @returns {void}
    */
   protected _onStreamDragEnter(index: number): void {
     if (this._draggedStreamIndex() === null || this._draggedStreamIndex() === index) {
@@ -486,8 +528,10 @@ export class SettingsModalComponent {
 
   /**
    * Keeps drag-and-drop active and updates the hovered drop target.
-   * @param index - The index of the stream currently hovered.
-   * @param event - The drag event object.
+   *
+   * @param {number} index Index of the stream currently hovered.
+   * @param {DragEvent} event Drag event object.
+   * @returns {void}
    */
   protected _onStreamDragOver(index: number, event: DragEvent): void {
     if (this._draggedStreamIndex() === null) {
@@ -507,8 +551,10 @@ export class SettingsModalComponent {
 
   /**
    * Applies the pending drag-and-drop reorder when a stream is dropped.
-   * @param index - The index where the stream is dropped.
-   * @param event - The drag event object.
+   *
+   * @param {number} index Index where the stream is dropped.
+   * @param {DragEvent} event Drag event object.
+   * @returns {void}
    */
   protected _onStreamDrop(index: number, event: DragEvent): void {
     event.preventDefault();
@@ -524,6 +570,8 @@ export class SettingsModalComponent {
 
   /**
    * Clears drag state after the browser finishes a drag interaction.
+   *
+   * @returns {void}
    * @remarks Resets the drag and drop state variables.
    */
   protected _onStreamDragEnd(): void {
@@ -532,9 +580,10 @@ export class SettingsModalComponent {
 
   /**
    * Provides a stable identity for quality options rendered in the template.
-   * @param _ - The index of the option (unused).
-   * @param quality - The quality option object.
-   * @returns The unique value of the quality option.
+   *
+   * @param {number} _ Index of the option, unused.
+   * @param {StreamQualityOption} quality Quality option object.
+   * @returns {string} Unique value of the quality option.
    */
   protected _trackQuality(_: number, quality: StreamQualityOption): string {
     return quality.value;
@@ -542,9 +591,10 @@ export class SettingsModalComponent {
 
   /**
    * Provides a stable identity for layout options rendered in the template.
-   * @param _ - The index of the option (unused).
-   * @param option - The layout preset option object.
-   * @returns The unique value of the layout preset option.
+   *
+   * @param {number} _ Index of the option, unused.
+   * @param {StreamLayoutPresetOption} option Layout preset option object.
+   * @returns {StreamLayoutPreset} Unique value of the layout preset option.
    */
   protected _trackLayoutOption(_: number, option: StreamLayoutPresetOption): StreamLayoutPreset {
     return option.value;
@@ -552,8 +602,10 @@ export class SettingsModalComponent {
 
   /**
    * Updates the chat visibility for one stream entry.
-   * @param index - The index of the stream to update.
-   * @param value - Whether chat should be shown for this stream.
+   *
+   * @param {number} index Index of the stream to update.
+   * @param {boolean} value Whether chat should be shown for this stream.
+   * @returns {void}
    */
   protected _setStreamShowChat(index: number, value: boolean): void {
     this._state.setStreamShowChat(index, value);
@@ -561,8 +613,10 @@ export class SettingsModalComponent {
 
   /**
    * Forwards checkbox changes from the template to the stream chat toggle.
-   * @param index - The index of the stream to update.
-   * @param event - The change event from the checkbox input.
+   *
+   * @param {number} index Index of the stream to update.
+   * @param {Event} event Change event from the checkbox input.
+   * @returns {void}
    */
   protected _onStreamChatChange(index: number, event: Event): void {
     const target = event.target;
@@ -574,9 +628,10 @@ export class SettingsModalComponent {
 
   /**
    * Provides a stable identity for list rows rendered in the template.
-   * @param _ - The index of the list (unused).
-   * @param list - The list object.
-   * @returns The unique ID of the list.
+   *
+   * @param {number} _ Index of the list, unused.
+   * @param {StreamList} list List object.
+   * @returns {number} Unique id of the list.
    */
   protected _trackList(_: number, list: StreamList): number {
     return list.id;
@@ -584,9 +639,10 @@ export class SettingsModalComponent {
 
   /**
    * Provides a stable identity for stream rows rendered in the template.
-   * @param _ - The index of the stream (unused).
-   * @param stream - The stream channel object.
-   * @returns The unique name of the stream channel.
+   *
+   * @param {number} _ Index of the stream, unused.
+   * @param {StreamChannel} stream Stream channel object.
+   * @returns {string} Unique name of the stream channel.
    */
   protected _trackStream(_: number, stream: StreamChannel): string {
     return stream.name;
@@ -594,8 +650,9 @@ export class SettingsModalComponent {
 
   /**
    * Returns whether the given stream is currently being dragged.
-   * @param index - The index of the stream to check.
-   * @returns True if the stream is being dragged, otherwise false.
+   *
+   * @param {number} index Index of the stream to check.
+   * @returns {boolean} `true` when the stream is currently being dragged.
    */
   protected _isDraggedStream(index: number): boolean {
     return this._draggedStreamIndex() === index;
@@ -603,8 +660,9 @@ export class SettingsModalComponent {
 
   /**
    * Returns whether the given stream is the active drop target.
-   * @param index - The index of the stream to check.
-   * @returns True if the stream is the drop target, otherwise false.
+   *
+   * @param {number} index Index of the stream to check.
+   * @returns {boolean} `true` when the stream is the current drop target.
    */
   protected _isDropTarget(index: number): boolean {
     return this._dropTargetStreamIndex() === index && this._draggedStreamIndex() !== index;
@@ -612,8 +670,9 @@ export class SettingsModalComponent {
 
   /**
    * Removes trailing statistic counts from suggestion labels before validation.
-   * @param value - The input string containing the channel name and optional count.
-   * @returns The cleaned channel name without trailing count.
+   *
+   * @param {string} value Input string containing the channel name and optional count.
+   * @returns {string} Cleaned channel name without the trailing count.
    */
   private _extractChannelName(value: string): string {
     return value.replace(/\s+\(\d+\)$/, '');
@@ -621,7 +680,9 @@ export class SettingsModalComponent {
 
   /**
    * Navigates to the canonical route for the selected list.
-   * @param listId - The ID of the list to navigate to, or null.
+   *
+   * @param {number | null} listId Id of the list to navigate to, or `null`.
+   * @returns {void}
    */
   private _navigateToList(listId: number | null): void {
     this._listNavigation.navigateToList(listId);
@@ -629,9 +690,10 @@ export class SettingsModalComponent {
 
   /**
    * Picks the next list to show after deleting the current one.
-   * @param lists - The array of lists before deletion.
-   * @param removedListId - The ID of the list that was removed.
-   * @returns The ID of the next list to show, or null if none.
+   *
+   * @param {StreamList[]} lists Array of lists before deletion.
+   * @param {number} removedListId Id of the list that was removed.
+   * @returns {number | null} Id of the next list to show, or `null` when none remains.
    */
   private _getNextListIdAfterDeletion(lists: StreamList[], removedListId: number): number | null {
     const removedIndex = lists.findIndex(list => list.id === removedListId);
@@ -647,8 +709,10 @@ export class SettingsModalComponent {
 
   /**
    * Focuses the requested input on the next microtask and optionally selects its content.
-   * @param inputRef - A function returning the ElementRef of the input to focus.
-   * @param selectText - Whether to select the input text after focusing (default: false).
+   *
+   * @param {() => ElementRef<HTMLInputElement> | undefined} inputRef Function returning the input reference to focus.
+   * @param {boolean} [selectText=false] Whether the input text should be selected after focus.
+   * @returns {void}
    */
   private _focusInput(inputRef: () => ElementRef<HTMLInputElement> | undefined, selectText = false): void {
     queueMicrotask(() => {
@@ -668,6 +732,8 @@ export class SettingsModalComponent {
 
   /**
    * Clears drag state after a completed or cancelled reorder interaction.
+   *
+   * @returns {void}
    * @remarks Resets the dragged and drop target stream indices.
    */
   private _resetDragState(): void {
@@ -677,8 +743,9 @@ export class SettingsModalComponent {
 
   /**
    * Collects focusable elements so keyboard navigation can be trapped in the modal.
-   * @param container - The container element to search for focusable children.
-   * @returns An array of focusable HTMLElements within the container.
+   *
+   * @param {HTMLElement} container Container element to search for focusable children.
+   * @returns {HTMLElement[]} Array of focusable HTML elements within the container.
    */
   private _getFocusableElements(container: HTMLElement): HTMLElement[] {
     return Array.from(

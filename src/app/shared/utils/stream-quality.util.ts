@@ -2,8 +2,9 @@ import type { StreamQuality, StreamQualityOption } from '../../core/models/app-s
 
 /**
  * Normalizes persisted or user-provided quality values to supported Twitch identifiers.
- * @param value - The quality value to normalize (can be string or unknown).
- * @returns The normalized stream quality identifier.
+ *
+ * @param {unknown} value Quality value to normalize.
+ * @returns {StreamQuality} Normalized stream quality identifier.
  */
 export function normalizeStreamQuality(value: unknown): StreamQuality {
   const storedQuality = typeof value === 'string' ? value.trim() : 'auto';
@@ -18,8 +19,9 @@ export function normalizeStreamQuality(value: unknown): StreamQuality {
 
 /**
  * Checks whether a quality string matches the app-supported Twitch formats.
- * @param value - The quality string to check.
- * @returns True if the value is a supported stream quality, otherwise false.
+ *
+ * @param {string} value Quality string to validate.
+ * @returns {boolean} `true` when the value is a supported stream quality.
  */
 function isSupportedStreamQuality(value: string): boolean {
   return value === 'auto'
@@ -30,9 +32,10 @@ function isSupportedStreamQuality(value: string): boolean {
 
 /**
  * Produces a stable German label for a normalized quality option.
- * @param value - The normalized stream quality value.
- * @param label - The optional label provided by Twitch.
- * @returns The normalized label in German.
+ *
+ * @param {StreamQuality} value Normalized stream quality value.
+ * @param {string} [label] Optional label provided by Twitch.
+ * @returns {string} Normalized German label.
  */
 export function normalizeStreamQualityLabel(value: StreamQuality, label?: string): string {
   const normalizedLabel = label?.trim().replace(/\s+/g, ' ');
@@ -62,8 +65,9 @@ export function normalizeStreamQualityLabel(value: StreamQuality, label?: string
 
 /**
  * Returns the fallback label used when Twitch does not provide one.
- * @param value - The stream quality value.
- * @returns The default label for the given quality.
+ *
+ * @param {StreamQuality} value Stream quality value.
+ * @returns {string} Default label for the given quality.
  */
 export function getDefaultStreamQualityLabel(value: StreamQuality): string {
   switch (value) {
@@ -80,8 +84,9 @@ export function getDefaultStreamQualityLabel(value: StreamQuality): string {
 
 /**
  * Deduplicates, normalizes, and sorts the qualities reported by Twitch embeds.
- * @param values - The array of reported stream quality options.
- * @returns The normalized and sorted array of unique stream quality options.
+ *
+ * @param {StreamQualityOption[]} values Reported stream quality options.
+ * @returns {StreamQualityOption[]} Normalized and sorted array of unique stream quality options.
  */
 export function normalizeAvailableStreamQualities(values: StreamQualityOption[]): StreamQualityOption[] {
   const uniqueQualities = new Map<string, StreamQualityOption>();
@@ -109,9 +114,10 @@ export function normalizeAvailableStreamQualities(values: StreamQualityOption[])
 
 /**
  * Merges the selected value with reported options into the menu-ready quality list.
- * @param reported - The array of reported stream quality options.
- * @param selected - The currently selected stream quality value.
- * @returns The combined and deduplicated list of stream quality options.
+ *
+ * @param {StreamQualityOption[]} reportedQualities Reported stream quality options.
+ * @param {StreamQuality} selectedQuality Currently selected stream quality value.
+ * @returns {StreamQualityOption[]} Combined and deduplicated list of stream quality options.
  */
 export function buildAvailableStreamQualityOptions(
   reportedQualities: StreamQualityOption[],
@@ -143,9 +149,10 @@ export function buildAvailableStreamQualityOptions(
 
 /**
  * Compares two option lists by value and label order.
- * @param left - The first array of stream quality options.
- * @param right - The second array of stream quality options.
- * @returns True if both option lists are equal, otherwise false.
+ *
+ * @param {StreamQualityOption[]} left First array of stream quality options.
+ * @param {StreamQualityOption[]} right Second array of stream quality options.
+ * @returns {boolean} `true` when both option lists are equal.
  */
 export function areStreamQualityOptionsEqual(
   left: StreamQualityOption[],
@@ -158,9 +165,9 @@ export function areStreamQualityOptionsEqual(
 
 /**
  * Prefers more descriptive labels when duplicate quality values are reported.
- * @param left - The first stream quality option.
- * @param right - The second stream quality option.
- * @returns The preferred stream quality option.
+ *
+ * @param {StreamQualityOption} option Stream quality option to score.
+ * @returns {number} Relative score used to prefer more descriptive duplicate labels.
  */
 function getStreamQualityLabelScore(option: StreamQualityOption): number {
   if (option.value === 'chunked' && /^\d+p/i.test(option.label)) {
@@ -172,9 +179,10 @@ function getStreamQualityLabelScore(option: StreamQualityOption): number {
 
 /**
  * Sorts qualities by semantic priority, resolution, frame rate, and name.
- * @param a - The first stream quality option.
- * @param b - The second stream quality option.
- * @returns A negative number if a < b, positive if a > b, or 0 if equal.
+ *
+ * @param {StreamQuality} left First stream quality value.
+ * @param {StreamQuality} right Second stream quality value.
+ * @returns {number} Negative when `left` sorts before `right`, positive when after, or `0` when equal.
  */
 function compareStreamQualities(left: StreamQuality, right: StreamQuality): number {
   const leftToken = getQualitySortToken(left);
@@ -197,8 +205,9 @@ function compareStreamQualities(left: StreamQuality, right: StreamQuality): numb
 
 /**
  * Converts a quality string into sortable priority tokens.
- * @param value - The stream quality value to convert.
- * @returns An array of tokens for sorting purposes.
+ *
+ * @param {StreamQuality} value Stream quality value to convert.
+ * @returns {{ group: number; resolution: number; frameRate: number }} Sort token used for quality ordering.
  */
 function getQualitySortToken(value: StreamQuality): { group: number; resolution: number; frameRate: number } {
   if (value === 'chunked') {

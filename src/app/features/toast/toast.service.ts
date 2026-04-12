@@ -2,16 +2,18 @@ import { Injectable, signal } from '@angular/core';
 
 /**
  * Enumerates the supported toast variants.
+ *
  * @remarks Used to distinguish toast message types.
  */
 export type ToastType = 'success' | 'error' | 'info';
 
 /**
  * Represents one visible toast message instance.
- * @property id - The unique identifier for the toast message.
- * @property text - The message text to display.
- * @property type - The type of toast (success, error, info).
- * @property count - The number of times this toast has been shown.
+ *
+ * @property {number} id Unique identifier for the toast message.
+ * @property {string} text Message text to display.
+ * @property {ToastType} type Toast variant, such as success, error, or info.
+ * @property {number} count Number of times this toast has been shown.
  */
 export interface ToastMessage {
   id: number;
@@ -23,6 +25,7 @@ export interface ToastMessage {
 @Injectable({ providedIn: 'root' })
 /**
  * Manages toast creation, deduplication, visibility limits, and auto-dismiss.
+ *
  * @remarks Provides methods to show, remove, and manage toast messages globally.
  */
 export class ToastService {
@@ -36,8 +39,10 @@ export class ToastService {
 
   /**
    * Shows a toast or increments the counter for an existing matching message.
-   * @param text - The message text to display.
-   * @param type - The type of toast (default: 'success').
+   *
+   * @param {string} text Message text to display.
+   * @param {ToastType} [type='success'] Toast variant to display.
+   * @returns {void}
    * @remarks Duplicates increment the count and reset the timer.
    */
   public show(text: string, type: ToastType = 'success'): void {
@@ -78,7 +83,9 @@ export class ToastService {
 
   /**
    * Removes a toast immediately and clears its pending timer.
-   * @param id - The unique identifier of the toast to remove.
+   *
+   * @param {number} id Unique identifier of the toast to remove.
+   * @returns {void}
    */
   public remove(id: number): void {
     this._clearRemovalTimer(id);
@@ -87,7 +94,9 @@ export class ToastService {
 
   /**
    * Schedules automatic removal for a toast and replaces any existing timer.
-   * @param id - The unique identifier of the toast to schedule removal for.
+   *
+   * @param {number} id Unique identifier of the toast to schedule removal for.
+   * @returns {void}
    * @private
    */
   private _scheduleRemoval(id: number): void {
@@ -103,7 +112,9 @@ export class ToastService {
 
   /**
    * Cancels and removes the timer associated with a toast id.
-   * @param id - The unique identifier of the toast whose timer should be cleared.
+   *
+   * @param {number} id Unique identifier of the toast whose timer should be cleared.
+   * @returns {void}
    * @private
    */
   private _clearRemovalTimer(id: number): void {

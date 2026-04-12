@@ -1059,10 +1059,20 @@ class MockStreamStateService {
   }
 }
 
+/**
+ * Minimal toast service mock used by modal tests.
+ *
+ * @remarks Exposes only the [`show`](src/app/features/settings-modal/settings-modal.component.spec.ts:1066) spy required for toast assertions.
+ */
 class MockToastService {
   public readonly show = vi.fn();
 }
 
+/**
+ * Minimal list-navigation mock used by modal tests.
+ *
+ * @remarks Captures navigation requests triggered by modal actions without invoking the real router.
+ */
 class MockListNavigationService {
   public readonly navigateToList = vi.fn<(listId: number | null) => void>();
 }

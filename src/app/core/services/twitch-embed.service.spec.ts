@@ -31,7 +31,7 @@ describe('TwitchEmbedService', () => {
    * Installs a mock Twitch embed constructor with a configurable ready event constant.
    *
    * @param {ReturnType<typeof vi.fn>} embed Mock constructor for [`Twitch.Embed`](src/app/core/services/twitch-embed.service.ts:206).
-   * @param {string} [readyEvent='VIDEO_READY_EVENT'] Name of the ready-event constant in the mock.
+   * @param {string} [readyEvent='VIDEO_READY_EVENT'] Name of the ready event constant in the mock.
    * @returns {void}
    * @remarks A play-event constant is also set so event mappings remain testable.
    */
@@ -746,6 +746,7 @@ describe('TwitchEmbedService', () => {
      *
      * @returns {{ player: { getQualities: ReturnType<typeof vi.fn>; getQuality: ReturnType<typeof vi.fn>; setQuality: ReturnType<typeof vi.fn>; }; triggerReady: () => void; }} Harness with a mock player and a manually triggerable ready callback.
      * @remarks The structure allows quality synchronization to be asserted precisely after the simulated ready event.
+     * @type {() => { player: { getQualities: ReturnType<typeof vi.fn>; getQuality: ReturnType<typeof vi.fn>; setQuality: ReturnType<typeof vi.fn>; }; triggerReady: () => void; }}
      */
     const createReadyHarness = (): {
       player: {

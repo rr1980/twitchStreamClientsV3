@@ -10,21 +10,26 @@ import { StreamStateService } from './core/services/stream-state.service';
 
 /**
  * Lazy-loads the stream grid route component.
- * @returns A promise resolving to the StreamGridComponent type.
+ *
+ * @returns {Promise<Type<unknown>>} Promise resolving to the [`StreamGridComponent`](src/app/features/stream-grid/stream-grid.component.ts:54) type.
  */
 const loadStreamGridComponent = (): Promise<Type<unknown>> => import('./features/stream-grid/stream-grid.component')
   .then(module => module.StreamGridComponent);
 
 /**
  * Redirects list routes to the canonical `/List/:listId` shape.
- * @param _route - The activated route snapshot (unused).
- * @param state - The router state snapshot.
- * @returns True or a UrlTree for redirection.
+ *
+ * @param {import('@angular/router').ActivatedRouteSnapshot} _route Activated route snapshot, unused by the guard.
+ * @param {import('@angular/router').RouterStateSnapshot} state Router state snapshot.
+ * @returns {true | UrlTree} `true` when the URL is already canonical, otherwise a redirect tree.
+ * @remarks Keeps list navigation normalized to the hash-based `#/List/:listId` format.
  */
 const normalizeListRoute: CanActivateFn = (_route, state) => inject(ListNavigationService).ensureCanonicalUrl(state.url);
 
 /**
  * Defines the public route table for the application shell.
+ *
+ * @type {Routes}
  * @remarks Contains all main routes and fallback redirects.
  */
 export const appRoutes: Routes = [
@@ -51,6 +56,8 @@ export const appRoutes: Routes = [
 
 /**
  * Registers routing, error handling, service worker, and state initialization.
+ *
+ * @type {ApplicationConfig}
  * @remarks Provides all global app providers and initializers.
  */
 export const appConfig: ApplicationConfig = {

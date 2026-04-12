@@ -897,6 +897,11 @@ class MockStreamStateService {
   }
 }
 
+/**
+ * Test double for [`TwitchEmbedService`](src/app/core/services/twitch-embed.service.ts:91) used by grid component specs.
+ *
+ * @remarks Records created handles and exposes a helper to push available-quality callbacks manually.
+ */
 class MockTwitchEmbedService {
   public readonly loadScript = vi.fn(async () => undefined);
   public readonly handles = new Map<string, MockTwitchEmbedHandle>();
@@ -925,12 +930,22 @@ class MockTwitchEmbedService {
   }
 }
 
+/**
+ * Minimal mock implementation of [`TwitchEmbedHandle`](src/app/core/services/twitch-embed.service.ts:69) for grid tests.
+ *
+ * @remarks Exposes spies for lifecycle and state synchronization assertions.
+ */
 class MockTwitchEmbedHandle implements TwitchEmbedHandle {
   public readonly destroy = vi.fn();
   public readonly setMuted = vi.fn();
   public readonly setQuality = vi.fn();
 }
 
+/**
+ * Minimal toast service mock used to observe UI feedback side effects.
+ *
+ * @remarks The mock keeps only the [`show`](src/app/features/stream-grid/stream-grid.component.spec.ts:940) spy required by these tests.
+ */
 class MockToastService {
   public readonly show = vi.fn();
 }
