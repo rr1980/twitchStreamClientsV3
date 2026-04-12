@@ -11,6 +11,8 @@
     "coverage:check": "node ./scripts/check-coverage.mjs",
     "test:coverage:ci": "npm run test:coverage && npm run coverage:check",
     "lint": "ng lint",
+    "docs:api": "compodoc -p tsconfig.app.json -d documentation/compodoc",
+    "docs:api:serve": "compodoc -p tsconfig.app.json -d documentation/compodoc -s",
     "check:dead-exports": "ts-unused-exports tsconfig.app.json",
     "http": "http-server --port 8086 -c-1 ./dist/twitchStreamClientsV3/browser"
   },
@@ -31,6 +33,7 @@
     "@angular/build": "^21.2.7",
     "@angular/cli": "^21.2.7",
     "@angular/compiler-cli": "^21.2.8",
+    "@compodoc/compodoc": "^1.2.1",
     "@eslint/js": "^10.0.1",
     "@vitest/coverage-v8": "^4.1.4",
     "angular-eslint": "21.3.1",

@@ -14,6 +14,7 @@ The app is optimized for a compact codebase, predictable state handling, and str
 
 - For a maintainer-oriented architecture summary, see [docs/architecture-summary.md](docs/architecture-summary.md)
 - For contribution expectations and review checks, see [CONTRIBUTING.md](CONTRIBUTING.md)
+- API documentation can be generated locally with `npm run docs:api` and served with `npm run docs:api:serve`
 
 ## Overview
 
@@ -125,6 +126,8 @@ If port `4200` is already occupied, Angular may offer another port.
 | `npm run coverage:check` | Validate coverage thresholds from the generated coverage report |
 | `npm run test:coverage:ci` | Run coverage generation and threshold validation together |
 | `npm run lint` | Run ESLint for TypeScript and Angular templates |
+| `npm run docs:api` | Generate Compodoc API documentation into `documentation/compodoc` |
+| `npm run docs:api:serve` | Generate and serve the Compodoc API documentation locally |
 | `npm run http` | Serve the production build from `dist/twitchStreamClientsV3/browser` on port `8086` |
 
 ## Production Preview
