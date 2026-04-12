@@ -33,16 +33,39 @@ declare global {
   }
 }
 
+/**
+ * Minimal Twitch player contract consumed by the embed service.
+ *
+ * @remarks This intentionally covers only the subset of the Twitch player API used by the app. Optional audio methods reflect browser and embed variability.
+ */
 interface TwitchPlayer {
+  /** Requests a specific player quality. */
   setQuality(value: string): void;
+
+  /** Updates the player muted state when supported by the embed. */
   setMuted?(value: boolean): void;
+
+  /** Returns the current muted state when supported by the embed. */
   getMuted?(): boolean;
+
+  /** Updates the player volume when supported by the embed. */
   setVolume?(value: number): void;
+
+  /** Returns the current player volume when supported by the embed. */
   getVolume?(): number;
+
+  /** Returns the quality descriptors currently reported by Twitch. */
   getQualities(): TwitchQualityDescriptor[];
+
+  /** Returns the player's currently selected quality identifier. */
   getQuality(): string;
 }
 
+/**
+ * Raw Twitch quality descriptor shapes returned by the player API.
+ *
+ * @remarks Twitch may return either plain strings or object descriptors with different property names depending on player version and locale.
+ */
 type TwitchQualityDescriptor = string | {
   name?: string;
   quality?: string;
@@ -55,27 +78,82 @@ type TwitchQualityDescriptor = string | {
   localized_name?: string;
 };
 
+/**
+ * Minimal Twitch embed wrapper used to access the underlying player.
+ *
+ * @remarks The service waits for embed readiness events before relying on `getPlayer()`, because Twitch does not guarantee immediate player availability.
+ */
 interface TwitchEmbedInstance {
+  /** Registers an embed lifecycle event listener. */
   addEventListener(event: string, callback: () => void): void;
+
+  /** Returns the underlying Twitch player instance. */
   getPlayer(): TwitchPlayer;
 }
 
+/**
+ * Represents a live Twitch embed instance that can be updated or destroyed.
+ *
+ * @remarks The handle abstracts away Twitch readiness timing and stale async synchronization so callers can treat mute and quality updates as immediate intents.
+ */
 export interface TwitchEmbedHandle {
+  /** Destroys the embed and stops future synchronization work. */
   destroy(): void;
+
+  /** Updates the requested muted state for the embed. */
   setMuted(value: boolean): void;
+
+  /** Updates the requested quality for the embed. */
   setQuality(value: StreamQuality): void;
 }
 
+/**
+ * Options used to create and initialize one Twitch embed instance.
+ *
+ * @remarks These values describe the desired embed state at creation time. Later changes are applied through the returned handle instead of recreating the options object.
+ */
 interface CreateEmbedOptions {
+  /** DOM element id of the embed container. */
   elementId: string;
+
+  /** Twitch channel name to render. */
   channel: string;
+
+  /** Requested stream quality. */
   quality: StreamQuality;
+
+  /** Whether chat should be rendered next to the stream. */
   showChat: boolean;
+
+  /** Initial muted state requested by the app. */
   muted: boolean;
+
+  /** Optional callback invoked when the player reports available qualities. */
   onAvailableQualities?: (qualities: StreamQualityOption[]) => void;
 }
 
+/**
+ * Internal embed controller used by the grid to manage one live Twitch embed.
+ *
+ * @remarks The controller extends the public handle with lifecycle hooks needed while the Twitch player is still initializing and quality callbacks are being wired.
+ */
+interface TwitchEmbedController extends TwitchEmbedHandle {
+  /** Returns whether the controller has already been destroyed. */
+  isDestroyed(): boolean;
+
+  /** Attaches the live Twitch player instance to the controller. */
+  setPlayer(player: TwitchPlayer): void;
+
+  /** Registers the stream name and callback used for quality updates. */
+  setQualityCallbackChannel(channel: string, onAvailableQualities?: (qualities: StreamQualityOption[]) => void): void;
+}
+
 @Injectable({ providedIn: 'root' })
+/**
+ * Loads the Twitch embed script and keeps player instances synchronized with app state.
+ *
+ * @remarks The service caches script loading, normalizes Twitch quality descriptors, and keeps embeds in sync with app-level mute and quality intent without exposing Twitch-specific timing details to components.
+ */
 export class TwitchEmbedService {
   private readonly _maxQualitySyncFrames = 120;
   private readonly _maxQualitySyncDurationMs = 2000;
@@ -87,6 +165,12 @@ export class TwitchEmbedService {
   private _scriptPromise?: Promise<void>;
   private _didLogQualityDescriptors = false;
 
+  /**
+   * Loads the Twitch embed script once and reuses the pending request.
+   *
+    * @returns {Promise<void>} Promise that resolves when the script is loaded and the Twitch embed API is available.
+    * @remarks The pending promise is cached so multiple embed sync passes do not append duplicate script tags or race each other while the external loader is still resolving.
+   */
   public loadScript(): Promise<void> {
     const browserWindow = this._window;
 
@@ -107,14 +191,21 @@ export class TwitchEmbedService {
     return this._scriptPromise;
   }
 
+  /**
+   * Creates an embed handle for a stream and wires quality and mute synchronization.
+   *
+   * @param {CreateEmbedOptions} options - Options used to create the embed instance.
+   * @returns {TwitchEmbedHandle} Handle used to control the embed instance.
+   * @remarks When the Twitch API is unavailable, the method still returns a no-op compatible handle.
+   */
   public createEmbed(options: CreateEmbedOptions): TwitchEmbedHandle {
     const browserWindow = this._window;
 
     if (!browserWindow?.Twitch?.Embed) {
-      return this._createHandle(options.elementId, options.muted);
+      return this._createHandle(options.elementId, options.muted, options.quality);
     }
 
-    const handle = this._createHandle(options.elementId, options.muted);
+    const handle = this._createHandle(options.elementId, options.muted, options.quality);
 
     const embed = new browserWindow.Twitch.Embed(options.elementId, {
       width: '100%',
@@ -150,14 +241,8 @@ export class TwitchEmbedService {
       }
 
       didInitializePlayer = true;
+      handle.setQualityCallbackChannel(options.channel, options.onAvailableQualities);
       handle.setPlayer(player);
-      void this._syncRequestedQuality(
-        player,
-        options.channel,
-        options.quality,
-        () => handle.isDestroyed(),
-        options.onAvailableQualities,
-      );
 
       return true;
     };
@@ -171,10 +256,23 @@ export class TwitchEmbedService {
     return handle;
   }
 
+  /**
+   * Clears the embed container for a previously rendered player.
+   *
+   * @param {string} elementId - DOM element id to clear.
+    * @returns {void}
+    * @remarks Destruction is implemented by clearing the wrapper node because the Twitch embed API does not expose a richer teardown hook.
+   */
   public clearEmbed(elementId: string): void {
     this._document.getElementById(elementId)?.replaceChildren();
   }
 
+  /**
+   * Creates or reuses the Twitch script tag and resolves once [`Twitch.Embed`](src/app/core/services/twitch-embed.service.ts:206) is available.
+   *
+    * @returns {Promise<void>} Promise that resolves once the Twitch embed API can be used.
+    * @remarks Existing script tags are reused when possible so rapid embed churn does not trigger duplicate network requests. Failed loads clear the cached state so later sync passes can retry cleanly.
+   */
   private _createScriptPromise(): Promise<void> {
     const browserWindow = this._window;
 
@@ -215,6 +313,15 @@ export class TwitchEmbedService {
     });
   }
 
+  /**
+   * Attaches one-shot load and error listeners to the Twitch script element.
+   *
+   * @param {HTMLScriptElement} script - Script element used for the Twitch embed loader.
+   * @param {() => void} resolve - Callback that resolves the loading promise.
+   * @param {(reason?: unknown) => void} reject - Callback that rejects the loading promise.
+    * @returns {void}
+    * @remarks Both listeners are one-shot so repeated retries create fresh promises instead of accumulating stale handlers on the same element. The load handler also verifies that Twitch exposed the expected global before treating the script as usable.
+   */
   private _attachScriptListeners(
     script: HTMLScriptElement,
     resolve: () => void,
@@ -240,12 +347,29 @@ export class TwitchEmbedService {
     }, { once: true });
   }
 
+  /**
+   * Resets the cached script-loading state after a failed Twitch script load.
+   *
+   * @param {HTMLScriptElement} script - Script element affected by the failed load.
+    * @returns {void}
+    * @remarks Removing the failed element and clearing the cached promise allows later sync passes to retry the script load cleanly instead of remaining stuck behind a rejected promise or a broken script tag.
+   */
   private _resetScriptState(script: HTMLScriptElement): void {
     script.dataset['loadState'] = 'error';
     script.remove();
     this._scriptPromise = undefined;
   }
 
+  /**
+   * Repeatedly tries to apply the requested quality until Twitch exposes usable options.
+   *
+   * @param {TwitchPlayer} player - Current Twitch player instance.
+   * @param {string} channel - Channel name used for quality error logging.
+   * @param {StreamQuality} quality - Requested quality in the app-specific format.
+   * @param {() => boolean} isDestroyed - Abort condition for stale or destroyed embeds.
+   * @param {(qualities: StreamQualityOption[]) => void} [onAvailableQualities] - Optional callback for detected quality options.
+   * @returns {Promise<void>} Promise that settles when quality synchronization completes or aborts.
+   */
   private async _syncRequestedQuality(
     player: TwitchPlayer,
     channel: string,
@@ -296,7 +420,7 @@ export class TwitchEmbedService {
       }
 
       console.warn(
-        `[Twitch] Quality '${requestedQuality}' für Channel '${channel}' nicht verfügbar.`,
+        `[Twitch] Quality '${requestedQuality}' is not available for channel '${channel}'.`,
         this._readAvailableQualities(player).map(option => option.value),
       );
     } catch (error) {
@@ -304,6 +428,12 @@ export class TwitchEmbedService {
     }
   }
 
+  /**
+   * Reads and normalizes quality options from the current Twitch player instance.
+   *
+   * @param {TwitchPlayer} player - Current Twitch player instance.
+   * @returns {StreamQualityOption[]} Normalized quality options reported by the player.
+   */
   private _readAvailableQualities(player: TwitchPlayer): StreamQualityOption[] {
     const rawQualities = player.getQualities?.() ?? [];
 
@@ -319,6 +449,11 @@ export class TwitchEmbedService {
     );
   }
 
+  /**
+   * Awaits the next animation frame or falls back to a timer outside the browser.
+   *
+   * @returns {Promise<void>} Promise that resolves on the next render step.
+   */
   private _waitForNextFrame(): Promise<void> {
     return new Promise(resolve => {
       const browserWindow = this._window;
@@ -332,6 +467,11 @@ export class TwitchEmbedService {
     });
   }
 
+  /**
+   * Returns the current browser window when Twitch embed APIs are available.
+   *
+   * @returns {Window | null} Browser window or `null` when running outside the browser.
+   */
   private get _window(): Window | null {
     if (!isPlatformBrowser(this._platformId)) {
       return null;
@@ -340,6 +480,12 @@ export class TwitchEmbedService {
     return this._document.defaultView;
   }
 
+  /**
+   * Converts app quality values into Twitch player quality identifiers.
+   *
+   * @param {StreamQuality} value - Quality value in the app-specific format.
+   * @returns {string | null} Twitch quality identifier or `null` for automatic mode.
+   */
   private _mapRequestedQuality(value: StreamQuality): string | null {
     const normalizedValue = normalizeStreamQuality(value);
 
@@ -350,6 +496,13 @@ export class TwitchEmbedService {
     return normalizedValue;
   }
 
+  /**
+   * Resolves the best available Twitch quality for the requested normalized value.
+   *
+   * @param {string} requestedQuality - Normalized target quality.
+   * @param {string[]} availableQualities - Available Twitch quality identifiers.
+   * @returns {string | null} Best matching Twitch quality or `null` when no mapping is possible.
+   */
   private _resolveRequestedQuality(requestedQuality: string, availableQualities: string[]): string | null {
     if (availableQualities.includes(requestedQuality)) {
       return requestedQuality;
@@ -374,6 +527,13 @@ export class TwitchEmbedService {
     return this._findNearestResolution(requestedQuality, availableQualities);
   }
 
+  /**
+   * Chooses the closest available resolution when the exact requested quality is missing.
+   *
+   * @param {string} requestedQuality - Requested quality identifier.
+   * @param {string[]} availableQualities - Available Twitch quality identifiers.
+   * @returns {string | null} Quality identifier with the smallest distance from the request.
+   */
   private _findNearestResolution(requestedQuality: string, availableQualities: string[]): string | null {
     const requestedMatch = requestedQuality.match(/^(\d+)p/);
 
@@ -420,12 +580,26 @@ export class TwitchEmbedService {
     return bestMatch;
   }
 
+  /**
+   * Extracts the resolution family token from a Twitch quality string.
+   *
+   * @param {string} value - Twitch quality identifier.
+   * @returns {string | null} Resolution family such as `720p`, or `null` when none matches.
+   */
   private _extractQualityFamily(value: string): string | null {
     const match = value.match(/^\d+p/);
 
     return match?.[0] ?? null;
   }
 
+  /**
+   * Sorts same-family quality candidates by how closely they match the request.
+   *
+   * @param {string} requestedQuality - Requested quality identifier.
+   * @param {string} qualityFamily - Resolution family derived from the request.
+   * @param {string[]} matches - Candidates from the same quality family.
+   * @returns {string[]} Candidates ordered from best to worst match.
+   */
   private _rankQualityMatches(requestedQuality: string, qualityFamily: string, matches: string[]): string[] {
     return [...matches].sort((left, right) => {
       return this._getQualityMatchScore(left, requestedQuality, qualityFamily)
@@ -433,6 +607,14 @@ export class TwitchEmbedService {
     });
   }
 
+  /**
+   * Scores same-family candidates so the closest Twitch quality wins.
+   *
+   * @param {string} candidate - Quality identifier being scored.
+   * @param {string} requestedQuality - Requested quality identifier.
+   * @param {string} qualityFamily - Resolution family derived from the request.
+   * @returns {number} Lower scores indicate a better match.
+   */
   private _getQualityMatchScore(candidate: string, requestedQuality: string, qualityFamily: string): number {
     if (candidate === requestedQuality) {
       return 0;
@@ -452,6 +634,12 @@ export class TwitchEmbedService {
     return 3;
   }
 
+  /**
+   * Extracts numeric frame-rate hints from a Twitch quality label.
+   *
+   * @param {string} value - Twitch quality identifier.
+   * @returns {number[]} Detected frame rates in numeric form.
+   */
   private _extractQualityFrameRates(value: string): number[] {
     return (value.match(/\d+/g) ?? [])
       .slice(1)
@@ -459,6 +647,12 @@ export class TwitchEmbedService {
       .filter(rate => Number.isFinite(rate) && rate > 0);
   }
 
+  /**
+   * Converts Twitch quality descriptors into normalized app quality options.
+   *
+   * @param {TwitchQualityDescriptor} descriptor - Quality descriptor returned by the Twitch API.
+   * @returns {StreamQualityOption | null} Normalized quality option or `null` when no mapping is possible.
+   */
   private _normalizeQualityDescriptor(descriptor: TwitchQualityDescriptor): StreamQualityOption | null {
     if (typeof descriptor === 'string') {
       const normalizedValue = this._mapRequestedQuality(descriptor);
@@ -501,6 +695,16 @@ export class TwitchEmbedService {
     };
   }
 
+  /**
+   * Re-applies mute and volume until the player reflects the requested audio state.
+   *
+   * @param {TwitchPlayer} player - Current Twitch player instance.
+   * @param {() => boolean} getRequestedMuted - Returns the requested muted state.
+   * @param {() => number} getRestoredVolume - Returns the last known volume for unmuted playback.
+   * @param {(value: number) => void} setRestoredVolume - Stores a newly detected volume level.
+   * @param {() => boolean} isCancelled - Abort condition for stale synchronization runs.
+   * @returns {Promise<void>} Promise that settles when audio synchronization completes or is cancelled.
+   */
   private async _syncRequestedMutedState(
     player: TwitchPlayer,
     getRequestedMuted: () => boolean,
@@ -548,17 +752,29 @@ export class TwitchEmbedService {
     }
   }
 
-  private _createHandle(elementId: string, initialMuted: boolean): TwitchEmbedHandle & {
-    isDestroyed(): boolean;
-    setPlayer(player: TwitchPlayer): void;
-  } {
+  /**
+   * Creates the mutable handle abstraction used by the grid to manage one embed instance.
+   *
+   * @param {string} elementId - DOM element id of the embed container.
+   * @param {boolean} initialMuted - Initial muted state.
+   * @param {StreamQuality} initialQuality - Initial quality requested for the embed.
+   * @returns {TwitchEmbedController} Control object for the embed lifecycle, audio state, and quality.
+   */
+  private _createHandle(elementId: string, initialMuted: boolean, initialQuality: StreamQuality): TwitchEmbedController {
     let destroyed = false;
     let player: TwitchPlayer | null = null;
     let requestedMuted = initialMuted;
+    let requestedQuality: StreamQuality = initialQuality;
+    let qualityChannel = '';
+    let onAvailableQualities: ((qualities: StreamQualityOption[]) => void) | undefined;
     let restoredVolume = 0.5;
     let muteSyncRunId = 0;
     let qualitySyncRunId = 0;
 
+    /**
+     * Starts or restarts mute synchronization for the current player instance.
+     *
+     */
     const syncRequestedMutedState = (): void => {
       if (!player || destroyed) {
         return;
@@ -578,6 +794,27 @@ export class TwitchEmbedService {
       );
     };
 
+    /**
+     * Starts or restarts quality synchronization for the current player instance.
+     *
+     */
+    const syncRequestedQuality = (): void => {
+      if (!player || destroyed) {
+        return;
+      }
+
+      const currentPlayer = player;
+      const syncRunId = ++qualitySyncRunId;
+
+      void this._syncRequestedQuality(
+        currentPlayer,
+        qualityChannel,
+        requestedQuality,
+        () => destroyed || player !== currentPlayer || syncRunId !== qualitySyncRunId,
+        onAvailableQualities,
+      );
+    };
+
     return {
       destroy: () => {
         if (destroyed) {
@@ -586,6 +823,7 @@ export class TwitchEmbedService {
 
         destroyed = true;
         muteSyncRunId += 1;
+        qualitySyncRunId += 1;
         this.clearEmbed(elementId);
       },
       setMuted: (value: boolean) => {
@@ -593,19 +831,8 @@ export class TwitchEmbedService {
         syncRequestedMutedState();
       },
       setQuality: (value: StreamQuality) => {
-        if (!player || destroyed) {
-          return;
-        }
-
-        const currentPlayer = player;
-        const syncRunId = ++qualitySyncRunId;
-
-        void this._syncRequestedQuality(
-          currentPlayer,
-          '',
-          value,
-          () => destroyed || player !== currentPlayer || syncRunId !== qualitySyncRunId,
-        );
+        requestedQuality = value;
+        syncRequestedQuality();
       },
       setPlayer: (nextPlayer: TwitchPlayer) => {
         if (destroyed) {
@@ -614,6 +841,11 @@ export class TwitchEmbedService {
 
         player = nextPlayer;
         syncRequestedMutedState();
+        syncRequestedQuality();
+      },
+      setQualityCallbackChannel: (channel: string, onAvailableQualitiesCallback?: (qualities: StreamQualityOption[]) => void) => {
+        qualityChannel = channel;
+        onAvailableQualities = onAvailableQualitiesCallback;
       },
       isDestroyed: () => destroyed,
     };

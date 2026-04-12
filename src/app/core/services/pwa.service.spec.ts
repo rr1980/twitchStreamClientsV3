@@ -188,6 +188,13 @@ describe('PwaService', () => {
     service.reloadForUpdate();
   });
 
+  /**
+   * Creates a fresh PWA service with an optional mocked service worker update source.
+   *
+   * @param {Pick<SwUpdate, 'isEnabled' | 'versionUpdates'>} [swUpdateOverride] - Test double for Angular service worker update access.
+   * @returns {PwaService} Fresh service instance created from the TestBed.
+   * @remarks The TestBed is reset before each creation so providers do not leak between tests.
+   */
   function createService(
     swUpdateOverride: Pick<SwUpdate, 'isEnabled' | 'versionUpdates'> = {
       isEnabled: true,

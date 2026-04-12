@@ -15,6 +15,14 @@ describe('StreamGridComponent', () => {
   let twitch: MockTwitchEmbedService;
   let toast: MockToastService;
 
+  /**
+   * Returns a bound private method from the component for white-box test access.
+   *
+   * @param {object} instance - Component instance that owns the requested method.
+   * @param {string} propertyName - Name of the private method.
+   * @returns {T} Bound method with the expected function type.
+   * @remarks Binding ensures that the method keeps the correct `this` context.
+   */
   function getPrivateMethod<T extends (...args: never[]) => unknown>(
     instance: object,
     propertyName: string,
@@ -22,14 +30,40 @@ describe('StreamGridComponent', () => {
     return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
   }
 
+  /**
+   * Reads a private numeric field from the component instance.
+   *
+   * @param {object} instance - Component instance that owns the requested field.
+   * @param {string} propertyName - Name of the private numeric field.
+   * @returns {number} Current numeric field value.
+   * @remarks Used by white-box assertions that inspect internal counters.
+   */
   function getPrivateNumber(instance: object, propertyName: string): number {
     return (instance as Record<string, number>)[propertyName];
   }
 
+  /**
+   * Writes a private numeric field on the component instance.
+   *
+   * @param {object} instance - Component instance that owns the target field.
+   * @param {string} propertyName - Name of the private numeric field.
+   * @param {number} value - New numeric value.
+   * @remarks Allows internal state to be prepared for targeted test paths.
+    * @returns {void}
+   */
   function setPrivateNumber(instance: object, propertyName: string, value: number): void {
     (instance as Record<string, number>)[propertyName] = value;
   }
 
+  /**
+   * Writes an arbitrary private member on the component instance.
+   *
+   * @param {object} instance - Component instance that owns the target member.
+   * @param {string} propertyName - Name of the private member.
+   * @param {T} value - New value.
+   * @remarks Used to inject test doubles and internal flags directly.
+    * @returns {void}
+   */
   function setPrivateMember<T>(instance: object, propertyName: string, value: T): void {
     (instance as Record<string, unknown>)[propertyName] = value;
   }
@@ -647,9 +681,27 @@ describe('StreamGridComponent', () => {
 
     const wrappers = fixture.nativeElement.querySelectorAll('.twitch-embed-wrapper') as NodeListOf<HTMLElement>;
 
-    expect(wrappers[0].style.gridColumn).toBe('span 2');
-    expect(wrappers[0].style.gridRow).toBe('span 2');
+    expect(wrappers[0].style.gridColumn).toBe('1 / span 3');
+    expect(wrappers[0].style.gridRow).toBe('1 / span 2');
     expect(fixture.nativeElement.querySelector('.stream-overlay')).toBeNull();
+  });
+
+  it('renders a larger hero and a right-side rail for four stage streams', async () => {
+    state.layoutPreset.set('stage');
+    state.setActiveList({
+      id: 1,
+      name: 'Liste 1',
+      streams: [channel('shroud'), channel('rocketbeanstv'), channel('gronkh'), channel('papaplatte')],
+    });
+    await syncComponent();
+
+    const wrappers = fixture.nativeElement.querySelectorAll('.twitch-embed-wrapper') as NodeListOf<HTMLElement>;
+
+    expect(wrappers[0].style.gridColumn).toBe('1 / span 3');
+    expect(wrappers[0].style.gridRow).toBe('1 / span 3');
+    expect(wrappers[1].style.gridColumn).toBe('4');
+    expect(wrappers[1].style.gridRow).toBe('1');
+    expect(wrappers[3].style.gridRow).toBe('3');
   });
 
   it('updates the viewport signals on resize', () => {
@@ -712,43 +764,6 @@ describe('StreamGridComponent', () => {
     expect(getPrivateMethod<(dimension: 'innerWidth' | 'innerHeight') => number>(component, '_readViewportDimension')('innerHeight')).toBe(0);
   });
 
-  it('reorders displayed streams to put the focused stream first', async () => {
-    state.setActiveList({ id: 1, name: 'Test', streams: [channel('a'), channel('b'), channel('c')] });
-    state.focusedChannel.set('b');
-    await syncComponent();
-
-    const component = fixture.componentInstance;
-    const displayedStreams = getPrivateMethod<() => StreamChannel[]>(component, '_displayedStreams')();
-
-    expect(displayedStreams[0].name).toBe('b');
-    expect(displayedStreams.map(s => s.name)).toEqual(['b', 'a', 'c']);
-  });
-
-  it('toggles the focused channel through the state service', async () => {
-    state.setActiveList({ id: 1, name: 'Test', streams: [channel('streamer')] });
-    await syncComponent();
-
-    const toggleFocusedChannel = getPrivateMethod<(channelName: string) => void>(fixture.componentInstance, '_toggleFocusedChannel');
-
-    toggleFocusedChannel('streamer');
-    expect(state.setFocusedChannel).toHaveBeenLastCalledWith('streamer');
-
-    state.focusedChannel.set('streamer');
-    toggleFocusedChannel('streamer');
-    expect(state.setFocusedChannel).toHaveBeenLastCalledWith(null);
-  });
-
-  it('falls back to default order when focused stream is not in the list', async () => {
-    state.setActiveList({ id: 1, name: 'Test', streams: [channel('a'), channel('b')] });
-    state.focusedChannel.set('nonexistent');
-    await syncComponent();
-
-    const component = fixture.componentInstance;
-    const displayedStreams = getPrivateMethod<() => StreamChannel[]>(component, '_displayedStreams')();
-
-    expect(displayedStreams.map(s => s.name)).toEqual(['a', 'b']);
-  });
-
   it('clears the resize timer in ngOnDestroy when one is active', () => {
     vi.useFakeTimers();
     const component = fixture.componentInstance;
@@ -792,14 +807,36 @@ describe('StreamGridComponent', () => {
     expect(state.setAvailableQualities).toHaveBeenLastCalledWith([]);
   });
 
+  /**
+   * Creates a stream fixture with an optional chat flag.
+   *
+   * @param {string} name - Channel name of the fixture stream.
+    * @param {boolean} [showChat] - Whether the stream should be created with chat enabled.
+   * @returns {StreamChannel} Stream fixture used in grid tests.
+   * @remarks The helper keeps layout and focus tests compact.
+   */
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }
 
+  /**
+   * Creates a quality option fixture for embed quality reporting.
+   *
+   * @param {string} value - Normalized quality value.
+    * @param {string} [label] - Optional display label.
+   * @returns {StreamQualityOption} Quality fixture used by embed mocks.
+   * @remarks When no label is provided, the quality value itself is displayed.
+   */
   function quality(value: string, label = value): StreamQualityOption {
     return { value, label };
   }
 
+  /**
+   * Flushes change detection and pending microtasks for the component fixture.
+   *
+   * @returns {Promise<void>} Promise that resolves once the fixture update becomes stable.
+   * @remarks Combines change detection, fakeAsync timers, and microtask flushing for reproducible UI tests.
+   */
   async function syncComponent(): Promise<void> {
     fixture.detectChanges();
     TestBed.tick();
@@ -817,23 +854,31 @@ class MockStreamStateService {
   public readonly quality = signal<StreamQuality>('auto');
   public readonly layoutPreset = signal<StreamLayoutPreset>('auto');
   public readonly menuOpen = signal(false);
-  public readonly focusedChannel = signal<string | null>(null);
   public readonly muteAllStreams = signal(false);
   public readonly availableQualities = signal<StreamQualityOption[]>([{ value: 'auto', label: 'Auto' }]);
   public readonly setAvailableQualities = vi.fn((values: StreamQualityOption[]) => {
     this.availableQualities.set([{ value: 'auto', label: 'Auto' }, ...values]);
   });
-  public readonly setFocusedChannel = vi.fn((channelName: string | null) => {
-    this.focusedChannel.set(channelName);
-  });
   private readonly _activeList = signal<StreamList | null>(null);
 
+  /**
+   * Replaces the active list fixture and keeps the active id in sync.
+   *
+   * @param {StreamList | null} list - New active list fixture or `null`.
+   * @remarks The mock method updates both the active list and the active list id.
+    * @returns {void}
+   */
   public setActiveList(list: StreamList | null): void {
     this._activeList.set(list);
     this.activeListId.set(list?.id ?? null);
   }
 }
 
+/**
+ * Test double for [`TwitchEmbedService`](src/app/core/services/twitch-embed.service.ts:91) used by grid component specs.
+ *
+ * @remarks Records created handles and exposes a helper to push available-quality callbacks manually.
+ */
 class MockTwitchEmbedService {
   public readonly loadScript = vi.fn(async () => undefined);
   public readonly handles = new Map<string, MockTwitchEmbedHandle>();
@@ -849,17 +894,35 @@ class MockTwitchEmbedService {
     return handle;
   });
 
+  /**
+   * Pushes reported qualities into the callback registered for an embed.
+   *
+   * @param {string} elementId - Element id of the affected embed.
+   * @param {StreamQualityOption[]} qualities - Reported quality options.
+   * @remarks Simulates Twitch embed quality callbacks without a real player instance.
+    * @returns {void}
+   */
   public reportQualities(elementId: string, qualities: StreamQualityOption[]): void {
     this._qualityCallbacks.get(elementId)?.(qualities);
   }
 }
 
+/**
+ * Minimal mock implementation of [`TwitchEmbedHandle`](src/app/core/services/twitch-embed.service.ts:69) for grid tests.
+ *
+ * @remarks Exposes spies for lifecycle and state synchronization assertions.
+ */
 class MockTwitchEmbedHandle implements TwitchEmbedHandle {
   public readonly destroy = vi.fn();
   public readonly setMuted = vi.fn();
   public readonly setQuality = vi.fn();
 }
 
+/**
+ * Minimal toast service mock used to observe UI feedback side effects.
+ *
+ * @remarks The mock keeps only the [`show`](src/app/features/stream-grid/stream-grid.component.spec.ts:940) spy required by these tests.
+ */
 class MockToastService {
   public readonly show = vi.fn();
 }

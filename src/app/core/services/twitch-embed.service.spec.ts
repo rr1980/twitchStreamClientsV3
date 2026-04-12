@@ -1,6 +1,7 @@
 import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
+import type { TwitchEmbedHandle } from './twitch-embed.service';
 import { TwitchEmbedService } from './twitch-embed.service';
 
 describe('TwitchEmbedService', () => {
@@ -14,12 +15,27 @@ describe('TwitchEmbedService', () => {
     service = TestBed.inject(TwitchEmbedService);
   });
 
+  /**
+   * Installs a mock Twitch embed constructor on the browser window.
+   *
+   * @param {ReturnType<typeof vi.fn>} embed - Mock constructor for [`Twitch.Embed`](src/app/core/services/twitch-embed.service.ts:206).
+   * @remarks The helper simulates the global Twitch API without loading the external script.
+    * @returns {void}
+   */
   function setWindowTwitchEmbed(embed: ReturnType<typeof vi.fn>): void {
     const twitchApi = {} as NonNullable<Window['Twitch']>;
     twitchApi.Embed = embed as never;
     window.Twitch = twitchApi;
   }
 
+  /**
+   * Installs a mock Twitch embed constructor with a configurable ready event constant.
+   *
+   * @param {ReturnType<typeof vi.fn>} embed - Mock constructor for [`Twitch.Embed`](src/app/core/services/twitch-embed.service.ts:206).
+    * @param {string} [readyEvent] - Name of the ready event constant in the mock.
+   * @remarks A play-event constant is also set so event mappings remain testable.
+    * @returns {void}
+   */
   function setWindowTwitchEmbedWithReadyEvent(embed: ReturnType<typeof vi.fn>, readyEvent = 'VIDEO_READY_EVENT'): void {
     const twitchApi = {} as NonNullable<Window['Twitch']>;
     const embedConstructor = embed as ReturnType<typeof vi.fn> & Record<string, string | undefined>;
@@ -29,10 +45,25 @@ describe('TwitchEmbedService', () => {
     window.Twitch = twitchApi;
   }
 
+  /**
+   * Returns a bound private service method for white-box Twitch tests.
+   *
+   * @param {string} propertyName - Name of the private method.
+   * @returns {T} Bound method with the expected function type.
+   * @remarks Accesses the service instance already injected in the test context.
+   */
   function getServiceMethod<T extends (...args: never[]) => unknown>(propertyName: string): T {
     return ((service as unknown as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(service) as T;
   }
 
+  /**
+   * Overrides a private service member for a targeted test scenario.
+   *
+   * @param {string} propertyName - Name of the private member.
+   * @param {T} value - New value assigned to the member.
+   * @remarks Used to steer internal service state for targeted test paths.
+    * @returns {void}
+   */
   function setServiceMember<T>(propertyName: string, value: T): void {
     (service as unknown as Record<string, unknown>)[propertyName] = value;
   }
@@ -710,7 +741,90 @@ describe('TwitchEmbedService', () => {
     rafSpy.mockRestore();
   });
 
+  it('applies the latest queued quality when the player becomes ready', async () => {
+    const player = {
+      getQualities: vi.fn(() => ['720p60', '1080p60']),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+    let readyCallback: (() => void) | undefined;
+    const readyEvent = 'VIDEO_READY_EVENT';
+    const EmbedMock = vi.fn(function MockEmbed() {
+      return {
+        addEventListener: vi.fn((event: string, callback: () => void) => {
+          if (event === readyEvent) {
+            readyCallback = callback;
+          }
+        }),
+        getPlayer: vi.fn(() => player),
+      };
+    });
+
+    setWindowTwitchEmbedWithReadyEvent(EmbedMock, readyEvent);
+
+    const handle = service.createEmbed({
+      elementId: 'queued-quality',
+      channel: 'queued-quality',
+      quality: '720p60',
+      showChat: false,
+      muted: false,
+    });
+
+    handle.setQuality('1080p60');
+    readyCallback?.();
+    await Promise.resolve();
+
+    expect(player.setQuality).toHaveBeenCalledTimes(1);
+    expect(player.setQuality).toHaveBeenCalledWith('1080p60');
+  });
+
+  it('cancels an older quality sync when a newer request starts on the same player', async () => {
+    const createHandle = getServiceMethod<(
+      elementId: string,
+      initialMuted: boolean,
+      initialQuality: string,
+    ) => TwitchEmbedHandle & {
+      setPlayer(player: { getQualities(): string[]; getQuality(): string; setQuality(value: string): void }): void;
+      setQualityCallbackChannel(channel: string, onAvailableQualities?: (qualities: { value: string; label: string }[]) => void): void;
+    }>('_createHandle');
+    const frameCallbacks: FrameRequestCallback[] = [];
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      frameCallbacks.push(callback);
+      return frameCallbacks.length;
+    });
+    const player = {
+      getQualities: vi.fn()
+        .mockReturnValueOnce([])
+        .mockReturnValue(['720p60', '1080p60']),
+      getQuality: vi.fn(() => 'auto'),
+      setQuality: vi.fn(),
+    };
+
+    try {
+      const handle = createHandle('race-quality', false, '720p60');
+
+      handle.setQualityCallbackChannel('race-quality');
+      handle.setPlayer(player);
+      handle.setQuality('1080p60');
+
+      const pendingFrame = frameCallbacks.shift();
+      pendingFrame?.(0);
+      await Promise.resolve();
+
+      expect(player.setQuality).toHaveBeenCalledTimes(1);
+      expect(player.setQuality).toHaveBeenCalledWith('1080p60');
+    } finally {
+      rafSpy.mockRestore();
+    }
+  });
+
   it('supports 480p and chunked quality mappings', async () => {
+    /**
+     * Creates a ready-to-trigger embed harness with a controllable mock player.
+     *
+     * @returns Harness with a mock player and a manually triggerable ready callback.
+     * @remarks The structure allows quality synchronization to be asserted precisely after the simulated ready event.
+     */
     const createReadyHarness = (): {
       player: {
         getQualities: ReturnType<typeof vi.fn>;
@@ -1040,7 +1154,7 @@ describe('TwitchEmbedService', () => {
     await Promise.resolve();
 
     expect(warnSpy).toHaveBeenCalledWith(
-      "[Twitch] Quality '720p60' für Channel 'missing-quality' nicht verfügbar.",
+      "[Twitch] Quality '720p60' is not available for channel 'missing-quality'.",
       ['audio_only'],
     );
 

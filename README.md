@@ -10,6 +10,12 @@ It lets you group channels into reusable lists, switch stream quality globally, 
 
 The app is optimized for a compact codebase, predictable state handling, and strong automated test coverage.
 
+## Documentation
+
+- For a maintainer-oriented architecture summary, see [docs/architecture-summary.md](docs/architecture-summary.md)
+- For contribution expectations and review checks, see [CONTRIBUTING.md](CONTRIBUTING.md)
+- API documentation can be generated locally with `npm run docs:api` and served with `npm run docs:api:serve`
+
 ## Overview
 
 - Adaptive multi-stream grid driven by viewport size and chat layout
@@ -17,9 +23,9 @@ The app is optimized for a compact codebase, predictable state handling, and str
 - List duplication for quickly branching an existing setup
 - Global quality selection with Twitch quality fallback handling
 - Layout presets with `Auto`, balanced grid, stage, and chat-focused modes
-- Per-stream chat toggle, drag-and-drop ordering, favorites, and focus mode
+- Per-stream chat toggle, drag-and-drop ordering, favorites, and reusable suggestions
 - Local persistence for lists, quality, and usage statistics
-- Local persistence for favorites, recent channels, layout, focus state, and the last active list
+- Local persistence for favorites, recent channels, layout, and the last active list
 - Legacy storage migration into the current list-based state model
 - Keyboard shortcuts, modal focus handling, and toast-based feedback
 - Production service worker support with startup and update hints
@@ -65,7 +71,6 @@ Persistence details:
 - Calculate an efficient grid layout based on the current viewport
 - Switch between automatic, balanced, stage, and chat-friendly layouts
 - Render Twitch embeds lazily for the active list only
-- Focus a single stream temporarily without losing the rest of the setup
 - Support dynamic quality options reported by the Twitch player
 - Preserve the selected quality even when Twitch reports a different option set
 - Mute or unmute all streams at once via a single toggle
@@ -121,6 +126,8 @@ If port `4200` is already occupied, Angular may offer another port.
 | `npm run coverage:check` | Validate coverage thresholds from the generated coverage report |
 | `npm run test:coverage:ci` | Run coverage generation and threshold validation together |
 | `npm run lint` | Run ESLint for TypeScript and Angular templates |
+| `npm run docs:api` | Generate Compodoc API documentation into `documentation/compodoc` |
+| `npm run docs:api:serve` | Generate and serve the Compodoc API documentation locally |
 | `npm run http` | Serve the production build from `dist/twitchStreamClientsV3/browser` on port `8086` |
 
 ## Production Preview

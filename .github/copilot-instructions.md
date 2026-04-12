@@ -8,7 +8,7 @@
 - PWA: Angular Service Worker (nur Production)
 
 ## Zweck
-Browser-only Twitch Multi-Viewer mit wiederverwendbaren Stream-Listen, Quality-Auswahl pro Liste, Chat pro Stream, Favoriten, zuletzt genutzte Kanäle, Focus-Modus, Layout-Presets und lokaler Persistenz.
+Browser-only Twitch Multi-Viewer mit wiederverwendbaren Stream-Listen, Quality-Auswahl pro Liste, Chat pro Stream, Favoriten, zuletzt genutzte Kanäle, Layout-Presets und lokaler Persistenz.
 
 ---
 
@@ -40,7 +40,7 @@ StreamChannel        { name: string; showChat: boolean }
 StreamList {
   id: number; name: string; streams: StreamChannel[];
   quality?: StreamQuality; layoutPreset?: StreamLayoutPreset;
-  focusedChannel?: string | null; muteAllStreams?: boolean
+  muteAllStreams?: boolean
 }
 
 AppSettings {
@@ -79,7 +79,7 @@ AppSettings {
 ### `StreamStateService`
 **Private Signale:** `_lists`, `_activeListId`, `_reportedAvailableQualities`, `_statistics`, `_favoriteChannels`, `_recentChannels`, `_lastActiveListId`, `_menuOpen`
 
-**Öffentliche Computed Signale:** `lists`, `activeListId`, `activeList` (Lookup by ID), `streams`, `quality` (Fallback `'auto'`), `availableQualities` (via `buildAvailableStreamQualityOptions()`), `statistics`, `favoriteChannels`, `recentChannels` (max 24), `layoutPreset` (Fallback `'auto'`), `focusedChannel`, `muteAllStreams`, `lastActiveListId`, `menuOpen`, `streamCount`, `listCount`
+**Öffentliche Computed Signale:** `lists`, `activeListId`, `activeList` (Lookup by ID), `streams`, `quality` (Fallback `'auto'`), `availableQualities` (via `buildAvailableStreamQualityOptions()`), `statistics`, `favoriteChannels`, `recentChannels` (max 24), `layoutPreset` (Fallback `'auto'`), `muteAllStreams`, `lastActiveListId`, `menuOpen`, `streamCount`, `listCount`
 
 **Listen-Operationen:**
 - `createList(rawName)` → `ListMutationResult` (Prüft: leer, Duplikat). Vergibt ID per `max(ids) + 1`
@@ -100,7 +100,7 @@ AppSettings {
 - Duplikat-Check: case-insensitive
 
 **Weitere Operationen:**
-- `setQuality(value)`, `setLayoutPreset(value)`, `setFocusedChannel(rawName|null)`, `setMuteAllStreams(value)`
+- `setQuality(value)`, `setLayoutPreset(value)`, `setMuteAllStreams(value)`
 - `setAvailableQualities(values)` — vom StreamGrid gemeldet
 - `toggleFavoriteChannel(rawName)` → boolean (neuer Status)
 - `addFavoriteChannelsToActiveList()` → `{ ok, reason?, added[] }`
@@ -190,8 +190,8 @@ _availableQualitiesByStream: Map<string, StreamQualityOption[]>
 ```
 
 **Grid-Berechnung:**
-- Computed Signal `_grid` nutzt `calculateStreamGridLayout()` mit: `displayedStreams`, Viewport-Dimensionen, `layoutPreset`, `hasFocusedStream`
-- `_displayedStreams`: wenn `focusedChannel` gesetzt → fokussierter Stream zuerst; sonst alle
+- Computed Signal `_grid` nutzt `calculateStreamGridLayout()` mit: `displayedStreams`, Viewport-Dimensionen, `layoutPreset`
+- `_displayedStreams`: alle Streams der aktiven Liste
 - CSS-Grid: `_gridTemplateColumns`, `_gridTemplateRows` aus Layout berechnet
 
 **Embed-Sync-Logik (`_syncEmbeds()`):**
@@ -205,7 +205,6 @@ _availableQualitiesByStream: Map<string, StreamQualityOption[]>
 **Event-Handler:**
 - `_onResize()`: debounced (150ms), liest Viewport-Dimensionen neu
 - `_onDocumentVisibilityChange()`: re-synced wenn Dokument wieder sichtbar
-- `_toggleFocusedChannel(channelName)`: fokussiert/defokussiert Stream
 
 **Cleanup (ngOnDestroy):** Resize-Timer, alle Embeds zerstört, Maps geleert, Qualities zurückgesetzt
 

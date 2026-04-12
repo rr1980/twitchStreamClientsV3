@@ -9,10 +9,27 @@ import { StorageService } from './storage.service';
 describe('StreamStateService', () => {
   let service: StreamStateService;
 
+  /**
+   * Returns a bound private service method for white-box assertions.
+   *
+   * @param {object} instance - Service instance that owns the requested private method.
+   * @param {string} propertyName - Name of the private method.
+   * @returns {T} Bound method with the expected function type.
+   * @remarks Encapsulates the unsafe private-member access needed by targeted tests.
+   */
   function getServiceMethod<T extends (...args: never[]) => unknown>(instance: object, propertyName: string): T {
     return ((instance as Record<string, unknown>)[propertyName] as (...args: never[]) => unknown).bind(instance) as T;
   }
 
+  /**
+   * Overrides a private service member for targeted test scenarios.
+   *
+   * @param {object} instance - Service instance that owns the member to override.
+   * @param {string} propertyName - Name of the private member.
+   * @param {T} value - New value assigned to the member.
+   * @remarks Used to prepare internal state for focused white-box scenarios.
+    * @returns {void}
+   */
   function setServiceMember<T>(instance: object, propertyName: string, value: T): void {
     (instance as Record<string, unknown>)[propertyName] = value;
   }
@@ -259,7 +276,7 @@ describe('StreamStateService', () => {
     });
   });
 
-  it('tracks favorites, recent channels, layout presets and focused streams', () => {
+  it('tracks favorites, recent channels and layout presets', () => {
     service.createList('Liste 1');
     service.setActiveListId(1);
     service.addStream('shroud');
@@ -270,16 +287,14 @@ describe('StreamStateService', () => {
     expect(service.recentChannels()).toEqual(['gronkh', 'shroud']);
 
     service.setLayoutPreset('stage');
-    service.setFocusedChannel('gronkh');
 
     expect(service.layoutPreset()).toBe('stage');
-    expect(service.focusedChannel()).toBe('gronkh');
 
     expect(service.toggleFavoriteChannel('shroud')).toBe(false);
     expect(service.favoriteChannels()).toEqual([]);
   });
 
-  it('stores quality, layout and focus per list', () => {
+  it('stores quality and layout per list', () => {
     service.createList('Liste 1');
     service.createList('Liste 2');
 
@@ -287,23 +302,19 @@ describe('StreamStateService', () => {
     service.addStream('shroud');
     service.setQuality('720p60');
     service.setLayoutPreset('stage');
-    service.setFocusedChannel('shroud');
 
     service.setActiveListId(2);
     service.addStream('gronkh');
     service.setQuality('480p');
     service.setLayoutPreset('chat');
-    service.setFocusedChannel('gronkh');
 
     expect(service.quality()).toBe('480p');
     expect(service.layoutPreset()).toBe('chat');
-    expect(service.focusedChannel()).toBe('gronkh');
 
     service.setActiveListId(1);
 
     expect(service.quality()).toBe('720p60');
     expect(service.layoutPreset()).toBe('stage');
-    expect(service.focusedChannel()).toBe('shroud');
   });
 
   it('supports quick actions for chat, favorites and mute state', () => {
@@ -629,8 +640,6 @@ describe('StreamStateService', () => {
         defaultShowChat: boolean;
         defaultQuality: string;
         defaultLayoutPreset: 'auto' | 'balanced' | 'stage' | 'chat';
-        defaultFocusedChannel: string | null;
-        defaultFocusedListId: number | null;
       },
     ) => { id: number; name: string; streams: StreamChannel[] }[]>(service, '_normalizeStoredLists');
 
@@ -638,8 +647,6 @@ describe('StreamStateService', () => {
       defaultShowChat: true,
       defaultQuality: '720p60',
       defaultLayoutPreset: 'stage' as const,
-      defaultFocusedChannel: 'shroud',
-      defaultFocusedListId: 2,
     };
 
     expect(normalizeStoredLists(null, defaults)).toEqual([]);
@@ -647,7 +654,6 @@ describe('StreamStateService', () => {
       list(2, 'Main', [channel('shroud', true)], {
         quality: '720p60',
         layoutPreset: 'stage',
-        focusedChannel: 'shroud',
       }),
     ]);
   });
@@ -661,8 +667,6 @@ describe('StreamStateService', () => {
         defaultShowChat: boolean;
         defaultQuality: string;
         defaultLayoutPreset: 'auto' | 'balanced' | 'stage' | 'chat';
-        defaultFocusedChannel: string | null;
-        defaultFocusedListId: number | null;
       },
     ) => { id: number; name: string; streams: StreamChannel[] } | null>(service, '_normalizeStoredList');
 
@@ -670,8 +674,6 @@ describe('StreamStateService', () => {
       defaultShowChat: true,
       defaultQuality: 'chunked',
       defaultLayoutPreset: 'chat' as const,
-      defaultFocusedChannel: 'missing',
-      defaultFocusedListId: 5,
     };
 
     expect(normalizeStoredList('broken', 0, new Set<number>(), defaults)).toBeNull();
@@ -747,32 +749,6 @@ describe('StreamStateService', () => {
     expect(result).toEqual({ ok: false, reason: 'not-found' });
   });
 
-  it('clears the focused channel when the focused stream is removed', () => {
-    service.createList('Test');
-    service.setActiveListId(1);
-    service.addStream('streamer_a');
-    service.addStream('streamer_b');
-    service.setFocusedChannel('streamer_a');
-
-    expect(service.focusedChannel()).toBe('streamer_a');
-
-    service.removeStream(0);
-
-    expect(service.focusedChannel()).toBeNull();
-  });
-
-  it('clears focused channel when set to an invalid or non-existent name', () => {
-    service.createList('Test');
-    service.setActiveListId(1);
-    service.addStream('streamer_a');
-
-    service.setFocusedChannel('non_existent');
-    expect(service.focusedChannel()).toBeNull();
-
-    service.setFocusedChannel('');
-    expect(service.focusedChannel()).toBeNull();
-  });
-
   it('returns false when toggling favorite with an invalid name', () => {
     const result = service.toggleFavoriteChannel('');
 
@@ -811,7 +787,6 @@ describe('StreamStateService', () => {
       favoriteChannels: ['abc', 'abc', '', 'def'],
       recentChannels: ['xyz', 'xyz'],
       layoutPreset: 'auto',
-      focusedChannel: null,
       lastActiveListId: null,
     }));
 
@@ -819,23 +794,6 @@ describe('StreamStateService', () => {
 
     expect(freshService.favoriteChannels()).toEqual(['abc', 'def']);
     expect(freshService.recentChannels()).toEqual(['xyz']);
-  });
-
-  it('normalizes an invalid stored focused channel', () => {
-    localStorage.setItem('app_state_v3', JSON.stringify({
-      lists: [{ id: 1, name: 'Test', streams: [{ name: 'valid', showChat: false }] }],
-      quality: 'auto',
-      statistics: [],
-      favoriteChannels: [],
-      recentChannels: [],
-      layoutPreset: 'auto',
-      focusedChannel: '!!!invalid!!!',
-      lastActiveListId: 1,
-    }));
-
-    const freshService = createService();
-
-    expect(freshService.focusedChannel()).toBeNull();
   });
 
   it('generates unique duplicate names when collisions exist', () => {
@@ -848,20 +806,6 @@ describe('StreamStateService', () => {
 
     expect(result.ok).toBe(true);
     expect(result.list?.name).toBe('Test Kopie 3');
-  });
-
-  it('clears focused channel when switching to a list without that stream', () => {
-    service.createList('List A');
-    service.createList('List B');
-    service.setActiveListId(1);
-    service.addStream('streamer_x');
-    service.setFocusedChannel('streamer_x');
-
-    expect(service.focusedChannel()).toBe('streamer_x');
-
-    service.setActiveListId(2);
-
-    expect(service.focusedChannel()).toBeNull();
   });
 
   it('does not update when setting the same quality, layout preset or mute state', () => {
@@ -880,38 +824,45 @@ describe('StreamStateService', () => {
     expect(service.activeList()).toBe(listBefore);
   });
 
-  it('does nothing when setting focused channel without an active list', () => {
-    service.setFocusedChannel('someone');
-
-    expect(service.focusedChannel()).toBeNull();
-  });
-
-  it('does not update when setting the same focused channel', () => {
-    service.createList('Test');
-    service.setActiveListId(1);
-    service.addStream('streamer_a');
-    service.setFocusedChannel('streamer_a');
-
-    const listBefore = service.activeList();
-
-    service.setFocusedChannel('streamer_a');
-
-    expect(service.activeList()).toBe(listBefore);
-  });
-
+  /**
+   * Creates a stream fixture with an optional chat flag.
+   *
+   * @param {string} name - Channel name of the fixture stream.
+    * @param {boolean} [showChat] - Whether the stream should be created with chat enabled.
+   * @returns {StreamChannel} Stream fixture used in service tests.
+   * @remarks The helper keeps stream expectations consistent across multiple test cases.
+   */
   function channel(name: string, showChat = false): StreamChannel {
     return { name, showChat };
   }
 
+  /**
+   * Creates a quality option fixture with a default label.
+   *
+   * @param {string} value - Normalized quality value.
+    * @param {string} [label] - Optional display label.
+   * @returns {StreamQualityOption} Quality fixture used in assertions.
+   * @remarks The label falls back to the quality value when none is provided.
+   */
   function quality(value: string, label = value): StreamQualityOption {
     return { value, label };
   }
 
+  /**
+   * Creates a fully populated list fixture with optional overrides.
+   *
+   * @param {number} id - Id of the fixture list.
+   * @param {string} name - Display name of the fixture list.
+   * @param {StreamChannel[]} streams - Streams assigned to the fixture list.
+  * @param {Partial<Pick<AppSettings['lists'][number], 'quality' | 'layoutPreset' | 'muteAllStreams'>>} [overrides] - Optional field overrides for list-scoped settings.
+   * @returns {AppSettings['lists'][number]} Fully initialized list fixture.
+   * @remarks Default values mirror the service's empty baseline state.
+   */
   function list(
     id: number,
     name: string,
     streams: StreamChannel[],
-    overrides: Partial<Pick<AppSettings['lists'][number], 'quality' | 'layoutPreset' | 'focusedChannel' | 'muteAllStreams'>> = {},
+    overrides: Partial<Pick<AppSettings['lists'][number], 'quality' | 'layoutPreset' | 'muteAllStreams'>> = {},
   ): AppSettings['lists'][number] {
     return {
       id,
@@ -919,12 +870,17 @@ describe('StreamStateService', () => {
       streams,
       quality: 'auto',
       layoutPreset: 'auto',
-      focusedChannel: null,
       muteAllStreams: false,
       ...overrides,
     };
   }
 
+  /**
+   * Returns the empty persisted app state used by migration and persistence tests.
+   *
+   * @returns {AppSettings} Empty persisted app state for test setups.
+   * @remarks The structure matches the expected stored app state without user data.
+   */
   function defaultState(): AppSettings {
     return {
       lists: [],
@@ -935,6 +891,12 @@ describe('StreamStateService', () => {
     };
   }
 
+  /**
+   * Creates and initializes a fresh service instance from the Angular test injector.
+   *
+   * @returns {StreamStateService} Initialized service instance for the current test.
+   * @remarks Initialization is performed immediately so persistence and signal state are ready to use.
+   */
   function createService(): StreamStateService {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({});
@@ -946,6 +908,12 @@ describe('StreamStateService', () => {
     return instance;
   }
 
+  /**
+   * Waits for queued microtasks so debounced persistence can finish.
+   *
+   * @returns {Promise<void>} Promise that resolves after queued microtasks complete.
+   * @remarks Two consecutive [`Promise.resolve()`](src/app/core/services/stream-state.service.spec.ts:958) cycles cover the debounce strategy used in these tests.
+   */
   async function flushPersistence(): Promise<void> {
     await Promise.resolve();
     await Promise.resolve();

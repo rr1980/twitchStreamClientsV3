@@ -113,44 +113,47 @@
   font-size: 1rem;
 }
 
-.settings-toolbar {
-  display: grid;
-  gap: 14px;
-}
-
-.settings-toolbar > :only-child {
-  grid-column: 1 / -1;
-}
-
 .content-grid {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'list-form stream-form'
+    'lists streams';
   gap: 14px;
   min-height: 0;
   align-items: stretch;
   overflow: hidden;
 }
 
-.content-grid__primary,
-.content-grid__secondary {
-  display: grid;
-  gap: 14px;
+.content-grid__card {
   min-height: 0;
-  align-content: stretch;
-  overflow: hidden;
 }
 
-.content-grid__primary {
-  grid-template-rows: minmax(0, 1fr);
+.content-grid__card--list-form {
+  grid-area: list-form;
 }
 
-.content-grid__secondary {
-  grid-template-rows: auto minmax(0, 1fr);
+.content-grid__card--stream-form {
+  grid-area: stream-form;
 }
 
-.content-grid__primary > .panel-card,
-.content-grid__secondary > .list-block.panel-card {
+.content-grid__card--list-form,
+.content-grid__card--stream-form {
+  padding: 10px 12px;
+}
+
+.content-grid__card--lists {
+  grid-area: lists;
+}
+
+.content-grid__card--streams {
+  grid-area: streams;
+}
+
+.content-grid__card--lists,
+.content-grid__card--streams {
   height: 100%;
 }
 
@@ -209,6 +212,10 @@
   font-size: 0.76rem;
 }
 
+.field-hint--below-input {
+  margin: 6px 0 0;
+}
+
 .input-row {
   display: flex;
   gap: 8px;
@@ -222,6 +229,11 @@
   align-items: center;
 }
 
+.content-grid__card--list-form .input-row,
+.content-grid__card--stream-form .input-row {
+  align-items: stretch;
+}
+
 .input-row input {
   flex: 1;
   min-width: 0;
@@ -232,6 +244,12 @@
   background: var(--color-bg);
   color: var(--color-text);
   outline: none;
+}
+
+.content-grid__card--list-form .input-row input,
+.content-grid__card--stream-form .input-row input {
+  min-height: 38px;
+  padding: 9px 12px;
 }
 
 .input-row input:focus {
@@ -266,6 +284,12 @@
   background: var(--color-twitch);
   color: #fff;
   font-weight: 700;
+}
+
+.content-grid__card--list-form .primary-btn,
+.content-grid__card--stream-form .primary-btn {
+  min-width: 42px;
+  min-height: 38px;
 }
 
 .apply-btn {
@@ -859,14 +883,17 @@
   }
 
   .settings-summary,
-  .settings-toolbar,
   .content-grid {
     grid-template-columns: 1fr;
   }
 
-  .content-grid__primary,
-  .content-grid__secondary {
-    grid-template-rows: auto;
+  .content-grid {
+    grid-template-rows: repeat(4, auto);
+    grid-template-areas:
+      'list-form'
+      'stream-form'
+      'lists'
+      'streams';
   }
 
   .panel--main {

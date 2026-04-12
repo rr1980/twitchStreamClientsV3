@@ -1,19 +1,48 @@
 import type { StreamChannel, StreamLayoutPreset } from '../../core/models/app-settings.model';
 
+/**
+ * Represents the number of columns and rows for a rendered grid.
+ *
+ * @property {number} cols - Number of grid columns.
+ * @property {number} rows - Number of grid rows.
+ * @remarks This is a dimension-only grid description. It is derived from stream count, viewport size, and sometimes chat visibility before CSS templates are produced.
+ */
 export interface GridLayout {
   cols: number;
   rows: number;
 }
 
+/**
+ * Describes an optional CSS grid placement override for a single tile.
+ *
+ * @property {string} [column] - Optional CSS grid column override.
+ * @property {string} [row] - Optional CSS grid row override.
+ * @remarks When both properties are omitted the tile participates in normal grid flow. Explicit overrides are mainly used by stage-style layouts to promote the first stream.
+ */
 export interface GridItemPlacement {
   column?: string;
   row?: string;
 }
 
+/**
+ * Combines the grid dimensions with per-stream placement metadata.
+ *
+ * @property {GridItemPlacement[]} placements - Placement overrides for rendered stream tiles.
+ * @remarks The placements array is aligned with the rendered stream order. Uniform layouts return empty placement objects, while featured layouts override only specific tiles.
+ */
 export interface StreamGridLayout extends GridLayout {
   placements: GridItemPlacement[];
 }
 
+/**
+ * Calculates the grid layout with the largest effective video area for the given streams.
+ *
+ * @param {StreamChannel[]} streams - List of stream channels to display.
+ * @param {number} containerWidth - Width of the container in pixels.
+ * @param {number} containerHeight - Height of the container in pixels.
+ * @returns {GridLayout} Optimal grid layout with column and row counts.
+ * @remarks Takes into account streams with and without chat.
+ */
 export function calculateOptimalGrid(
   streams: StreamChannel[],
   containerWidth: number,
@@ -49,12 +78,21 @@ export function calculateOptimalGrid(
   return { cols: bestCols, rows: bestRows };
 }
 
+/**
+ * Resolves the grid layout for the selected preset.
+ *
+ * @param {StreamChannel[]} streams - List of stream channels to display.
+ * @param {number} containerWidth - Width of the container in pixels.
+ * @param {number} containerHeight - Height of the container in pixels.
+ * @param {StreamLayoutPreset} preset - Selected layout preset.
+ * @returns {StreamGridLayout} Computed stream grid layout with placements.
+ * @remarks `auto` maximizes estimated video area, `balanced` prefers a square-like grid, `chat` biases for narrow columns, and `stage` promotes the first stream.
+ */
 export function calculateStreamGridLayout(
   streams: StreamChannel[],
   containerWidth: number,
   containerHeight: number,
   preset: StreamLayoutPreset,
-  hasFocusedStream: boolean,
 ): StreamGridLayout {
   const count = streams.length;
 
@@ -62,7 +100,7 @@ export function calculateStreamGridLayout(
     return { cols: 1, rows: 1, placements: [] };
   }
 
-  if (hasFocusedStream || preset === 'stage') {
+  if (preset === 'stage') {
     return calculateFeaturedGrid(count, containerWidth, containerHeight);
   }
 
@@ -77,6 +115,13 @@ export function calculateStreamGridLayout(
   return buildUniformLayout(count, calculateOptimalGrid(streams, containerWidth, containerHeight));
 }
 
+/**
+ * Builds a layout where every stream occupies one uniform grid cell.
+ *
+ * @param {number} count - Number of streams.
+ * @param {GridLayout} layout - Grid layout to use.
+ * @returns {StreamGridLayout} Stream grid layout with uniform placements.
+ */
 function buildUniformLayout(count: number, layout: GridLayout): StreamGridLayout {
   return {
     ...layout,
@@ -84,6 +129,12 @@ function buildUniformLayout(count: number, layout: GridLayout): StreamGridLayout
   };
 }
 
+/**
+ * Creates a square-like grid for the balanced layout preset.
+ *
+ * @param {number} count - Number of streams.
+ * @returns {GridLayout} Calculated grid layout.
+ */
 function calculateBalancedGrid(count: number): GridLayout {
   const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
   const rows = Math.max(1, Math.ceil(count / cols));
@@ -91,6 +142,14 @@ function calculateBalancedGrid(count: number): GridLayout {
   return { cols, rows };
 }
 
+/**
+ * Chooses a chat-friendly grid layout based on the viewport aspect ratio.
+ *
+ * @param {number} count - Number of streams.
+ * @param {number} containerWidth - Width of the container in pixels.
+ * @param {number} containerHeight - Height of the container in pixels.
+ * @returns {GridLayout} Calculated grid layout for chat mode.
+ */
 function calculateChatGrid(count: number, containerWidth: number, containerHeight: number): GridLayout {
   if (count <= 1) {
     return { cols: 1, rows: 1 };
@@ -105,35 +164,105 @@ function calculateChatGrid(count: number, containerWidth: number, containerHeigh
   };
 }
 
+/**
+ * Creates the stage-style layout where the first stream gets extra space.
+ *
+ * @param {number} count - Number of streams.
+ * @param {number} containerWidth - Width of the container in pixels.
+ * @param {number} containerHeight - Height of the container in pixels.
+ * @returns {StreamGridLayout} Featured stream grid layout.
+ */
 function calculateFeaturedGrid(count: number, containerWidth: number, containerHeight: number): StreamGridLayout {
   if (count === 1) {
     return buildUniformLayout(1, { cols: 1, rows: 1 });
   }
 
-  if (count === 2) {
+  const isLandscape = containerWidth >= containerHeight;
+
+  if (!isLandscape) {
+    if (count === 2) {
+      return {
+        cols: 2,
+        rows: 3,
+        placements: [
+          { column: '1 / span 2', row: '1 / span 2' },
+          { column: '1 / span 2', row: '3' },
+        ],
+      };
+    }
+
     return {
       cols: 2,
-      rows: 2,
+      rows: 2 + Math.ceil((count - 1) / 2),
       placements: [
-        { column: '1', row: '1 / span 2' },
-        {},
+        { column: '1 / span 2', row: '1 / span 2' },
+        ...Array.from({ length: count - 1 }, () => ({})),
       ],
     };
   }
 
-  const cols = containerWidth >= containerHeight ? 4 : 3;
-  const normalizedCols = Math.min(Math.max(3, cols), Math.max(3, count));
+  if (count === 2) {
+    return {
+      cols: 3,
+      rows: 2,
+      placements: [
+        { column: '1 / span 2', row: '1 / span 2' },
+        { column: '3', row: '1 / span 2' },
+      ],
+    };
+  }
+
+  if (count === 3) {
+    return {
+      cols: 4,
+      rows: 2,
+      placements: [
+        { column: '1 / span 3', row: '1 / span 2' },
+        { column: '4', row: '1' },
+        { column: '4', row: '2' },
+      ],
+    };
+  }
+
+  const heroRows = 3;
+  const sideRailCount = Math.min(count - 1, heroRows);
+  const extraCount = count - 1 - sideRailCount;
+  const extraRows = extraCount === 1
+    ? 1
+    : Math.ceil(extraCount / 2);
+  const rows = heroRows + extraRows;
+  const placements: GridItemPlacement[] = [
+    { column: '1 / span 3', row: `1 / span ${heroRows}` },
+    ...Array.from({ length: sideRailCount }, (_, index) => ({
+      column: '4',
+      row: String(index + 1),
+    })),
+  ];
+
+  if (extraCount === 1) {
+    placements.push({ column: '1 / span 4', row: String(heroRows + 1) });
+  } else {
+    placements.push(...Array.from({ length: extraCount }, (_, index) => ({
+      column: index % 2 === 0 ? '1 / span 2' : '3 / span 2',
+      row: String(heroRows + Math.floor(index / 2) + 1),
+    })));
+  }
 
   return {
-    cols: normalizedCols,
-    rows: Math.max(2, Math.ceil((count + 3) / normalizedCols)),
-    placements: [
-      { column: 'span 2', row: 'span 2' },
-      ...Array.from({ length: count - 1 }, () => ({})),
-    ],
+    cols: 4,
+    rows,
+    placements,
   };
 }
 
+/**
+ * Estimates the usable video area for one cell, accounting for chat width.
+ *
+ * @param {number} cellWidth - Width of the cell in pixels.
+ * @param {number} cellHeight - Height of the cell in pixels.
+ * @param {boolean} showChat - Whether the stream has chat enabled and therefore changes the target aspect ratio.
+ * @returns {number} Estimated video area in square pixels.
+ */
 function thisCellArea(cellWidth: number, cellHeight: number, showChat: boolean): number {
   const targetRatio = showChat ? 21 / 9 : 16 / 9;
 
